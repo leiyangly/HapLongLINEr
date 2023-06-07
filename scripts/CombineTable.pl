@@ -1,3 +1,7 @@
+while (<>) {
+chomp;
+@F=split/\s+/;
+
 if (scalar(@ARGV) eq 3) {$PLUS{$F[0]}=$_ if $F[3]-$F[2] >= 200 and (!$PLUS{$F[0]} or $PLUS{$F[0]}=~m/\_/g)}
 if (scalar(@ARGV) eq 2) {$MINUS{$F[0]}=$_ if $F[3]-$F[2] >= 200 and (!$MINUS{$F[0]} or $MINUS{$F[0]}=~m/\_/g)}
 if (scalar(@ARGV) eq 1) {@G=split/\_/,$F[0];$g=$G[0]."\_".$G[1]."\_".$G[2];$INTACT{$g}=$_}
@@ -26,3 +30,4 @@ $end="NA";
 $end=$P[7] if $M[7] <= $P[8] and $M[5] eq $P[5];
 $end=$M[7] if $P[7] <= $M[8] and $M[5] eq $P[5];
 print "$F[0]\_$F[1]\_$F[2]\_$F[5]\_$F[4]\_$F[3]\_$intact\t$chr\_$start\_$end\_$strand";
+}
