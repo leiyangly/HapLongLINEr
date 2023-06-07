@@ -1,6 +1,6 @@
 # HaLoLIFe
 Description
-HaLoLIFE is a pipeline that finds young (L1HS, L1PA2 and L1PA3) LINE-1s (L1s) with intact open reading frames based on haploid long read human genome assemblies and performs a "liftOver" by converting the coordinate of the LINE-1s to reference genomes. It stands for "Haploid Long read assembly-based Intact LINE-1 Finder".
+HaLoLIFe is a pipeline that finds young (L1HS, L1PA2 and L1PA3) LINE-1s (L1s) with intact open reading frames based on haploid long read human genome assemblies and performs a "liftOver" by converting the coordinate of the LINE-1s to reference genomes. It stands for "Haploid Long read assembly-based Intact LINE-1 Finder".
 
 Dependencies
 bash
