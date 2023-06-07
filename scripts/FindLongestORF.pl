@@ -1,3 +1,7 @@
+while (<>) {
+chomp;
+@F=split/\s+/;
+
 $name=$F[0];
 $name=~s/\_[0-9]+$//;
 $number=$F[0];
@@ -18,3 +22,4 @@ $orf2len=$D[2]-$D[1];
 #print "$orf1len\t$orf2len";
 print "$info{$key}{L1rpORF1p}\t$info{$key}{L1rpORF2p}" if exists $info{$key}{L1rpORF1p} and exists $info{$key}{L1rpORF2p};
 }}
+}
