@@ -41,7 +41,7 @@ rm temp009
 perl ProcessORF.pl L1HSPA2PA3AllORF.fa > L1HSPA2PA3AllORF.bed
 
 #BLAST the ORFs found
-blastp -db ./L1rpORF12p.fa -query L1HSPA2PA3AllORF.fa -outfmt "6 std qlen slen sacc" > L1HSPA2PA3AllORF.blastp
+blastp -db ./L1ref/L1rpORF12p.fa -query L1HSPA2PA3AllORF.fa -outfmt "6 std qlen slen sacc" > L1HSPA2PA3AllORF.blastp
 
 
 #Find the longest alignment to ORF1 and ORF2 among all found ORFs
