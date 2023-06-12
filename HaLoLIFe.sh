@@ -1,5 +1,4 @@
 #Extract the coordinate of the full length young L1s (L1HS, L1PA2 and L1PA3)
-cat $2 |\
 perl ExtractL1.pl $2 > L1HSPA2PA3.bed
 
 #Extract the sequence of the full length L1s
