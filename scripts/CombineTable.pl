@@ -1,5 +1,4 @@
 while (<>) {
-chomp;
 @F=split/\s+/;
 
 if (scalar(@ARGV) eq 3) {$PLUS{$F[0]}=$_ if $F[3]-$F[2] >= 200 and (!$PLUS{$F[0]} or $PLUS{$F[0]}=~m/\_/g)}
