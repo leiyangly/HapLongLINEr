@@ -1,5 +1,4 @@
 while (<>) {
-chomp;
 @F=split/\s+/;
 
 if (m/^\>/) {
