@@ -28,5 +28,6 @@ $start=$P[8] if $P[7] <= $M[8] and $M[5] eq $P[5];
 $end="NA";
 $end=$P[7] if $M[7] <= $P[8] and $M[5] eq $P[5];
 $end=$M[7] if $P[7] <= $M[8] and $M[5] eq $P[5];
-print "$F[0]\_$F[1]\_$F[2]\_$F[5]\_$F[4]\_$F[3]\_$intact\t$chr\_$start\_$end\_$strand";
+print "$F[0]\_$F[1]\_$F[2]\_$F[5]\_$F[4]\_$F[3]\_$intact\t$chr\_$start\_$end\_$strand\n";
+}
 }
