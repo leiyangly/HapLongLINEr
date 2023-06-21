@@ -42,7 +42,7 @@ do
 for hap in maternal paternal
 do
 rm ${gd}/${ind}.${hap}.f1_assembly_v2_genbank.fa.gz
-rm ${gd}/${ind}.${hap}.f1_assembly_v2_genbank_rm.bed -P
+rm ${gd}/${ind}.${hap}.f1_assembly_v2_genbank_rm.bed
 done
 done
 
