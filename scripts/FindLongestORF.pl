@@ -1,5 +1,6 @@
 while (<>) {
 @F=split/\s+/;
+chomp;
 
 $name=$F[0];
 $name=~s/\_[0-9]+$//;
@@ -19,6 +20,6 @@ foreach $key (keys %index) {
 $orf1len=$C[2]-$C[1];
 $orf2len=$D[2]-$D[1];
 #print "$orf1len\t$orf2len";
-print "$info{$key}{L1rpORF1p}\t$info{$key}{L1rpORF2p}" if exists $info{$key}{L1rpORF1p} and exists $info{$key}{L1rpORF2p};
+print "$info{$key}{L1rpORF1p}\t$info{$key}{L1rpORF2p}\n" if exists $info{$key}{L1rpORF1p} and exists $info{$key}{L1rpORF2p};
 }}
 }
