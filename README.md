@@ -11,7 +11,7 @@ NCBI BLAST+,
 getorf (EMBOSS)
 
 Authors:
-Lei Yang
+Lei Yang and Amanda Norseen
 
 How to run the pipeline:
 HaLoLIFe.sh your.genome.fa repeatmasker.bed reference.genome.fa
