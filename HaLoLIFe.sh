@@ -35,9 +35,9 @@ seqtk subseq ${gd}/${ind}.${hap}.f1_assembly_v2_genbank.fa.gz - |\
 seqtk seq -U -l 0 - > ${wd}/${ind}.${hap}.L1HSPA2PA3+2kb.fa
 
 #Use minimap2 to map the flanking regions of L1s to the reference genome
-minimap2 -x asm10 ${gd}/${rg}.mmi ${wd}/${ind}.${hap}.L1HSPA2PA3-2kb.fa > ${wd}/${ind}.${hap}.L1HSPA2PA3-2kb.${rg}.minimap.txt
+minimap2 -x asm5 ${gd}/${rg}.mmi ${wd}/${ind}.${hap}.L1HSPA2PA3-2kb.fa > ${wd}/${ind}.${hap}.L1HSPA2PA3-2kb.${rg}.minimap.txt
 
-minimap2 -x asm10 ${gd}/${rg}.mmi ${wd}/${ind}.${hap}.L1HSPA2PA3+2kb.fa > ${wd}/${ind}.${hap}.L1HSPA2PA3+2kb.${rg}.minimap.txt
+minimap2 -x asm5 ${gd}/${rg}.mmi ${wd}/${ind}.${hap}.L1HSPA2PA3+2kb.fa > ${wd}/${ind}.${hap}.L1HSPA2PA3+2kb.${rg}.minimap.txt
 
 #Find all ORFs in all L1s that are identified by repeat masker
 cat ${wd}/${ind}.${hap}.L1HSPA2PA3.fa |\
