@@ -20,5 +20,5 @@ Output file:
 File with "HaLoLIFe.output.txt" at the end contains two columns. The first column describes the L1 info in your assembly, and the second column contains the info in hg38. Within each column contains the information of the chromosome, coordinate, strand, intactness and L1 families, separated by "_". File with "L1HSPA2PA3AllORF.intact.fa" at the end is the fasta file that contains the sequence of all intact L1s from the input genome assembly.
 
 How to run on a HPRC individual:
-sh LoopRunHaLoLIFe.sh HG0XXXX
-where HG0XXXX is the code of an individual in the HPRC project. This can also be a list of individuals separated by space.
+Change the first 10 lines of LoopRunHaLoLIFe.sh to set directories and the input files then run:
+sh LoopRunHaLoLIFe.sh
