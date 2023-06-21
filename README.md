@@ -21,4 +21,4 @@ File with "HaLoLIFe.output.txt" at the end contains two columns. The first colum
 
 How to run on a HPRC individual:
 sh LoopRunHaLoLIFe.sh HG0XXXX
-where HG0XXXX is the code of an individual in the HPRC project.
+where HG0XXXX is the code of an individual in the HPRC project. This can also be a list of individuals separated by space.
