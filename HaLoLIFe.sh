@@ -65,7 +65,7 @@ perl ${pd}/scripts/FindIntactORF.pl ${wd}/${ind}.${hap}.L1HSPA2PA3AllORF.combine
 #(2)only the minimap2 alignments that are longer than 200bp are taken. I tried various lengths, but setting this too long will make some of the regions unable to align. I think for the purpose of finding the rough liftover position, using short cutoffs makes sense. Setting this number to even ~1.4kb will not change the results for intact L1s of HG02622, but we don't know what will happen when we investigate more genomes
 #(3)only take the coordinates of minimap mapping when the plus and minus strand lifted over to the similar chromosomal locations.
 #(4)prefer to take the alignments on chromosomes instead of the decoys.
-perl ${pd}/scripts/CombineTable.pl ${wd}/${ind}.${hap}.L1HSPA2PA3+2kb.${rg}.minimap.txt ${wd}/${ind}.${hap}.L1HSPA2PA3-2kb.${rg}.minimap.txt ${wd}/${ind}.${hap}.L1HSPA2PA3AllORF.intact.blastp ${wd}/${ind}.${hap}.L1HSPA2PA3.bed > ${wd}/${ind}.${hap}.HaLoLIFe.output.txt
+perl ${pd}/scripts/CombineTable.pl ${wd}/${ind}.${hap}.L1HSPA2PA3+2kb.${rg}.minimap.txt ${wd}/${ind}.${hap}.L1HSPA2PA3-2kb.${rg}.minimap.txt ${wd}/${ind}.${hap}.L1HSPA2PA3AllORF.intact.blastp ${wd}/${ind}.${hap}.L1HSPA2PA3.bed > ${wd}/${ind}.${hap}.${rg}.HaLoLIFe.output.txt
 
 
 #Retrieve the sequence of all the L1s with intact ORFs:
