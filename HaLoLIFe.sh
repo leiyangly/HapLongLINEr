@@ -69,12 +69,12 @@ perl ${pd}/scripts/CombineTable.pl ${wd}/${ind}.${hap}.L1HSPA2PA3+2kb.${rg}.mini
 
 
 #Retrieve the sequence of all the L1s with intact ORFs:
-cat ${wd}/${ind}.${hap}.HaLoLIFe.output.txt |\
+cat ${wd}/${ind}.${hap}.${rg}.HaLoLIFe.output.txt |\
 perl -lane '@G=split/\_/,$F[0]; print "$G[0]\t$G[1]\t$G[2]" if $G[3] eq "\+" and $G[6] eq "intact"' |\
 seqtk subseq ${gd}/${ind}.${hap}.f1_assembly_v2_genbank.fa.gz - |\
 seqtk seq -U -l 0 - > ${wd}/${ind}.${hap}.L1HSPA2PA3AllORF.intact.fa
 
-cat ${wd}/${ind}.${hap}.HaLoLIFe.output.txt |\
+cat ${wd}/${ind}.${hap}.${rg}.HaLoLIFe.output.txt |\
 perl -lane '@G=split/\_/,$F[0]; print "$G[0]\t$G[1]\t$G[2]" if $G[3] eq "\-" and $G[6] eq "intact"' |\
 seqtk subseq ${gd}/${ind}.${hap}.f1_assembly_v2_genbank.fa.gz - |\
 seqtk seq -U -r -l 0 - >> ${wd}/${ind}.${hap}.L1HSPA2PA3AllORF.intact.fa
