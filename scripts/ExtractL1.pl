@@ -1,3 +1,5 @@
+#Working to extract the sequences from the full legnth L1s (sequences >= 5000bp) from the input .bed file.
+
 while (<>) {
 @F=split/\s+/;
 
