@@ -1,15 +1,14 @@
 #Integrating the ORF finding and liftover information into a single file output.
-
 while (<>) {
 @F=split/\s+/;
 
-#Combine lines into %PLUS hash based on conditions.
+#Combine lines into %PLUS hash based on conditions
 if (scalar(@ARGV) eq 3) {$PLUS{$F[0]}=$_ if $F[3]-$F[2] >= 200 and (!$PLUS{$F[0]} or $PLUS{$F[0]}=~m/\_/g)}
 
-#Combine lines into %MINUS hash based on conditions
+#Store lines in the %MINUS hash if specific conditions are met
 if (scalar(@ARGV) eq 2) {$MINUS{$F[0]}=$_ if $F[3]-$F[2] >= 200 and (!$MINUS{$F[0]} or $MINUS{$F[0]}=~m/\_/g)}
 
-#Combine lines into %INTACT hash based on conditions...
+#Taking the lines of input and splitting it into the G-array and storing the new strings in the %INTACT hash 
 if (scalar(@ARGV) eq 1) {@G=split/\_/,$F[0];$g=$G[0]."\_".$G[1]."\_".$G[2];$INTACT{$g}=$_}
 
 #Performing multiple calculations and generating final output
@@ -43,7 +42,7 @@ $end=$P[7] if $M[7] <= $P[8] and $M[5] eq $P[5];
 $end=$M[7] if $P[7] <= $M[8] and $M[5] eq $P[5];
 if ($end < $start) {$swap=$end; $end=$start; $start=$swap}
 
-#Generating the final output line. 
+#Generate the final output line using extracted data and print it as the script's output
 print "$F[0]\_$F[1]\_$F[2]\_$F[5]\_$F[4]\_$F[3]\_$intact\t$chr\_$start\_$end\_$strand\n";
 }
 }
