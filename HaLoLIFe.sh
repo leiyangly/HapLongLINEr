@@ -7,7 +7,7 @@ pd=$5
 rg=$6
 
 
-#Extract the coordinate of the full length young L1s (L1HS, L1PA2 and L1PA3)
+#Extract the coordinate of the full length L1s
 perl ${pd}/scripts/ExtractL1.pl ${gd}/${ind}.${hap}.f1_assembly_v2_genbank_rm.bed > ${wd}/${ind}.${hap}.FL.bed
 
 #Extract the sequence of the full length L1s
