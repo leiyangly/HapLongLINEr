@@ -9,7 +9,7 @@ if (scalar(@ARGV) eq 3) {$PLUS{$F[0]}=$_ if $F[3]-$F[2] >= 200 and (!$PLUS{$F[0]
 if (scalar(@ARGV) eq 2) {$MINUS{$F[0]}=$_ if $F[3]-$F[2] >= 200 and (!$MINUS{$F[0]} or $MINUS{$F[0]}=~m/\_/g)}
 
 #Taking the lines of input and splitting it into the G-array and storing the new strings in the %INTACT hash 
-if (scalar(@ARGV) eq 1) {@G=split/\_/,$F[0];$g=$G[0]."\_".$G[1]."\_".$G[2];$INTACT{$g}=$_}
+if (scalar(@ARGV) eq 1) {$"="\_"; @G=split/\_/, $F[0]; $len=scalar(@G)-4; $name="@G[0..$len]";$g=$name."\_".$G[-3]."\_".$G[-2];$INTACT{$g}=$_;}
 
 #Performing multiple calculations and generating final output
 if (scalar(@ARGV) eq 0) {
