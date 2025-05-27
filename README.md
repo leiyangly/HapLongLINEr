@@ -31,7 +31,8 @@ seqtk
 minimap2
 NCBI BLAST+
 getorf (EMBOSS)
-Authors
+
+**Authors**
 
 Lei Yang, Amanda Norseen and Rick McLaughlin
 
