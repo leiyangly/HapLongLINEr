@@ -1,8 +1,8 @@
-**HapLongLINEr**
+*HapLongLINEr*
 
 **Description**
 
-HapLongLINEr is a modular pipeline for discovering and curating young LINE-1 elements (L1HS, L1PA2, and L1PA3) with intact open reading frames (ORFs) in haploid long-read human genome assemblies. The pipeline is designed for maximum recovery and accuracy of full-length LINE-1s, supporting both RepeatMasker-based and RepeatMasker-free approaches. It also provides a sequence repository for pangenome-level L1 reference elements.
+HapLongLINEr is a modular pipeline for discovering and curating full-length (≥5 kb) young LINE-1 elements (L1HS, L1PA2, and intact L1PA3) and marking their intact open reading frames (ORFs) in haploid long-read human genome assemblies. The pipeline is designed for maximum recovery and accuracy of full-length LINE-1s, supporting both RepeatMasker-based and RepeatMasker-free approaches. It also provides a sequence repository for pangenome-level reference L1 elements.
 
 Modules
 
