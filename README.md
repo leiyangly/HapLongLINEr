@@ -1,12 +1,29 @@
-HapLongLINEr
+**HapLongLINEr**
 
-Description
+**Description**
 
-HapLongLINEr is a pipeline for identifying young LINE-1 elements (L1HS, L1PA2, and L1PA3) with intact open reading frames (ORFs) in haploid long-read human genome assemblies. The pipeline also converts (lifts over) the coordinates of these LINE-1s to a reference genome. The name stands for Haploid Long read assembly-based LINE-1 Retriever.
+HapLongLINEr is a modular pipeline for discovering and curating young LINE-1 elements (L1HS, L1PA2, and L1PA3) with intact open reading frames (ORFs) in haploid long-read human genome assemblies. The pipeline is designed for maximum recovery and accuracy of full-length LINE-1s, supporting both RepeatMasker-based and RepeatMasker-free approaches. It also provides a sequence repository for pangenome-level L1 reference elements.
 
-HapLongLINEr is designed for use with haploid long-read assemblies, as these provide much better recovery of young LINE-1 elements compared to diploid or fragmented assemblies. The current version is compatible with the file and directory structures used by the HPRC and 1000G_ONT projects.
+Modules
 
-Dependencies
+1. Find Full-Length Young L1s (RepeatMasker-based)
+Identifies full-length, young L1 elements in haploid long-read assemblies using RepeatMasker-masked input.
+Input:
+Haploid assembly FASTA
+RepeatMasker BED file
+Reference genome FASTA
+
+2. Find Full-Length Young L1s (RepeatMasker-free, SV-based)
+Discovers full-length, young L1s in haploid long-read assemblies using structural variant (SV) calls and a pangenome-level L1 reference from the Human Pangenome Reference Consortium (HPRC), without requiring RepeatMasker masking.
+Input:
+Haploid assembly FASTA
+Structural variant (SV) callset
+Pangenome-level L1 reference FASTA
+
+3. Sequence Repository of Pangenome-Level Reference L1s
+Provides a curated FASTA repository of all young, full-length L1 sequences identified at the pangenome level, suitable for downstream analysis and benchmarking.
+
+**Dependencies**
 
 bash
 perl
@@ -16,22 +33,26 @@ NCBI BLAST+
 getorf (EMBOSS)
 Authors
 
-Lei Yang and Amanda Norseen
+Lei Yang, Amanda Norseen and Rick McLaughlin
 
-Usage
+**Usage**
 
-To run the main pipeline, use:
-
+Module 1 (RepeatMasker-based):
 HapLongLINEr.sh your.genome.fa repeatmasker.bed reference.genome.fa
-Output
+
+Module 2 (RepeatMasker-free, SV-based):
+Documentation and example command coming soon.
+
+Module 3 (Sequence repository):
+See the repository folder or FASTA files with curated pangenome-level L1s.
+
+**Output**
 
 Files ending with .HapLongLINEr.output.txt:
-Two-column, tab-delimited text files.
-First column: LINE-1 info from your assembly
-Second column: Corresponding info in hg38
-Each field contains: chromosome, coordinate, strand, intactness, and L1 family, separated by underscores.
+Two-column, tab-delimited text files with L1 info from your assembly and corresponding hg38 coordinates.
 Files ending with .L1HSPA2PA3AllORF.intact.fa:
-FASTA file containing the sequences of all intact L1HS, L1PA2, and L1PA3 elements from the input assembly.
+FASTA file containing all intact L1HS, L1PA2, and L1PA3 sequences from the input assembly.
+Additional curated FASTA files for the pangenome reference set.
 Running on an HPRC Individual
 
 Edit the first 10 lines of LoopRunHapLongLINEr.sh to set directories and input files, then run:
