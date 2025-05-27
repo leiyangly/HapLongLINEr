@@ -1,24 +1,39 @@
-# HaLoLIFe
-Description:
-HaLoLIFe is a pipeline that finds young (L1HS, L1PA2 and L1PA3) LINE-1s (L1s) with intact open reading frames based on haploid long read human genome assemblies and performs a "liftOver" by converting the coordinate of the LINE-1s to reference genomes. HaLoLIFe stands for "Haploid Long read assembly-based Intact LINE-1 Finder". We suggest running HaLoLIFe on haploid long read assemblies, because otherwise most of the young LINE-1s will be missing in the assemblies. At this moment, it is written to be compatible with the file name/directory structure of the HPRC and 1000G_ONT project.
+HapLongLINEr
 
-Dependencies:
-bash, 
-perl, 
-seqtk, 
-minimap2, 
-NCBI BLAST+, 
+Description
+
+HapLongLINEr is a pipeline for identifying young LINE-1 elements (L1HS, L1PA2, and L1PA3) with intact open reading frames (ORFs) in haploid long-read human genome assemblies. The pipeline also converts (lifts over) the coordinates of these LINE-1s to a reference genome. The name stands for Haploid Long read assembly-based LINE-1 Retriever.
+
+HapLongLINEr is designed for use with haploid long-read assemblies, as these provide much better recovery of young LINE-1 elements compared to diploid or fragmented assemblies. The current version is compatible with the file and directory structures used by the HPRC and 1000G_ONT projects.
+
+Dependencies
+
+bash
+perl
+seqtk
+minimap2
+NCBI BLAST+
 getorf (EMBOSS)
+Authors
 
-Authors:
 Lei Yang and Amanda Norseen
 
-How to run the pipeline:
-HaLoLIFe.sh your.genome.fa repeatmasker.bed reference.genome.fa
+Usage
 
-Output file:
-File with "HaLoLIFe.output.txt" at the end contains two columns. The first column describes the L1 info in your assembly, and the second column contains the info in hg38. Within each column contains the information of the chromosome, coordinate, strand, intactness and L1 families, separated by "_". File with "L1HSPA2PA3AllORF.intact.fa" at the end is the fasta file that contains the sequence of all intact L1s from the input genome assembly.
+To run the main pipeline, use:
 
-How to run on a HPRC individual:
-Change the first 10 lines of LoopRunHaLoLIFe.sh to set directories and the input files then run:
-sh LoopRunHaLoLIFe.sh
+HapLongLINEr.sh your.genome.fa repeatmasker.bed reference.genome.fa
+Output
+
+Files ending with .HapLongLINEr.output.txt:
+Two-column, tab-delimited text files.
+First column: LINE-1 info from your assembly
+Second column: Corresponding info in hg38
+Each field contains: chromosome, coordinate, strand, intactness, and L1 family, separated by underscores.
+Files ending with .L1HSPA2PA3AllORF.intact.fa:
+FASTA file containing the sequences of all intact L1HS, L1PA2, and L1PA3 elements from the input assembly.
+Running on an HPRC Individual
+
+Edit the first 10 lines of LoopRunHapLongLINEr.sh to set directories and input files, then run:
+
+sh LoopRunHapLongLINEr.sh
