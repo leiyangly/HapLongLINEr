@@ -49,12 +49,7 @@ Running on an HPRC Individual
 
 **Dependencies**
 
-bash
-perl
-seqtk
-minimap2
-NCBI BLAST+
-getorf (EMBOSS)
+bash, perl, seqtk, minimap2, BLAST+, getorf (EMBOSS)
 
 **Authors**
 
