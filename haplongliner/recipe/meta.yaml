@@ -1,0 +1,32 @@
+package:
+  name: haplongliner
+  version: "0.1.0"
+
+source:
+  path: ..
+
+build:
+  noarch: python
+  script: "{{ PYTHON }} -m pip install . --no-deps --ignore-installed -vv"
+
+requirements:
+  host:
+    - python
+    - pip
+  run:
+    - python
+    - seqtk
+    - minimap2
+    - emboss
+    - blast
+
+test:
+  imports:
+    - haplongliner
+  commands:
+    - haplongliner -h
+
+about:
+  home: https://github.com/leiyangly/HapLongLINEr
+  summary: "Pipeline for discovering and curating full-length young LINE-1 elements."
+  license: MIT

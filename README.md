@@ -47,9 +47,14 @@ FASTA file containing all intact L1HS, L1PA2, and L1PA3 sequences from the input
 Additional curated FASTA files for the pangenome reference set.
 Running on an HPRC Individual
 
-**Dependencies**
 
-bash, perl, seqtk, minimap2, BLAST+, getorf (EMBOSS)
+## System Requirements
+
+The following external tools must be installed and available in your PATH:
+- seqtk
+- minimap2
+- EMBOSS (for getorf)
+- ncbi-blast+
 
 **Authors**
 
