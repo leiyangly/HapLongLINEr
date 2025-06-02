@@ -2,6 +2,8 @@ import subprocess
 from pathlib import Path
 import gzip
 import re
+import urllib.request
+import shutil
 
 def parse_repeatmasker(input_path, output_path):
     """
@@ -39,14 +41,36 @@ def parse_repeatmasker(input_path, output_path):
                 continue
             fout.write(f"{chrom}\t{start}\t{end}\t{name}\t.\t{strand}\n")
 
+def download_if_needed(url, local_path):
+    """
+    Download the file from url to local_path if it does not exist.
+    """
+    local_path = Path(local_path)
+    if local_path.exists():
+        print(f"[INFO] Reference genome already exists at {local_path}.")
+        return str(local_path)
+    print(f"[INFO] Downloading reference genome from {url} ...")
+    local_path.parent.mkdir(parents=True, exist_ok=True)
+    with urllib.request.urlopen(url) as response, open(local_path, 'wb') as out_file:
+        shutil.copyfileobj(response, out_file)
+    print(f"[INFO] Download complete: {local_path}")
+    return str(local_path)
+
 def run_module1(input_fasta, repeatmasker_file, reference_fasta, outdir="module1_output"):
     """
     RepeatMasker-based L1 discovery pipeline.
-    Accepts remote or local gzipped FASTA for minimap2 mapping (no .mmi index needed).
+    Downloads remote reference if needed.
     Handles RepeatMasker BED, BED.gz, .out, or .out.gz input.
     """
     outdir = Path(outdir)
     outdir.mkdir(exist_ok=True)
+
+    # If reference_fasta is a URL, download it to the data folder
+    if reference_fasta.startswith("http://") or reference_fasta.startswith("https://"):
+        data_dir = Path("data")
+        data_dir.mkdir(exist_ok=True)
+        ref_local = data_dir / Path(reference_fasta).name
+        reference_fasta = download_if_needed(reference_fasta, ref_local)
 
     print(f"Module 1 running with:\n  Input: {input_fasta}\n  RepeatMasker: {repeatmasker_file}\n  Reference: {reference_fasta}\n  Output dir: {outdir}")
 
@@ -98,7 +122,7 @@ def run_module1(input_fasta, repeatmasker_file, reference_fasta, outdir="module1
     subprocess.run(f"seqtk subseq {input_fasta} {fl_minus2kb_bed} | seqtk seq -U -l 0 - > {fl_minus2kb_fa}", shell=True, check=True)
     subprocess.run(f"seqtk subseq {input_fasta} {fl_plus2kb_bed} | seqtk seq -U -l 0 - > {fl_plus2kb_fa}", shell=True, check=True)
 
-    # 6. Map flanking regions to reference genome with minimap2 (using gzipped FASTA directly, can be remote URL)
+    # 6. Map flanking regions to reference genome with minimap2 (using local FASTA)
     fl_minus2kb_minimap = outdir / "FL-2kb.minimap.txt"
     fl_plus2kb_minimap = outdir / "FL+2kb.minimap.txt"
     subprocess.run(f"minimap2 -x asm5 {reference_fasta} {fl_minus2kb_fa} > {fl_minus2kb_minimap}", shell=True, check=True)
