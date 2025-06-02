@@ -28,8 +28,7 @@ conda config --add channels bioconda
 conda config --add channels conda-forge
 ```
 
-### Install HapLongLINEr:
-
+Install HapLongLINEr:
 ```bash
 conda install haplongliner
 ```
@@ -37,13 +36,11 @@ conda install haplongliner
 ### Manual Installation
 
 Clone the repository:
-
 ```bash
 git clone https://github.com/yourusername/HapLongLINEr.gitcd HapLongLINEr
 ```
 
-### Install dependencies (if not using conda):
-
+Install dependencies (if not using conda):
 ```bash
 conda install -c bioconda seqtk minimap2 emboss ncbi-blast+
 ```
