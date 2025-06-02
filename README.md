@@ -52,7 +52,7 @@ Running on an HPRC Individual
 
 The following external tools must be installed and available in your PATH:
 - seqtk
-- minimap2
+- minimap2 (2.18 or higher if remote reference genome is needed)
 - EMBOSS (for getorf)
 - ncbi-blast+
 
