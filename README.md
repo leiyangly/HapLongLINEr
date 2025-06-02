@@ -2,15 +2,11 @@
 
 **A modular pipeline for discovering and curating full-length young LINE-1 elements in haploid long-read human genome assemblies.**
 
----
-
 ## Overview
 
 HapLongLINEr discovers and curates full-length (≥5 kb) young LINE-1 elements (L1HS, L1PA2, and potentially intact L1PA3) in haploid long-read assemblies.  
 **Each L1 identified is marked with its intact ORF status.**  
 The pipeline supports both RepeatMasker-based and RepeatMasker-free approaches and provides a curated pangenome-level L1 sequence repository.
-
----
 
 ## Features
 
@@ -20,8 +16,6 @@ The pipeline supports both RepeatMasker-based and RepeatMasker-free approaches a
 - Curated pangenome-level L1 sequence repository
 - Flexible input: BED, .out, gzipped formats
 - Modern, modular CLI
-
----
 
 ## Installation
 
@@ -54,8 +48,6 @@ git clone https://github.com/yourusername/HapLongLINEr.gitcd HapLongLINEr
 conda install -c bioconda seqtk minimap2 emboss ncbi-blast+
 ```
 
----
-
 ## System Requirements
 
 seqtk
@@ -78,8 +70,6 @@ Documentation and example command coming soon.
 ### Module 3: Sequence Repository
 
 See the repository folder or FASTA files with curated pangenome-level L1s.
-
----
 
 ## Input & Output
 
@@ -106,9 +96,6 @@ Documentation and example command coming soon.
 
 Curated FASTA files for the pangenome reference set
 
----
-
 ## Authors
 
 Lei Yang, Sara Nematbakhsh, Amanda Norseen, and Rick McLaughlin
-
