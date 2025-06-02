@@ -47,18 +47,22 @@ conda install -c bioconda seqtk minimap2 emboss ncbi-blast+
 
 ## System Requirements
 
-seqtk
-minimap2 (2.18+ if remote reference genome is needed)
-EMBOSS (for getorf)
-ncbi-blast+
-Usage
+- seqtk
+- minimap2 (2.18+ if remote reference genome is needed)
+- EMBOSS (for getorf)
+- ncbi-blast+
+
+## Usage
 
 ### Module 1: RepeatMasker-based
 
+```bash
 haplongliner rm --in your.genome.fa --mask repeatmasker.bed --reference hs1 --out output_dir
+```
 Or with a custom reference:
-
+```bash
 haplongliner rm --in your.genome.fa --mask repeatmasker.bed --custom custom_reference.fa.gz --out output_dir
+```
 
 ### Module 2: RepeatMasker-free, SV-based
 
@@ -73,17 +77,16 @@ See the repository folder or FASTA files with curated pangenome-level L1s.
 ### Module 1
 
 Input:
-
-Haploid assembly FASTA
-RepeatMasker BED or .out file (plain or gzipped)
-Reference genome FASTA (local or remote, e.g., hs1/hg38)
+- Haploid assembly FASTA
+- RepeatMasker BED or .out file (plain or gzipped)
+- Reference genome FASTA (local or remote, e.g., hs1/hg38)
 
 Output:
-
-.HapLongLINEr.output.txt: Two-column, tab-delimited text files with L1 info from your assembly and corresponding hg38 coordinates
-.L1HSPA2PA3AllORF.intact.fa: FASTA file containing all intact L1HS, L1PA2, and L1PA3 sequences from the input assembly
-Additional curated FASTA files for the pangenome reference set
-Each L1 record includes its intact ORF status
+- .HapLongLINEr.output.txt: Two-column, tab-delimited text files with L1 info from your assembly and corresponding hg38 coordinates
+- .L1HSPA2PA3AllORF.intact.fa: FASTA file containing all intact L1HS, L1PA2, and L1PA3 sequences from the input assembly
+- Additional curated FASTA files for the pangenome reference set
+- Each L1 record includes its intact ORF status
+- Each L1 record includes its lifted over coordinate on the used reference genome
 
 ### Module 2
 
