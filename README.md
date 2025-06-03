@@ -106,6 +106,7 @@ Input:
 To run HapLongLINEr Module 3:
 ```bash
 haplongliner db --in your.bed --refv hs1 --out output_folder
+```
 
 Output (in the specified output folder):
 - Annotated BED file that adds the following columns to each L1 record:
