@@ -12,16 +12,6 @@
 - Each L1 identified is marked with its intact ORF status.
 
 
-## Features
-
-- Full-length L1 discovery from haploid long-read assemblies
-- Intact ORF detection for each L1
-- RepeatMasker-based and SV-based workflows
-- Curated pangenome-level L1 sequence repository
-- Flexible input: BED, .out, gzipped formats
-- Modern, modular CLI
-
-
 ## Installation
 
 ### Using Conda (recommended)
