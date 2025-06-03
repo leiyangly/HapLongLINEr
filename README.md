@@ -4,11 +4,13 @@
 
 **🚧 Early Alpha: This project is under active development. Features and interfaces may change without notice. Use with caution.**
 
+
 ## Overview
 
 - HapLongLINEr discovers and curates full-length (≥5 kb) young LINE-1 elements (L1HS, L1PA2, and potentially intact L1PA3) in haploid long-read assemblies.  
 - The pipeline supports both RepeatMasker-based and RepeatMasker-free approaches and provides a curated pangenome-level L1 sequence repository.
 - Each L1 identified is marked with its intact ORF status.
+
 
 ## Features
 
@@ -18,6 +20,7 @@
 - Curated pangenome-level L1 sequence repository
 - Flexible input: BED, .out, gzipped formats
 - Modern, modular CLI
+
 
 ## Installation
 
@@ -51,10 +54,17 @@ Install HapLongLINEr with pip:
 pip install -e .
 ```
 
+
 ## Usage
 
 ### Module 1: RepeatMasker-based
 
+Input:
+- Haploid assembly FASTA
+- RepeatMasker BED or .out file (plain or gzipped)
+- Reference genome FASTA (local or remote, e.g., hs1/hg38)
+
+To run HapLongLINEr:
 ```bash
 haplongliner rm --in your.genome.fa --mask repeatmasker.bed --reference hs1 --out output_dir
 ```
@@ -62,6 +72,13 @@ Or with a custom reference:
 ```bash
 haplongliner rm --in your.genome.fa --mask repeatmasker.bed --custom custom_reference.fa.gz --out output_dir
 ```
+
+Output:
+- .HapLongLINEr.output.txt: Two-column, tab-delimited text files with L1 info from your assembly and corresponding hg38 coordinates
+- .L1HSPA2PA3AllORF.intact.fa: FASTA file containing all intact L1HS, L1PA2, and L1PA3 sequences from the input assembly
+- Additional curated FASTA files for the pangenome reference set
+- Each L1 record includes its intact ORF status
+- Each L1 record includes its lifted over coordinate on the used reference genome
 
 ### Module 2: RepeatMasker-free, SV-based
 
@@ -71,29 +88,6 @@ Documentation and example command coming soon.
 
 See the repository folder or FASTA files with curated pangenome-level L1s.
 
-## Input & Output
-
-### Module 1
-
-Input:
-- Haploid assembly FASTA
-- RepeatMasker BED or .out file (plain or gzipped)
-- Reference genome FASTA (local or remote, e.g., hs1/hg38)
-
-Output:
-- .HapLongLINEr.output.txt: Two-column, tab-delimited text files with L1 info from your assembly and corresponding hg38 coordinates
-- .L1HSPA2PA3AllORF.intact.fa: FASTA file containing all intact L1HS, L1PA2, and L1PA3 sequences from the input assembly
-- Additional curated FASTA files for the pangenome reference set
-- Each L1 record includes its intact ORF status
-- Each L1 record includes its lifted over coordinate on the used reference genome
-
-### Module 2
-
-Documentation and example command coming soon.
-
-### Module 3
-
-Curated FASTA files for the pangenome reference set
 
 ## Authors
 
