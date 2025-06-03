@@ -34,7 +34,7 @@ Clone the repository:
 git clone https://github.com/yourusername/HapLongLINEr.gitcd HapLongLINEr
 ```
 
-Install dependencies (if not already installed):
+Install dependencies if necessary:
 ```bash
 conda install -c bioconda seqtk minimap2 emboss ncbi-blast+
 ```
