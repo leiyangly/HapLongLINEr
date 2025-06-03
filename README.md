@@ -63,8 +63,8 @@ haplongliner rm --in your.genome.fa --mask repeatmasker.bed --custom custom_refe
 ```
 
 Output:
-- .HapLongLINEr.output.txt: Two-column, tab-delimited text files with L1 info from your assembly and corresponding hg38 coordinates
-- .L1HSPA2PA3AllORF.intact.fa: FASTA file containing all intact L1HS, L1PA2, and L1PA3 sequences from the input assembly
+- BED file with L1 info from your assembly and corresponding hs1/hg38 coordinates
+- FASTA file containing all intact L1HS, L1PA2, and L1PA3 sequences from the input assembly
 - Additional curated FASTA files for the pangenome reference set
 - Each L1 record includes its intact ORF status
 - Each L1 record includes its lifted over coordinate on the used reference genome
@@ -90,7 +90,6 @@ Output:
 Input:
 - BED file of L1 insertions (e.g., from Module 1 or 2) or L1 coordinate in chr:start-end format
 - Reference version: `--refv hs1` or `--refv hg38`
-- Output folder
 
 To run HapLongLINEr Module 3:
 ```bash
