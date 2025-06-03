@@ -53,8 +53,8 @@ pip install -e .
 ## System Requirements
 
 - seqtk
-- minimap2 (2.18+ if remote reference genome is needed)
-- EMBOSS (for getorf)
+- minimap2
+- EMBOSS
 - ncbi-blast+
 
 ## Usage
