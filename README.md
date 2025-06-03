@@ -99,7 +99,7 @@ Output:
 ### Module 3: Sequence Repository
 
 Input:
-- BED file of L1 insertions (e.g., from Module 1 or 2)
+- BED file of L1 insertions (e.g., from Module 1 or 2) or L1 coordinate in chr:start-end format
 - Reference version: `--refv hs1` or `--refv hg38`
 - Output folder
 
@@ -108,7 +108,7 @@ To run HapLongLINEr Module 3:
 haplongliner db --in your.bed --refv hs1 --out output_folder
 ```
 
-Output (in the specified output folder):
+Output:
 - Annotated BED file that adds the following columns to each L1 record: Frequency of presence in HPRC haploids; Intactness status in HPRC; Liftover coordinate in the chosen reference (hs1 or hg38)
 - FASTA file that Contains all L1 sequences at the insertion site from all HPRC haploids that carry that L1
 
