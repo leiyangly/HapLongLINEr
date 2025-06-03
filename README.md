@@ -53,11 +53,11 @@ Input:
 - RepeatMasker BED or .out file (plain or gzipped)
 - Reference genome FASTA (local or remote, e.g., hs1/hg38)
 
-To run HapLongLINEr:
+Command:
 ```bash
 haplongliner rm --in your.genome.fa --mask repeatmasker.bed --reference hs1 --out output_dir
 ```
-Or with a custom reference:
+Or:
 ```bash
 haplongliner rm --in your.genome.fa --mask repeatmasker.bed --custom custom_reference.fa.gz --out output_dir
 ```
@@ -76,7 +76,7 @@ Input:
 - Structural variant (SV) callset (e.g., VCF or BED)
 - Pangenome-level L1 reference FASTA
 
-To run HapLongLINEr Module 2:
+Command:
 ```bash
 haplongliner sv --in your.genome.fa --sv your.sv.vcf --l1ref pangenome_L1_reference.fa --out output_file.bed
 ```
@@ -91,7 +91,7 @@ Input:
 - BED file of L1 insertions (e.g., from Module 1 or 2) or L1 coordinate in chr:start-end format
 - Reference version: `--refv hs1` or `--refv hg38`
 
-To run HapLongLINEr Module 3:
+Command:
 ```bash
 haplongliner db --in your.bed --refv hs1 --out output_folder
 ```
