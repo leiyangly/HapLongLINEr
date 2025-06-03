@@ -19,7 +19,7 @@
 
 ## Installation
 
-### Using Conda (recommended)
+### Using Conda (recommended, coming soon)
 
 Enable the required channels:
 ```bash
@@ -44,6 +44,11 @@ Install dependencies (if not using conda):
 ```bash
 conda install -c bioconda seqtk minimap2 emboss ncbi-blast+
 ```
+Install HapLongLINEr with pip:
+```bash
+pip install -e .
+```
+
 
 ## System Requirements
 
