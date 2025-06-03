@@ -109,10 +109,7 @@ haplongliner db --in your.bed --refv hs1 --out output_folder
 ```
 
 Output (in the specified output folder):
-- Annotated BED file that adds the following columns to each L1 record:
--- Frequency of presence in HPRC haploids
--- Intactness status in HPRC
--- Liftover coordinate in the chosen reference (hs1 or hg38)
+- Annotated BED file that adds the following columns to each L1 record: Frequency of presence in HPRC haploids; Intactness status in HPRC; Liftover coordinate in the chosen reference (hs1 or hg38)
 - FASTA file that Contains all L1 sequences at the insertion site from all HPRC haploids that carry that L1
 
 
