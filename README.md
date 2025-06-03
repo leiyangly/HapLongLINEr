@@ -21,7 +21,7 @@
 
 ## Installation
 
-### Using Conda (recommended, coming soon)
+### Using Conda (recommended)
 
 Enable the required channels:
 ```bash
@@ -42,7 +42,7 @@ Clone the repository:
 git clone https://github.com/yourusername/HapLongLINEr.gitcd HapLongLINEr
 ```
 
-Install dependencies (if not using conda):
+Install dependencies (if not already installed):
 ```bash
 conda install -c bioconda seqtk minimap2 emboss ncbi-blast+
 ```
@@ -50,14 +50,6 @@ Install HapLongLINEr with pip:
 ```bash
 pip install -e .
 ```
-
-
-## System Requirements
-
-- seqtk
-- minimap2
-- EMBOSS
-- ncbi-blast+
 
 ## Usage
 
