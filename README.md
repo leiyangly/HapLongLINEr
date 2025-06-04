@@ -31,7 +31,8 @@ conda install haplongliner
 
 Clone the repository:
 ```bash
-git clone https://github.com/yourusername/HapLongLINEr.gitcd HapLongLINEr
+git clone https://github.com/yourusername/HapLongLINEr.git
+cd HapLongLINEr
 ```
 
 Install dependencies if necessary:
@@ -87,13 +88,12 @@ Output:
 
 ### Module 3: Sequence Repository
 
-Input:
-- BED file of L1 insertions (e.g., from Module 1 or 2) or L1 coordinate in chr:start-end format
-- Reference version: `--refv hs1` or `--refv hg38`
+Module 3 builds a sequence repository from previously identified insertions.
+Currently the only required argument is the output directory.
 
 Command:
 ```bash
-haplongliner db --in your.bed --refv hs1 --out output_folder
+haplongliner db --out output_folder
 ```
 
 Output:
