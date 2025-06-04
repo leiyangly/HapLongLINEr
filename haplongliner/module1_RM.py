@@ -96,14 +96,14 @@ def run_module1(input_fasta, repeatmasker_file, reference_fasta, outdir="module1
             f"seqtk subseq {input_fasta} - | "
             f"seqtk seq -U -l 0 -"
         )
-        subprocess.run(plus_cmd, shell=True, stdout=out_fa)
+        subprocess.run(plus_cmd, shell=True, stdout=out_fa, check=True)
         # Minus strand
         minus_cmd = (
             f"awk '$6==\"-\"' {fl_bed} | "
             f"seqtk subseq {input_fasta} - | "
             f"seqtk seq -U -r -l 0 -"
         )
-        subprocess.run(minus_cmd, shell=True, stdout=out_fa)
+        subprocess.run(minus_cmd, shell=True, stdout=out_fa, check=True)
 
     # 4. Extract flanking 2kb regions (upstream and downstream)
     fl_minus2kb_bed = outdir / "FL-2kb.bed"
