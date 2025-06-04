@@ -5,6 +5,9 @@ import re
 import urllib.request
 import shutil
 
+from .process_orf import process_orf_fasta
+from .find_longest_orf import find_longest_orf
+
 def parse_repeatmasker(input_path, output_path):
     """
     Parse RepeatMasker BED, BED.gz, .out, or .out.gz file and write a unified BED-like file:
@@ -59,13 +62,14 @@ def download_if_needed(url, local_path):
     print(f"[INFO] Download complete: {local_path}")
     return str(local_path)
 
-def run_module1(input_fasta, repeatmasker_file, reference_fasta, outdir="module1_output"):
+def run_module1(input_fasta, repeatmasker_file, reference_fasta, output_bed="module1_output.bed"):
     """
     RepeatMasker-based L1 discovery pipeline.
     Downloads remote reference if needed.
     Handles RepeatMasker BED, BED.gz, .out, or .out.gz input.
     """
-    outdir = Path(outdir)
+    output_bed = Path(output_bed)
+    outdir = output_bed.parent if output_bed.parent != Path("") else Path(".")
     outdir.mkdir(exist_ok=True)
 
     # If reference_fasta is a URL, download it to the data folder
@@ -75,7 +79,13 @@ def run_module1(input_fasta, repeatmasker_file, reference_fasta, outdir="module1
         ref_local = data_dir / Path(reference_fasta).name
         reference_fasta = download_if_needed(reference_fasta, ref_local)
 
-    print(f"Module 1 running with:\n  Input: {input_fasta}\n  RepeatMasker: {repeatmasker_file}\n  Reference: {reference_fasta}\n  Output dir: {outdir}")
+    print(
+        "Module 1 running with:\n"
+        f"  Input: {input_fasta}\n"
+        f"  RepeatMasker: {repeatmasker_file}\n"
+        f"  Reference: {reference_fasta}\n"
+        f"  Output BED: {output_bed}\n"
+    )
 
     # 1. Parse RepeatMasker file to unified BED6
     parsed_bed = outdir / "parsed_repeatmasker.bed"
@@ -128,7 +138,40 @@ def run_module1(input_fasta, repeatmasker_file, reference_fasta, outdir="module1
     # 6. Map flanking regions to reference genome with minimap2 (using local FASTA)
     fl_minus2kb_minimap = outdir / "FL-2kb.minimap.txt"
     fl_plus2kb_minimap = outdir / "FL+2kb.minimap.txt"
-    subprocess.run(f"minimap2 -x asm5 {reference_fasta} {fl_minus2kb_fa} > {fl_minus2kb_minimap}", shell=True, check=True)
-    subprocess.run(f"minimap2 -x asm5 {reference_fasta} {fl_plus2kb_fa} > {fl_plus2kb_minimap}", shell=True, check=True)
+    subprocess.run(
+        f"minimap2 -x asm5 {reference_fasta} {fl_minus2kb_fa} > {fl_minus2kb_minimap}",
+        shell=True,
+        check=True,
+    )
+    subprocess.run(
+        f"minimap2 -x asm5 {reference_fasta} {fl_plus2kb_fa} > {fl_plus2kb_minimap}",
+        shell=True,
+        check=True,
+    )
 
-    print(f"Module 1 completed. Results in {outdir}")
+    # 7. Detect ORFs and choose the longest ORF1/ORF2 per locus
+    orf_fa = outdir / "FLAllORF.fa"
+    subprocess.run(["getorf", "-sequence", fl_fa, "-find", "1", "-outseq", str(orf_fa)], check=True)
+    orf_bed = outdir / "FLAllORF.bed"
+    process_orf_fasta(orf_fa, orf_bed)
+    blastp_out = outdir / "FLAllORF.blastp"
+    subprocess.run(
+        [
+            "blastp",
+            "-db",
+            str(Path("data") / "L1rpORF12p.fa"),
+            "-query",
+            str(orf_fa),
+            "-outfmt",
+            "6 std qlen slen sacc",
+            "-out",
+            str(blastp_out),
+        ],
+        check=True,
+    )
+    longest_orf_out = outdir / "FLAllORF.combine.blastp"
+    find_longest_orf(blastp_out, longest_orf_out)
+
+    # Final output BED
+    shutil.copy(fl_bed, output_bed)
+    print(f"Module 1 completed. Results in {output_bed}")
