@@ -36,7 +36,10 @@ def parse_repeatmasker(input_path, output_path):
                 start = int(fields[1])
                 end = int(fields[2])
                 name = fields[3]
-                strand = fields[4]
+                if len(fields) >= 6:
+                    strand = fields[5]
+                else:
+                    strand = fields[4]
             else:
                 continue
             fout.write(f"{chrom}\t{start}\t{end}\t{name}\t.\t{strand}\n")
