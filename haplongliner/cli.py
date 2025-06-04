@@ -35,7 +35,7 @@ def main():
     ref_group.add_argument("-r", "--reference", choices=["hs1", "hg38"], help="Reference genome: 'hs1' or 'hg38' (remote)")
     ref_group.add_argument("-c", "--custom", help="Custom reference FASTA or gzipped FASTA (local path)")
 
-    parser_rm.add_argument("-o", "--out", dest="output", required=True, help="Output BED file")
+    parser_rm.add_argument("-o", "--out", dest="output", required=True, help="Output directory for intermediate files")
     parser_rm.add_argument("-h", "--help", action="help", default=argparse.SUPPRESS,
                            help="Show this help message and exit.")
 

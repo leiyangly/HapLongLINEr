@@ -64,15 +64,14 @@ def download_if_needed(url, local_path):
     print(f"[INFO] Download complete: {local_path}")
     return str(local_path)
 
-def run_module1(input_fasta, repeatmasker_file, reference_fasta, output_bed="module1_output.bed"):
+def run_module1(input_fasta, repeatmasker_file, reference_fasta, output_dir="module1_output"):
     """
     RepeatMasker-based L1 discovery pipeline.
     Downloads remote reference if needed.
     Handles RepeatMasker BED, BED.gz, .out, or .out.gz input.
     """
-    output_bed = Path(output_bed)
-    outdir = output_bed.parent if output_bed.parent != Path("") else Path(".")
-    outdir.mkdir(exist_ok=True)
+    outdir = Path(output_dir)
+    outdir.mkdir(parents=True, exist_ok=True)
 
     # If reference_fasta is a URL, download it to the data folder
     if reference_fasta.startswith("http://") or reference_fasta.startswith("https://"):
@@ -86,7 +85,7 @@ def run_module1(input_fasta, repeatmasker_file, reference_fasta, output_bed="mod
         f"  Input: {input_fasta}\n"
         f"  RepeatMasker: {repeatmasker_file}\n"
         f"  Reference: {reference_fasta}\n"
-        f"  Output BED: {output_bed}\n"
+        f"  Output Dir: {outdir}\n"
     )
 
     # 1. Parse RepeatMasker file to unified BED6
@@ -188,6 +187,5 @@ def run_module1(input_fasta, repeatmasker_file, reference_fasta, output_bed="mod
         combined_out,
     )
 
-    # Final output BED-like table
-    shutil.copy(combined_out, output_bed)
-    print(f"Module 1 completed. Results in {output_bed}")
+    # Final output table
+    print(f"Module 1 completed. Results in {combined_out}")
