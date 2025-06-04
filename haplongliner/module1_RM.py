@@ -39,7 +39,10 @@ def parse_repeatmasker(input_path, output_path):
                 start = int(fields[1])
                 end = int(fields[2])
                 name = fields[3]
-                strand = fields[4]
+                if len(fields) >= 6:
+                    strand = fields[5]
+                else:
+                    strand = fields[4]
             else:
                 continue
             fout.write(f"{chrom}\t{start}\t{end}\t{name}\t.\t{strand}\n")
@@ -103,14 +106,14 @@ def run_module1(input_fasta, repeatmasker_file, reference_fasta, output_bed="mod
             f"seqtk subseq {input_fasta} - | "
             f"seqtk seq -U -l 0 -"
         )
-        subprocess.run(plus_cmd, shell=True, stdout=out_fa)
+        subprocess.run(plus_cmd, shell=True, stdout=out_fa, check=True)
         # Minus strand
         minus_cmd = (
             f"awk '$6==\"-\"' {fl_bed} | "
             f"seqtk subseq {input_fasta} - | "
             f"seqtk seq -U -r -l 0 -"
         )
-        subprocess.run(minus_cmd, shell=True, stdout=out_fa)
+        subprocess.run(minus_cmd, shell=True, stdout=out_fa, check=True)
 
     # 4. Extract flanking 2kb regions (upstream and downstream)
     fl_minus2kb_bed = outdir / "FL-2kb.bed"
