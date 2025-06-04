@@ -13,3 +13,5 @@ Authors:
 from .module1_RM import *
 from .module2_SV import *
 from .module3_DB import *
+from .find_intact_orf import find_intact_orf
+from .combine_table import combine_table

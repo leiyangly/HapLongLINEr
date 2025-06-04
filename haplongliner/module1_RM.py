@@ -7,6 +7,8 @@ import shutil
 
 from .process_orf import process_orf_fasta
 from .find_longest_orf import find_longest_orf
+from .find_intact_orf import find_intact_orf
+from .combine_table import combine_table
 
 def parse_repeatmasker(input_path, output_path):
     """
@@ -172,6 +174,20 @@ def run_module1(input_fasta, repeatmasker_file, reference_fasta, output_bed="mod
     longest_orf_out = outdir / "FLAllORF.combine.blastp"
     find_longest_orf(blastp_out, longest_orf_out)
 
-    # Final output BED
-    shutil.copy(fl_bed, output_bed)
+    # 8. Identify intact ORFs
+    intact_out = outdir / "FLAllORF.intact.blastp"
+    find_intact_orf(longest_orf_out, intact_out)
+
+    # 9. Integrate ORF status and liftover information
+    combined_out = outdir / "HaLoLIFe.output.txt"
+    combine_table(
+        fl_plus2kb_minimap,
+        fl_minus2kb_minimap,
+        intact_out,
+        fl_bed,
+        combined_out,
+    )
+
+    # Final output BED-like table
+    shutil.copy(combined_out, output_bed)
     print(f"Module 1 completed. Results in {output_bed}")
