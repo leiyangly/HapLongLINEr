@@ -5,6 +5,74 @@ import re
 import urllib.request
 import shutil
 
+
+def process_orf_fasta(in_fasta, out_bed):
+    """Parse getorf FASTA output and convert it to a BED like table.
+
+    This replicates the behaviour of ``ProcessORF.pl`` from the legacy
+    implementation.  Only header lines from ``getorf`` are examined and the
+    coordinates are written to ``out_bed``.  The output columns are::
+
+        l1_id  start  end  strand  length  l1_strand
+
+    Parameters
+    ----------
+    in_fasta : Path-like
+        FASTA file produced by ``getorf``.
+    out_bed : Path-like
+        Destination BED file.
+    """
+
+    with open(in_fasta) as fin, open(out_bed, "w") as fout:
+        for line in fin:
+            if not line.startswith(">"):
+                continue
+            fields = line.strip().split()
+            if len(fields) < 4:
+                continue
+            start = int(fields[1].lstrip("["))
+            end = int(fields[3].rstrip("]"))
+            parts = fields[0][1:].split("_")
+            if len(parts) < 4:
+                continue
+            l1_id = "_".join(parts[:3])
+            l1_strand = parts[3]
+            strand = "+" if end >= start else "-"
+            length = abs(end - start)
+            fout.write(f"{l1_id}\t{start}\t{end}\t{strand}\t{length}\t{l1_strand}\n")
+
+
+def find_longest_orf(blastp_file, out_file):
+    """Select the longest ORF1 and ORF2 alignment for every L1.
+
+    This mirrors the logic of ``FindLongestORF.pl``.  ``blastp_file`` should be
+    created with ``-outfmt '6 std qlen slen sacc'`` against ``data/L1rpORF12p.fa``.
+    The resulting longest alignments are written to ``out_file`` where each line
+    contains the best ORF1p hit and ORF2p hit separated by a tab.
+    """
+
+    len_dict = {}
+    info = {}
+    index = set()
+    with open(blastp_file) as fh:
+        for line in fh:
+            if not line.strip():
+                continue
+            F = line.strip().split()
+            name = re.sub(r"_[0-9]+$", "", F[0])
+            subject = F[1]
+            aln_len = int(F[3])
+            if aln_len >= len_dict.get(name, {}).get(subject, 0):
+                len_dict.setdefault(name, {})[subject] = aln_len
+                info.setdefault(name, {})[subject] = line.strip()
+            index.add(name)
+
+    with open(out_file, "w") as out:
+        for key in index:
+            if "L1rpORF1p" in info.get(key, {}) and "L1rpORF2p" in info.get(key, {}):
+                out.write(f"{info[key]['L1rpORF1p']}\t{info[key]['L1rpORF2p']}\n")
+
+
 def parse_repeatmasker(input_path, output_path):
     """
     Parse RepeatMasker BED, BED.gz, .out, or .out.gz file and write a unified BED-like file:
@@ -56,13 +124,14 @@ def download_if_needed(url, local_path):
     print(f"[INFO] Download complete: {local_path}")
     return str(local_path)
 
-def run_module1(input_fasta, repeatmasker_file, reference_fasta, outdir="module1_output"):
+def run_module1(input_fasta, repeatmasker_file, reference_fasta, output_bed="module1_output.bed"):
     """
     RepeatMasker-based L1 discovery pipeline.
     Downloads remote reference if needed.
     Handles RepeatMasker BED, BED.gz, .out, or .out.gz input.
     """
-    outdir = Path(outdir)
+    output_bed = Path(output_bed)
+    outdir = output_bed.parent if output_bed.parent != Path("") else Path(".")
     outdir.mkdir(exist_ok=True)
 
     # If reference_fasta is a URL, download it to the data folder
@@ -72,7 +141,13 @@ def run_module1(input_fasta, repeatmasker_file, reference_fasta, outdir="module1
         ref_local = data_dir / Path(reference_fasta).name
         reference_fasta = download_if_needed(reference_fasta, ref_local)
 
-    print(f"Module 1 running with:\n  Input: {input_fasta}\n  RepeatMasker: {repeatmasker_file}\n  Reference: {reference_fasta}\n  Output dir: {outdir}")
+    print(
+        "Module 1 running with:\n"
+        f"  Input: {input_fasta}\n"
+        f"  RepeatMasker: {repeatmasker_file}\n"
+        f"  Reference: {reference_fasta}\n"
+        f"  Output BED: {output_bed}\n"
+    )
 
     # 1. Parse RepeatMasker file to unified BED6
     parsed_bed = outdir / "parsed_repeatmasker.bed"
@@ -125,7 +200,40 @@ def run_module1(input_fasta, repeatmasker_file, reference_fasta, outdir="module1
     # 6. Map flanking regions to reference genome with minimap2 (using local FASTA)
     fl_minus2kb_minimap = outdir / "FL-2kb.minimap.txt"
     fl_plus2kb_minimap = outdir / "FL+2kb.minimap.txt"
-    subprocess.run(f"minimap2 -x asm5 {reference_fasta} {fl_minus2kb_fa} > {fl_minus2kb_minimap}", shell=True, check=True)
-    subprocess.run(f"minimap2 -x asm5 {reference_fasta} {fl_plus2kb_fa} > {fl_plus2kb_minimap}", shell=True, check=True)
+    subprocess.run(
+        f"minimap2 -x asm5 {reference_fasta} {fl_minus2kb_fa} > {fl_minus2kb_minimap}",
+        shell=True,
+        check=True,
+    )
+    subprocess.run(
+        f"minimap2 -x asm5 {reference_fasta} {fl_plus2kb_fa} > {fl_plus2kb_minimap}",
+        shell=True,
+        check=True,
+    )
 
-    print(f"Module 1 completed. Results in {outdir}")
+    # 7. Detect ORFs and choose the longest ORF1/ORF2 per locus
+    orf_fa = outdir / "FLAllORF.fa"
+    subprocess.run(["getorf", "-sequence", fl_fa, "-find", "1", "-outseq", str(orf_fa)], check=True)
+    orf_bed = outdir / "FLAllORF.bed"
+    process_orf_fasta(orf_fa, orf_bed)
+    blastp_out = outdir / "FLAllORF.blastp"
+    subprocess.run(
+        [
+            "blastp",
+            "-db",
+            str(Path("data") / "L1rpORF12p.fa"),
+            "-query",
+            str(orf_fa),
+            "-outfmt",
+            "6 std qlen slen sacc",
+            "-out",
+            str(blastp_out),
+        ],
+        check=True,
+    )
+    longest_orf_out = outdir / "FLAllORF.combine.blastp"
+    find_longest_orf(blastp_out, longest_orf_out)
+
+    # Final output BED
+    shutil.copy(fl_bed, output_bed)
+    print(f"Module 1 completed. Results in {output_bed}")
