@@ -10,5 +10,9 @@
 !/setup.py
 !/pyproject.toml
 !/data/L1rp*
-
+!/data/data/HPRC_L1_hs_v2_v2fl.bed
+!/data/data/data/HPRC_L1_hs1_master_v2.bed
+!/data/data/data/HPRC_L1_hs1_master_v2fl.bed
+!/data/data/data/data/HPRC_L1_seq_by_site_v2.zip
+!/data/data/data/data/HPRC_L1_seq_by_site_v2fl.zip
 __pycache__/
