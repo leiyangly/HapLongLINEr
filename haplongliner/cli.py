@@ -31,6 +31,12 @@ def main():
     parser_rm.add_argument("-i", "--in", dest="input", required=True, help="Input haploid assembly FASTA")
     parser_rm.add_argument("-m", "--mask", required=True, help="RepeatMasker BED or .out file")
 
+    parser_rm.add_argument(
+        "--log-skipped",
+        dest="log_skipped",
+        help="File to log malformed RepeatMasker lines",
+    )
+
     ref_group = parser_rm.add_mutually_exclusive_group(required=True)
     ref_group.add_argument("-r", "--reference", choices=["hs1", "hg38"], help="Reference genome: 'hs1' or 'hg38' (remote)")
     ref_group.add_argument("-c", "--custom", help="Custom reference FASTA or gzipped FASTA (local path)")
@@ -68,7 +74,13 @@ def main():
             reference = HG38_URL
         else:
             reference = args.custom
-        run_module1(args.input, args.mask, reference, args.output)
+        run_module1(
+            args.input,
+            args.mask,
+            reference,
+            args.output,
+            log_skipped=args.log_skipped,
+        )
     elif args.command == "sv":
         run_module2(args.input, args.sv, args.l1ref, args.output)
     elif args.command == "db":

@@ -4,19 +4,25 @@ import gzip
 import re
 import urllib.request
 import shutil
+import os
 
 from .process_orf import process_orf_fasta
 from .find_longest_orf import find_longest_orf
 from .find_intact_orf import find_intact_orf
 from .combine_table import combine_table
 
-def parse_repeatmasker(input_path, output_path):
+def parse_repeatmasker(input_path, output_path, log_path=None):
     """
-    Parse RepeatMasker BED, BED.gz, .out, or .out.gz file and write a unified BED-like file:
-    chrom  start  end  name  .  strand
+    Parse RepeatMasker BED, BED.gz, .out, or .out.gz file and write a unified
+    BED-like file::
+
+        chrom  start  end  name  .  strand
+
+    ``log_path`` optionally records skipped malformed lines.
     """
     # Open plain or gzipped file
     opener = gzip.open if str(input_path).endswith(".gz") else open
+    skipped = []
     with opener(input_path, "rt") as fin, open(output_path, "w") as fout:
         lines = fin.readlines()
         # Detect .out header (skip first 4 lines if header detected)
@@ -26,9 +32,14 @@ def parse_repeatmasker(input_path, output_path):
         for line in lines:
             if not line.strip() or line.startswith(("#", "track", "browser")):
                 continue
-            fields = re.split(r'\s+', line.strip())
+            fields = re.split(r"\s+", line.strip())
             # Try .out format
-            if len(fields) >= 10 and fields[4] and fields[5].isdigit() and fields[6].isdigit():
+            if (
+                len(fields) >= 10
+                and fields[4]
+                and fields[5].isdigit()
+                and fields[6].isdigit()
+            ):
                 chrom = fields[4]
                 start = int(fields[5]) - 1  # .out is 1-based, BED is 0-based
                 end = int(fields[6])
@@ -46,8 +57,14 @@ def parse_repeatmasker(input_path, output_path):
                 else:
                     strand = fields[4]
             else:
+                skipped.append(line.rstrip())
                 continue
             fout.write(f"{chrom}\t{start}\t{end}\t{name}\t.\t{strand}\n")
+
+    if log_path and skipped:
+        with open(log_path, "w") as logf:
+            logf.write("\n".join(skipped) + "\n")
+    print(f"Skipped {len(skipped)} malformed lines")
 
 def download_if_needed(url, local_path):
     """
@@ -64,12 +81,22 @@ def download_if_needed(url, local_path):
     print(f"[INFO] Download complete: {local_path}")
     return str(local_path)
 
-def run_module1(input_fasta, repeatmasker_file, reference_fasta, output_dir="module1_output"):
+def run_module1(
+    input_fasta,
+    repeatmasker_file,
+    reference_fasta,
+    output_dir="module1_output",
+    log_skipped=None,
+):
     """
     RepeatMasker-based L1 discovery pipeline.
     Downloads remote reference if needed.
     Handles RepeatMasker BED, BED.gz, .out, or .out.gz input.
+    ``log_skipped`` specifies a file to log malformed RepeatMasker lines. If not
+    provided, the ``HAPLOGLINER_LOG_SKIPPED`` environment variable is checked.
     """
+    if log_skipped is None:
+        log_skipped = os.getenv("HAPLOGLINER_LOG_SKIPPED")
     outdir = Path(output_dir)
     outdir.mkdir(parents=True, exist_ok=True)
 
@@ -90,7 +117,7 @@ def run_module1(input_fasta, repeatmasker_file, reference_fasta, output_dir="mod
 
     # 1. Parse RepeatMasker file to unified BED6
     parsed_bed = outdir / "parsed_repeatmasker.bed"
-    parse_repeatmasker(repeatmasker_file, parsed_bed)
+    parse_repeatmasker(repeatmasker_file, parsed_bed, log_skipped)
 
     # 2. Extract full-length L1s (>=5000bp) from parsed BED
     fl_bed = outdir / "FL.bed"
