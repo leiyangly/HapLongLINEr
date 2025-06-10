@@ -49,13 +49,13 @@ def combine_table(plus_file: str, minus_file: str, intact_file: str, fl_bed: str
             chrom, start, end, name, dot, strand = f[:6]
             start_i = int(start)
             end_i = int(end)
-            m = start_i - 1999
+            m = start_i - 2000
             p = end_i + 2000
-            px = end_i + 1
-            mx = start_i + 1
+            px = end_i
+            mx = start_i
             mkey = f"{chrom}:{m}-{start_i}"
             pkey = f"{chrom}:{px}-{p}"
-            ikey = f"{chrom}_{mx}_{end_i}"
+            ikey = f"{chrom}_{mx + 1}_{end_i}"
 
             m_val = minus.get(mkey, "").split("\t") if minus.get(mkey) else []
             p_val = plus.get(pkey, "").split("\t") if plus.get(pkey) else []

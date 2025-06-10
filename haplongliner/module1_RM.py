@@ -148,12 +148,12 @@ def run_module1(
     fl_plus2kb_bed = outdir / "FL+2kb.bed"
     # Upstream
     subprocess.run(
-        f"""awk 'BEGIN{{OFS="\\t"}} {{$2=$2-2000; $3=$2+2000; print $0}}' {fl_bed} > {fl_minus2kb_bed}""",
+        f"""awk 'BEGIN{{OFS=\"\t\"}} {{$3=$2; $2=$2-2000; print $0}}' {fl_bed} > {fl_minus2kb_bed}""",
         shell=True, check=True
     )
     # Downstream
     subprocess.run(
-        f"""awk 'BEGIN{{OFS="\\t"}} {{$3=$3+2000; print $0}}' {fl_bed} > {fl_plus2kb_bed}""",
+        f"""awk 'BEGIN{{OFS=\"\t\"}} {{$2=$3; $3=$3+2000; print $0}}' {fl_bed} > {fl_plus2kb_bed}""",
         shell=True, check=True
     )
 
