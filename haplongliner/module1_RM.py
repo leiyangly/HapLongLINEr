@@ -33,32 +33,34 @@ def parse_repeatmasker(input_path, output_path, log_path=None):
             if not line.strip() or line.startswith(("#", "track", "browser")):
                 continue
             fields = re.split(r"\s+", line.strip())
-            # Try .out format
-            if (
-                len(fields) >= 10
-                and fields[4]
+
+            is_out = (
+                len(fields) >= 14
+                and fields[0].replace(".", "", 1).isdigit()
                 and fields[5].isdigit()
                 and fields[6].isdigit()
-            ):
-                chrom = fields[4]
-                start = int(fields[5]) - 1  # .out is 1-based, BED is 0-based
-                end = int(fields[6])
-                name = fields[9]
-                strand = fields[8]
-                strand = "-" if strand == "C" else "+"
-            # Otherwise, treat as BED
-            elif len(fields) >= 5:
-                chrom = fields[0]
-                start = int(fields[1])
-                end = int(fields[2])
-                name = fields[3]
-                if len(fields) >= 6:
-                    strand = fields[5]
+            )
+
+            try:
+                if is_out:
+                    chrom = fields[4]
+                    start = int(fields[5]) - 1  # .out is 1-based
+                    end = int(fields[6])
+                    name = fields[9]
+                    strand = fields[8]
+                    strand = "-" if strand == "C" else "+"
+                elif len(fields) >= 5:
+                    chrom = fields[0]
+                    start = int(fields[1])
+                    end = int(fields[2])
+                    name = fields[3]
+                    strand = fields[5] if len(fields) >= 6 else fields[4]
                 else:
-                    strand = fields[4]
-            else:
+                    raise ValueError
+            except Exception:
                 skipped.append(line.rstrip())
                 continue
+
             fout.write(f"{chrom}\t{start}\t{end}\t{name}\t.\t{strand}\n")
 
     if log_path and skipped:
