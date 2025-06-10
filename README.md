@@ -62,6 +62,12 @@ Or:
 ```bash
 haplongliner rm --in your.genome.fa --mask repeatmasker.bed --custom custom_reference.fa.gz --out output_dir
 ```
+To troubleshoot malformed RepeatMasker entries, use the optional
+`--log-skipped` parameter to record skipped lines:
+```bash
+haplongliner rm --in your.genome.fa --mask repeatmasker.bed \
+  --reference hs1 --out output_dir --log-skipped skipped.log
+```
 
 Output:
 - BED file with L1 info from your assembly and corresponding hs1/hg38 coordinates
