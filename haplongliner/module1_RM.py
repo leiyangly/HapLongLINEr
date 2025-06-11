@@ -145,6 +145,17 @@ def run_module1(
         )
         subprocess.run(minus_cmd, shell=True, stdout=out_fa, check=True)
 
+    # Sanitize FASTA headers for getorf compatibility
+    fl_rename_fa = outdir / "FL.rename.fa"
+    with open(fl_fa) as fin, open(fl_rename_fa, "w") as fout:
+        for line in fin:
+            if line.startswith(">"):
+                header = line.strip().replace(":", "_").replace("-", "_")
+                header = header.replace("(+)", "_+").replace("(-)", "_-")
+                fout.write(header + "\n")
+            else:
+                fout.write(line)
+
     # 4. Extract flanking 2kb regions (upstream and downstream)
     fl_minus2kb_bed = outdir / "FL-2kb.bed"
     fl_plus2kb_bed = outdir / "FL+2kb.bed"
@@ -181,7 +192,15 @@ def run_module1(
 
     # 7. Detect ORFs and choose the longest ORF1/ORF2 per locus
     orf_fa = outdir / "FLAllORF.fa"
-    subprocess.run(["getorf", "-sequence", fl_fa, "-find", "1", "-outseq", str(orf_fa)], check=True)
+    subprocess.run([
+        "getorf",
+        "-sequence",
+        fl_rename_fa,
+        "-find",
+        "1",
+        "-outseq",
+        str(orf_fa),
+    ], check=True)
     orf_bed = outdir / "FLAllORF.bed"
     process_orf_fasta(orf_fa, orf_bed)
     blastp_out = outdir / "FLAllORF.blastp"
