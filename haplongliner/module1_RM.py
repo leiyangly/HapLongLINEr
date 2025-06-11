@@ -122,16 +122,19 @@ def run_module1(
         f"  Output Dir: {outdir}\n"
     )
 
+    print("[STEP 1] Parsing RepeatMasker output")
     # 1. Parse RepeatMasker file to unified BED6
     parsed_bed = outdir / "parsed_repeatmasker.bed"
     parse_repeatmasker(repeatmasker_file, parsed_bed, log_skipped)
 
+    print("[STEP 2] Extracting full-length L1s")
     # 2. Extract full-length L1s (>=5000bp) from parsed BED
     fl_bed = outdir / "FL.bed"
     subprocess.run([
         "python3", "-m", "haplongliner.extract_l1", parsed_bed, "-o", str(fl_bed)
     ], check=True)
 
+    print("[STEP 3] Extracting full-length L1 sequences")
     # 3. Extract the sequence of the full-length L1s (plus and minus strand)
     fl_fa = outdir / "FL.fa"
     with open(fl_fa, "w") as out_fa:
@@ -171,6 +174,7 @@ def run_module1(
             else:
                 fout.write(line)
 
+    print("[STEP 4] Extracting 2kb flanking regions")
     # 4. Extract flanking 2kb regions (upstream and downstream)
     fl_minus2kb_bed = outdir / "FL-2kb.bed"
     fl_plus2kb_bed = outdir / "FL+2kb.bed"
@@ -185,12 +189,14 @@ def run_module1(
         shell=True, check=True
     )
 
+    print("[STEP 5] Getting sequences for flanking regions")
     # 5. Extract sequences for flanking regions
     fl_minus2kb_fa = outdir / "FL-2kb.fa"
     fl_plus2kb_fa = outdir / "FL+2kb.fa"
     subprocess.run(f"seqtk subseq {input_fasta} {fl_minus2kb_bed} | seqtk seq -U -l 0 - > {fl_minus2kb_fa}", shell=True, check=True)
     subprocess.run(f"seqtk subseq {input_fasta} {fl_plus2kb_bed} | seqtk seq -U -l 0 - > {fl_plus2kb_fa}", shell=True, check=True)
 
+    print("[STEP 6] Mapping flanks to reference genome")
     # 6. Map flanking regions to reference genome with minimap2 (using local FASTA)
     fl_minus2kb_minimap = outdir / "FL-2kb.minimap.txt"
     fl_plus2kb_minimap = outdir / "FL+2kb.minimap.txt"
@@ -205,6 +211,7 @@ def run_module1(
         check=True,
     )
 
+    print("[STEP 7] Detecting ORFs")
     # 7. Detect ORFs and choose the longest ORF1/ORF2 per locus
     orf_fa = outdir / "FLAllORF.fa"
     subprocess.run([
@@ -236,10 +243,12 @@ def run_module1(
     longest_orf_out = outdir / "FLAllORF.combine.blastp"
     find_longest_orf(blastp_out, longest_orf_out)
 
+    print("[STEP 8] Identifying intact ORFs")
     # 8. Identify intact ORFs
     intact_out = outdir / "FLAllORF.intact.blastp"
     find_intact_orf(longest_orf_out, intact_out)
 
+    print("[STEP 9] Integrating ORF status and liftover info")
     # 9. Integrate ORF status and liftover information
     combined_out = outdir / "HapLongLINErRM.txt"
     combine_table(
