@@ -241,7 +241,7 @@ def run_module1(
     find_intact_orf(longest_orf_out, intact_out)
 
     # 9. Integrate ORF status and liftover information
-    combined_out = outdir / "HaLoLIFe.output.txt"
+    combined_out = outdir / "HapLongLINErRM.txt"
     combine_table(
         fl_plus2kb_minimap,
         fl_minus2kb_minimap,
@@ -252,3 +252,18 @@ def run_module1(
 
     # Final output table
     print(f"Module 1 completed. Results in {combined_out}")
+
+    # Remove large intermediate files to save space
+    for tmp in [
+        blastp_out,
+        orf_fa,
+        fl_rename_fa,
+        fl_fa,
+        parsed_bed,
+        fl_minus2kb_fa,
+        fl_plus2kb_fa,
+    ]:
+        try:
+            os.remove(tmp)
+        except FileNotFoundError:
+            pass

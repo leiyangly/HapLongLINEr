@@ -17,6 +17,6 @@
 !/data/HPRC_L1_seq_by_site_v2fl.zip
 !/tests/FL.bed
 !/tests/HG00410.FL.bed
-!/tests/HaLoLIFe.output.txt
-!/tests/HG00410.1.hs1.fa.HaLoLIFe.output.txt
+!/tests/HapLongLINErRM.txt
+!/tests/HG00410.1.hs1.fa.HapLongLINErRM.txt
 __pycache__/
