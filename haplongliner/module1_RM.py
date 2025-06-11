@@ -10,6 +10,7 @@ from .process_orf import process_orf_fasta
 from .find_longest_orf import find_longest_orf
 from .find_intact_orf import find_intact_orf
 from .combine_table import combine_table
+from .utils import verify_blast_db
 
 def parse_repeatmasker(input_path, output_path, log_path=None):
     """
@@ -226,11 +227,13 @@ def run_module1(
     orf_bed = outdir / "FLAllORF.bed"
     process_orf_fasta(orf_fa, orf_bed)
     blastp_out = outdir / "FLAllORF.blastp"
+    db_prefix = Path("data") / "L1rpORF12p.fa"
+    verify_blast_db(db_prefix)
     subprocess.run(
         [
             "blastp",
             "-db",
-            str(Path("data") / "L1rpORF12p.fa"),
+            str(db_prefix),
             "-query",
             str(orf_fa),
             "-outfmt",
