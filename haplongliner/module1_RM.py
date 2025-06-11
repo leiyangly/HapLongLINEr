@@ -14,7 +14,7 @@ from .combine_table import combine_table
 def parse_repeatmasker(input_path, output_path, log_path=None):
     """
     Parse RepeatMasker BED, BED.gz, .out, or .out.gz file and write a unified
-    BED-like file::
+    BED-like file using 0-based half-open coordinates::
 
         chrom  start  end  name  .  strand
 
@@ -44,7 +44,9 @@ def parse_repeatmasker(input_path, output_path, log_path=None):
             try:
                 if is_out:
                     chrom = fields[4]
-                    start = int(fields[5]) - 1  # .out is 1-based
+                    # RepeatMasker .out uses 1-based inclusive coordinates
+                    # Convert to 0-based half-open
+                    start = int(fields[5]) - 1
                     end = int(fields[6])
                     name = fields[9]
                     strand = fields[8]
