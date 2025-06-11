@@ -50,13 +50,14 @@ def combine_table(plus_file: str, minus_file: str, intact_file: str, fl_bed: str
             chrom, start, end, name, dot, strand = f[:6]
             start_i = int(start)
             end_i = int(end)
-            m = start_i - 2000
+            # Convert to the coordinate system used by the legacy pipeline.
+            m = start_i - 1999
             p = end_i + 2000
-            px = end_i
-            mx = start_i
+            px = end_i + 1
+            mx = start_i + 1
             mkey = f"{chrom}:{m}-{start_i}"
             pkey = f"{chrom}:{px}-{p}"
-            # ORF coordinates are stored in 0-based space, so use them directly
+            # ORF headers store 1-based coordinates
             ikey = f"{chrom}_{mx}_{end_i}"
 
             m_val = minus.get(mkey, "").split("\t") if minus.get(mkey) else []
