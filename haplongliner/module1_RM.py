@@ -88,29 +88,6 @@ def download_if_needed(url, local_path):
     print(f"[INFO] Download complete: {local_path}")
     return str(local_path)
 
-def _ensure_minimap_index(reference_fasta: str) -> str:
-    """Return a minimap2 index for the reference, creating it if needed."""
-    ref_path = Path(reference_fasta)
-    # Determine index path (hs1.fa.gz -> hs1.fa.gz.mmi)
-    if ref_path.suffix == ".gz":
-        index_path = ref_path.with_suffix(ref_path.suffix + ".mmi")
-    else:
-        index_path = ref_path.with_suffix(".mmi")
-    if not index_path.exists():
-        print(f"[INFO] Building minimap2 index for {ref_path} ...")
-        subprocess.run([
-            "minimap2",
-            "-x",
-            "asm5",
-            "-d",
-            str(index_path),
-            str(reference_fasta),
-        ], check=True)
-    else:
-        print(f"[INFO] Using existing minimap2 index at {index_path}.")
-    return str(index_path)
-
-
 def run_module1(
     input_fasta,
     repeatmasker_file,
@@ -223,14 +200,13 @@ def run_module1(
     # 6. Map flanking regions to reference genome with minimap2 (using local FASTA)
     fl_minus2kb_minimap = outdir / "FL-2kb.minimap.txt"
     fl_plus2kb_minimap = outdir / "FL+2kb.minimap.txt"
-    index_fa = _ensure_minimap_index(reference_fasta)
     subprocess.run(
-        f"minimap2 -x asm5 {index_fa} {fl_minus2kb_fa} > {fl_minus2kb_minimap}",
+        f"minimap2 -x asm5 {reference_fasta} {fl_minus2kb_fa} > {fl_minus2kb_minimap}",
         shell=True,
         check=True,
     )
     subprocess.run(
-        f"minimap2 -x asm5 {index_fa} {fl_plus2kb_fa} > {fl_plus2kb_minimap}",
+        f"minimap2 -x asm5 {reference_fasta} {fl_plus2kb_fa} > {fl_plus2kb_minimap}",
         shell=True,
         check=True,
     )

@@ -68,9 +68,6 @@ To troubleshoot malformed RepeatMasker entries, use the optional
 haplongliner rm --in your.genome.fa --mask repeatmasker.bed \
   --reference hs1 --out output_dir --log-skipped skipped.log
 ```
-The first run will automatically build a minimap2 index for the chosen
-reference genome and reuse it in subsequent runs (stored next to the FASTA
-file). This reduces memory usage during the mapping step.
 
 Output:
 - BED file with L1 info from your assembly and corresponding hs1/hg38 coordinates
