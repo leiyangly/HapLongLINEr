@@ -19,11 +19,13 @@ def process_orf_fasta(in_fasta, out_bed):
                 continue
             start = int(fields[1].lstrip("["))
             end = int(fields[3].rstrip("]"))
-            parts = fields[0][1:].split("_")
-            if len(parts) < 4:
+
+            header = fields[0][1:]
+            m = re.match(r"^(.+?)_(\d+)_(\d+)_([+-])(?:_.*)?$", header)
+            if not m:
                 continue
-            l1_id = "_".join(parts[:3])
-            l1_strand = parts[3]
+            chrom, lstart, lend, l1_strand = m.groups()
+            l1_id = f"{chrom}_{lstart}_{lend}"
             strand = "+" if end >= start else "-"
             length = abs(end - start)
             fout.write(

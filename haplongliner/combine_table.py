@@ -1,4 +1,5 @@
 import sys
+import re
 from typing import Dict
 
 
@@ -25,12 +26,12 @@ def _read_intact(file_path: str) -> Dict[str, str]:
             if not line.strip():
                 continue
             fields = line.strip().split()
-            parts = fields[0].split("_")
-            if len(parts) < 4:
+            m = re.match(r"^(.+?)_(\d+)_(\d+)_([+-])(?:_.*)?$", fields[0])
+            if not m:
                 continue
-            name = "_".join(parts[: len(parts) - 4 + 1])
-            g = f"{name}_{parts[-3]}_{parts[-2]}"
-            result[g] = line.strip()
+            chrom, start, end, _ = m.groups()
+            key = f"{chrom}_{start}_{end}"
+            result[key] = line.strip()
     return result
 
 
