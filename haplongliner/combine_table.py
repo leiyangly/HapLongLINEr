@@ -61,7 +61,7 @@ def combine_table(plus_file: str, minus_file: str, intact_file: str, fl_bed: str
             pkey = f"{chrom}:{px}-{p}"
             # ORF coordinates are stored in 0-based space; use them directly
             ikey = f"{chrom}_{start_i}_{end_i}"
-
+            
             m_val = minus.get(mkey, "").split("\t") if minus.get(mkey) else []
             p_val = plus.get(pkey, "").split("\t") if plus.get(pkey) else []
 

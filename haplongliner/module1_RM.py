@@ -16,7 +16,7 @@ def parse_repeatmasker(input_path, output_path, log_path=None):
     Parse RepeatMasker BED, BED.gz, .out, or .out.gz file and write a unified
     BED-like file using 0-based half-open coordinates::
 
-        chrom  start  end  name  .  strand
+        chrom  start  end  name  length  strand
 
     ``log_path`` optionally records skipped malformed lines.
     """
@@ -63,7 +63,10 @@ def parse_repeatmasker(input_path, output_path, log_path=None):
                 skipped.append(line.rstrip())
                 continue
 
-            fout.write(f"{chrom}\t{start}\t{end}\t{name}\t.\t{strand}\n")
+            length = end - start
+            fout.write(
+                f"{chrom}\t{start}\t{end}\t{name}\t{length}\t{strand}\n"
+            )
 
     if log_path and skipped:
         with open(log_path, "w") as logf:
@@ -136,14 +139,16 @@ def run_module1(
         plus_cmd = (
             f"awk '$6==\"+\"' {fl_bed} | "
             f"seqtk subseq {input_fasta} - | "
-            f"seqtk seq -U -l 0 -"
+            f"seqtk seq -U -l 0 - | "
+            "sed '/^>/ s/$/(+)/'"
         )
         subprocess.run(plus_cmd, shell=True, stdout=out_fa, check=True)
         # Minus strand
         minus_cmd = (
             f"awk '$6==\"-\"' {fl_bed} | "
             f"seqtk subseq {input_fasta} - | "
-            f"seqtk seq -U -r -l 0 -"
+            f"seqtk seq -U -r -l 0 - | "
+            "sed '/^>/ s/$/(-)/'"
         )
         subprocess.run(minus_cmd, shell=True, stdout=out_fa, check=True)
 
