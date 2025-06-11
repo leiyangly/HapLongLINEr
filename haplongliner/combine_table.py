@@ -50,13 +50,17 @@ def combine_table(plus_file: str, minus_file: str, intact_file: str, fl_bed: str
             chrom, start, end, name, dot, strand = f[:6]
             start_i = int(start)
             end_i = int(end)
-            m = start_i - 2000
+            # Minimapp2 query names produced by seqtk are 1-based inclusive.
+            # Adjust the flanking region coordinates accordingly when
+            # constructing lookup keys.
+            m = start_i - 1999
             p = end_i + 2000
-            px = end_i
-            mx = start_i
+            px = end_i + 1
+            mx = start_i + 1
             mkey = f"{chrom}:{m}-{start_i}"
             pkey = f"{chrom}:{px}-{p}"
-            ikey = f"{chrom}_{mx + 1}_{end_i}"
+            # ORF coordinates are stored in 0-based space; use them directly
+            ikey = f"{chrom}_{start_i}_{end_i}"
 
             m_val = minus.get(mkey, "").split("\t") if minus.get(mkey) else []
             p_val = plus.get(pkey, "").split("\t") if plus.get(pkey) else []

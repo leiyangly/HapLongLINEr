@@ -17,8 +17,14 @@ def process_orf_fasta(in_fasta, out_bed):
             fields = line.strip().split()
             if len(fields) < 4:
                 continue
-            start = int(fields[1].lstrip("["))
-            end = int(fields[3].rstrip("]"))
+            pos_start = int(fields[1].lstrip("["))
+            pos_end = int(fields[3].rstrip("]"))
+
+            # getorf reports coordinates as 1-based inclusive. Convert to
+            # 0-based half-open to match the rest of the pipeline.
+            start = min(pos_start, pos_end) - 1
+            end = max(pos_start, pos_end)
+            strand = "+" if pos_end >= pos_start else "-"
 
             header = fields[0][1:]
             m = re.match(r"^(.+?)_(\d+)_(\d+)_([+-])(?:_.*)?$", header)
@@ -26,8 +32,7 @@ def process_orf_fasta(in_fasta, out_bed):
                 continue
             chrom, lstart, lend, l1_strand = m.groups()
             l1_id = f"{chrom}_{lstart}_{lend}"
-            strand = "+" if end >= start else "-"
-            length = abs(end - start)
+            length = end - start
             fout.write(
                 f"{l1_id}\t{start}\t{end}\t{strand}\t{length}\t{l1_strand}\n"
             )
