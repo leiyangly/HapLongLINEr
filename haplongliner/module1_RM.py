@@ -134,14 +134,16 @@ def run_module1(
         plus_cmd = (
             f"awk '$6==\"+\"' {fl_bed} | "
             f"seqtk subseq {input_fasta} - | "
-            f"seqtk seq -U -l 0 -"
+            f"seqtk seq -U -l 0 - | "
+            "sed '/^>/ s/$/(+)/'"
         )
         subprocess.run(plus_cmd, shell=True, stdout=out_fa, check=True)
         # Minus strand
         minus_cmd = (
             f"awk '$6==\"-\"' {fl_bed} | "
             f"seqtk subseq {input_fasta} - | "
-            f"seqtk seq -U -r -l 0 -"
+            f"seqtk seq -U -r -l 0 - | "
+            "sed '/^>/ s/$/(-)/'"
         )
         subprocess.run(minus_cmd, shell=True, stdout=out_fa, check=True)
 
