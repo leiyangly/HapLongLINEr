@@ -157,8 +157,16 @@ def run_module1(
     with open(fl_fa) as fin, open(fl_rename_fa, "w") as fout:
         for line in fin:
             if line.startswith(">"):
-                header = line.strip().replace(":", "_").replace("-", "_")
-                header = header.replace("(+)", "_+").replace("(-)", "_-")
+                header = line.strip()
+                # Temporarily replace strand annotation to protect the minus sign
+                header = (
+                    header.replace("(+)", "_plus")
+                    .replace("(-)", "_minus")
+                    .replace(":", "_")
+                    .replace("-", "_")
+                    .replace("_plus", "_+")
+                    .replace("_minus", "_-")
+                )
                 fout.write(header + "\n")
             else:
                 fout.write(line)
