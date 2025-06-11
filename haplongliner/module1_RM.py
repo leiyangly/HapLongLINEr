@@ -157,8 +157,9 @@ def run_module1(
     with open(fl_fa) as fin, open(fl_rename_fa, "w") as fout:
         for line in fin:
             if line.startswith(">"):
-                header = line.strip().replace(":", "_").replace("-", "_")
-                header = header.replace("(+)", "_+").replace("(-)", "_-")
+                # Preserve strand information before removing hyphens
+                header = line.strip().replace("(+)", "_+").replace("(-)", "_-")
+                header = header.replace(":", "_").replace("-", "_")
                 fout.write(header + "\n")
             else:
                 fout.write(line)
