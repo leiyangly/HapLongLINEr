@@ -67,16 +67,16 @@ perl ${pd}/scripts/FindIntactORF.pl ${wd}/${ind}.${hap}.FLAllORF.combine.blastp 
 #(3)only take the coordinates of minimap mapping when the plus and minus strand lifted over to the similar chromosomal locations.
 #(4)prefer to take the alignments on chromosomes instead of the decoys.
 #(5)written to be compatible with chromosome/scaffold names with underlines in them
-perl ${pd}/scripts/CombineTable.pl ${wd}/${ind}.${hap}.FL+2kb.${rg}.minimap.txt ${wd}/${ind}.${hap}.FL-2kb.${rg}.minimap.txt ${wd}/${ind}.${hap}.FLAllORF.intact.blastp ${wd}/${ind}.${hap}.FL.bed > ${wd}/${ind}.${hap}.${rg}.HaLoLIFe.output.txt
+perl ${pd}/scripts/CombineTable.pl ${wd}/${ind}.${hap}.FL+2kb.${rg}.minimap.txt ${wd}/${ind}.${hap}.FL-2kb.${rg}.minimap.txt ${wd}/${ind}.${hap}.FLAllORF.intact.blastp ${wd}/${ind}.${hap}.FL.bed > ${wd}/${ind}.${hap}.${rg}.HapLongLINErRM.txt
 
 
 #Retrieve the sequence of all the L1s with intact ORFs, this extraction step is compatible with chromosome/scaffold names with underlines in them
-cat ${wd}/${ind}.${hap}.${rg}.HaLoLIFe.output.txt |\
+cat ${wd}/${ind}.${hap}.${rg}.HapLongLINErRM.txt |\
 perl -lane '$"="\_"; @G=split/\_/,$F[0]; $len=scalar(@G)-7; $name="@G[0..$len]"; print "$name\t$G[-6]\t$G[-5]" if $G[-4] eq "\+" and $G[-1] eq "intact"' |\
 seqtk subseq ${gd}/${ind}.${hap}.${gfn} - |\
 seqtk seq -U -l 0 - > ${wd}/${ind}.${hap}.FLAllORF.intact.fa
 
-cat ${wd}/${ind}.${hap}.${rg}.HaLoLIFe.output.txt |\
+cat ${wd}/${ind}.${hap}.${rg}.HapLongLINErRM.txt |\
 perl -lane '$"="\_"; @G=split/\_/,$F[0]; $len=scalar(@G)-7; $name="@G[0..$len]"; print "$name\t$G[-6]\t$G[-5]" if $G[-4] eq "\-" and $G[-1] eq "intact"' |\
 seqtk subseq ${gd}/${ind}.${hap}.${gfn} - |\
 seqtk seq -U -r -l 0 - >> ${wd}/${ind}.${hap}.FLAllORF.intact.fa
