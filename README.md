@@ -32,8 +32,6 @@ conda install haplongliner
 Clone the repository:
 ```bash
 git clone https://github.com/leiyangly/HapLongLINEr.git
-
-cd HapLongLINEr
 ```
 
 Install dependencies if necessary:
@@ -42,6 +40,8 @@ conda install -c bioconda seqtk minimap2 emboss blast
 ```
 Install HapLongLINEr with pip:
 ```bash
+cd HapLongLINEr
+
 pip install -e .
 ```
 
