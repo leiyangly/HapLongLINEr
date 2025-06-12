@@ -31,7 +31,8 @@ conda install haplongliner
 
 Clone the repository:
 ```bash
-git clone https://github.com/yourusername/HapLongLINEr.git
+git clone https://github.com/leiyangly/HapLongLINEr.git
+
 cd HapLongLINEr
 ```
 
