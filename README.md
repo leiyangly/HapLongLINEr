@@ -38,7 +38,7 @@ cd HapLongLINEr
 
 Install dependencies if necessary:
 ```bash
-conda install -c bioconda seqtk minimap2 emboss ncbi-blast+
+conda install -c bioconda seqtk minimap2 emboss blast
 ```
 Install HapLongLINEr with pip:
 ```bash
