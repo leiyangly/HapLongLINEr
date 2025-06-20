@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 from typing import Dict, List, Tuple
+import gzip
 
 
 def parse_bed(path: Path) -> List[Tuple[str, int, int, str, str]]:
@@ -30,10 +31,15 @@ def parse_bed(path: Path) -> List[Tuple[str, int, int, str, str]]:
 
 
 def load_fasta(path: Path) -> Dict[str, str]:
-    """Return mapping ``sequence_name -> sequence`` from FASTA ``path``."""
+    """Return mapping ``sequence_name -> sequence`` from FASTA ``path``.
+
+    Automatically handles gzipped FASTA files when ``path`` ends with
+    ``.gz``.
+    """
     seqs: Dict[str, List[str]] = {}
     name = None
-    with open(path) as fh:
+    opener = gzip.open if str(path).endswith(".gz") else open
+    with opener(path, "rt") as fh:
         for line in fh:
             line = line.strip()
             if line.startswith(">"):
