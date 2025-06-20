@@ -31,7 +31,7 @@ conda install haplongliner
 
 Install dependencies if necessary:
 ```bash
-conda install -c bioconda seqtk minimap2 emboss blast
+conda install -c bioconda seqtk minimap2 bedtools emboss blast
 ```
 
 Clone the repository:
