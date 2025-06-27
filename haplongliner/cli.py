@@ -130,7 +130,28 @@ def main():
     parser_sv._optionals.title = "Options"
     parser_sv.add_argument("-i", "--in", dest="input", required=True, help="Input haploid assembly FASTA")
     parser_sv.add_argument("-s", "--sv", required=True, help="Structural variant callset")
-    parser_sv.add_argument("-1", "--l1ref", dest="l1ref", required=True, help="Pangenome-level L1 reference FASTA")
+    l1_group = parser_sv.add_mutually_exclusive_group(required=True)
+    l1_group.add_argument(
+        "-1",
+        "--l1ref",
+        dest="l1ref",
+        choices=["hprc"],
+        help="Use built-in HPRC L1 reference",
+    )
+    l1_group.add_argument(
+        "-2",
+        "--l1cus",
+        dest="l1cus",
+        help="Custom L1 BED file to generate flanks",
+    )
+    parser_sv.add_argument(
+        "-r",
+        "--ref",
+        dest="ref",
+        choices=["hs1", "hg38"],
+        required=True,
+        help="Reference genome for liftover flanks",
+    )
     parser_sv.add_argument(
         "-l",
         "--length",
@@ -145,7 +166,13 @@ def main():
         dest="log",
         help="File to log malformed SV lines",
     )
-    parser_sv.add_argument("-o", "--out", dest="output", required=True, help="Output BED file")
+    parser_sv.add_argument(
+        "-o",
+        "--out",
+        dest="output",
+        required=True,
+        help="Output directory for intermediate files",
+    )
     parser_sv.add_argument("-h", "--help", action="help", default=argparse.SUPPRESS,
                            help="Show this help message and exit.")
 
@@ -209,11 +236,18 @@ def main():
             min_length=args.length,
         )
     elif args.command == "sv":
+        # Determine reference path/URL for generating flanks when needed
+        if args.ref == "hs1":
+            reference = HS1_URL
+        else:
+            reference = HG38_URL
         run_module2(
             args.input,
             args.sv,
-            args.l1ref,
+            reference,
             args.output,
+            l1ref=args.l1ref,
+            l1cus=args.l1cus,
             log=args.log,
             min_length=args.length,
         )
