@@ -3,6 +3,8 @@ import subprocess
 from pathlib import Path
 from typing import Dict, List, Tuple
 
+from .utils import run_quiet
+
 
 def _read_paf(path: Path) -> Dict[str, List[str]]:
     """Return mapping ``query_name -> fields`` from a minimap2 PAF."""
@@ -113,7 +115,7 @@ def _parse_sv(
 
 def _bedtools_intersect(a: Path, b: Path, output: Path) -> None:
     with open(output, 'w') as out:
-        subprocess.run(['bedtools', 'intersect', '-wa', '-wb', '-a', str(a), '-b', str(b)], check=True, stdout=out)
+        run_quiet(['bedtools', 'intersect', '-wa', '-wb', '-a', str(a), '-b', str(b)], check=True, stdout=out)
 
 
 def _classify_deletions(lifted: List[Tuple[str, int, int, str, int, str]], deletions: List[Tuple[str, int, int]], outdir: Path) -> Dict[str, str]:
@@ -155,7 +157,7 @@ def _extract_sequences(fasta: Path, lifted: List[Tuple[str, int, int, str, int, 
                 bed.write(f"{chrom}\t{start}\t{end}\t{name}\n")
     if bed_path.stat().st_size > 0:
         cmd = f"seqtk subseq {fasta} {bed_path} | seqtk seq -U -l 0 - > {out_fa}"
-        subprocess.run(cmd, shell=True, check=True)
+        run_quiet(cmd, shell=True, check=True)
     else:
         out_fa.touch()
 
@@ -203,8 +205,8 @@ def run_module2(
     minus_paf = outdir / 'minus2kb.paf'
     plus_paf = outdir / 'plus2kb.paf'
 
-    subprocess.run(f"minimap2 -x asm5 {input_fasta} {minus_fa} > {minus_paf}", shell=True, check=True)
-    subprocess.run(f"minimap2 -x asm5 {input_fasta} {plus_fa} > {plus_paf}", shell=True, check=True)
+    run_quiet(f"minimap2 -x asm5 {input_fasta} {minus_fa} > {minus_paf}", shell=True, check=True)
+    run_quiet(f"minimap2 -x asm5 {input_fasta} {plus_fa} > {plus_paf}", shell=True, check=True)
 
     ref_bed = Path('data') / 'HPRC_L1_hs_v2_v2fl.bed'
     lifted = _liftover_l1s(minus_paf, plus_paf, ref_bed, min_length)
@@ -216,7 +218,7 @@ def run_module2(
     _extract_sequences(Path(input_fasta), lifted, status, candidate_fa)
 
     if candidate_fa.stat().st_size > 0:
-        subprocess.run(['RepeatMasker', str(candidate_fa)], check=True)
+        run_quiet(['RepeatMasker', str(candidate_fa)], check=True)
         rm_out = candidate_fa.with_suffix('.fa.out')
         l1_names = set(_parse_repeatmasker(rm_out))
     else:

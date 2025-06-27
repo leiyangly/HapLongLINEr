@@ -10,7 +10,7 @@ from .process_orf import process_orf_fasta
 from .find_longest_orf import find_longest_orf
 from .find_intact_orf import find_intact_orf
 from .combine_table import combine_table
-from .utils import verify_blast_db
+from .utils import verify_blast_db, run_quiet
 
 def parse_repeatmasker(input_path, output_path, log_path=None):
     """
@@ -125,6 +125,8 @@ def run_module1(
         f"  Output Dir: {outdir}\n"
     )
 
+    print()
+
     print("[STEP 1] Parsing RepeatMasker output")
     # 1. Parse RepeatMasker file to unified BED6
     parsed_bed = outdir / "parsed_repeatmasker.bed"
@@ -133,7 +135,7 @@ def run_module1(
     print("[STEP 2] Extracting full-length L1s")
     # 2. Extract full-length L1s from parsed BED
     fl_bed = outdir / "FL.bed"
-    subprocess.run([
+    run_quiet([
         "python3",
         "-m",
         "haplongliner.extract_l1",
@@ -155,7 +157,7 @@ def run_module1(
             f"seqtk seq -U -l 0 - | "
             "sed '/^>/ s/$/(+)/'"
         )
-        subprocess.run(plus_cmd, shell=True, stdout=out_fa, check=True)
+        run_quiet(plus_cmd, shell=True, stdout=out_fa, check=True)
         # Minus strand
         minus_cmd = (
             f"awk '$6==\"-\"' {fl_bed} | "
@@ -163,7 +165,7 @@ def run_module1(
             f"seqtk seq -U -r -l 0 - | "
             "sed '/^>/ s/$/(-)/'"
         )
-        subprocess.run(minus_cmd, shell=True, stdout=out_fa, check=True)
+        run_quiet(minus_cmd, shell=True, stdout=out_fa, check=True)
 
     # Sanitize FASTA headers for getorf compatibility
     fl_rename_fa = outdir / "FL.rename.fa"
@@ -189,12 +191,12 @@ def run_module1(
     fl_minus2kb_bed = outdir / "FL-2kb.bed"
     fl_plus2kb_bed = outdir / "FL+2kb.bed"
     # Upstream
-    subprocess.run(
+    run_quiet(
         f"""awk 'BEGIN{{OFS=\"\t\"}} {{$3=$2; $2=$2-2000; print $0}}' {fl_bed} > {fl_minus2kb_bed}""",
         shell=True, check=True
     )
     # Downstream
-    subprocess.run(
+    run_quiet(
         f"""awk 'BEGIN{{OFS=\"\t\"}} {{$2=$3; $3=$3+2000; print $0}}' {fl_bed} > {fl_plus2kb_bed}""",
         shell=True, check=True
     )
@@ -203,19 +205,19 @@ def run_module1(
     # 5. Extract sequences for flanking regions
     fl_minus2kb_fa = outdir / "FL-2kb.fa"
     fl_plus2kb_fa = outdir / "FL+2kb.fa"
-    subprocess.run(f"seqtk subseq {input_fasta} {fl_minus2kb_bed} | seqtk seq -U -l 0 - > {fl_minus2kb_fa}", shell=True, check=True)
-    subprocess.run(f"seqtk subseq {input_fasta} {fl_plus2kb_bed} | seqtk seq -U -l 0 - > {fl_plus2kb_fa}", shell=True, check=True)
+    run_quiet(f"seqtk subseq {input_fasta} {fl_minus2kb_bed} | seqtk seq -U -l 0 - > {fl_minus2kb_fa}", shell=True, check=True)
+    run_quiet(f"seqtk subseq {input_fasta} {fl_plus2kb_bed} | seqtk seq -U -l 0 - > {fl_plus2kb_fa}", shell=True, check=True)
 
     print("[STEP 6] Mapping flanks to reference genome")
     # 6. Map flanking regions to reference genome with minimap2 (using local FASTA)
     fl_minus2kb_minimap = outdir / "FL-2kb.minimap.txt"
     fl_plus2kb_minimap = outdir / "FL+2kb.minimap.txt"
-    subprocess.run(
+    run_quiet(
         f"minimap2 -x asm5 {reference_fasta} {fl_minus2kb_fa} > {fl_minus2kb_minimap}",
         shell=True,
         check=True,
     )
-    subprocess.run(
+    run_quiet(
         f"minimap2 -x asm5 {reference_fasta} {fl_plus2kb_fa} > {fl_plus2kb_minimap}",
         shell=True,
         check=True,
@@ -224,7 +226,7 @@ def run_module1(
     print("[STEP 7] Detecting ORFs")
     # 7. Detect ORFs and choose the longest ORF1/ORF2 per locus
     orf_fa = outdir / "FLAllORF.fa"
-    subprocess.run([
+    run_quiet([
         "getorf",
         "-sequence",
         fl_rename_fa,
@@ -238,7 +240,7 @@ def run_module1(
     blastp_out = outdir / "FLAllORF.blastp"
     db_prefix = Path("data") / "L1rpORF12p.fa"
     verify_blast_db(db_prefix)
-    subprocess.run(
+    run_quiet(
         [
             "blastp",
             "-db",
