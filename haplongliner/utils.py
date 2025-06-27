@@ -112,3 +112,49 @@ def verify_sv_file(path: str) -> None:
             if len(line.rstrip().split("\t")) >= 3:
                 return
         sys.exit(f"Error: SV file '{path}' appears malformed or empty.")
+
+
+def verify_repeatmasker_file(path: str) -> None:
+    """Exit if ``path`` is a readable RepeatMasker BED or .out file."""
+    import gzip
+    import re
+
+    rpath = Path(path)
+    if not rpath.exists():
+        sys.exit(f"Error: file '{path}' not found.")
+
+    opener = gzip.open if str(rpath).endswith(".gz") else open
+    try:
+        with opener(rpath, "rt") as fh:
+            lines = []
+            for _ in range(10):
+                line = fh.readline()
+                if not line:
+                    break
+                if line.startswith(("#", "track", "browser")):
+                    continue
+                lines.append(line)
+            if not lines:
+                raise ValueError("no data lines found")
+            if any("SW" in l and "perc" in l for l in lines[:4]):
+                lines = lines[4:]
+                if not lines:
+                    raise ValueError("header only")
+            line0 = lines[0].strip()
+            fields = re.split(r"\s+", line0)
+            is_out = (
+                len(fields) >= 14
+                and fields[0].replace(".", "", 1).isdigit()
+                and fields[5].isdigit()
+                and fields[6].isdigit()
+            )
+            if is_out:
+                int(fields[5])
+                int(fields[6])
+            elif len(fields) >= 3:
+                int(fields[1])
+                int(fields[2])
+            else:
+                raise ValueError("unrecognized format")
+    except Exception as exc:
+        sys.exit(f"Error: RepeatMasker file '{path}' appears malformed: {exc}")

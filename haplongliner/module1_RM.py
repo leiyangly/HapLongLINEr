@@ -14,7 +14,7 @@ from .utils import (
     verify_blast_db,
     run_quiet,
     verify_fasta_file,
-    verify_bed_file,
+    verify_repeatmasker_file,
 )
 
 def parse_repeatmasker(input_path, output_path, log_path=None):
@@ -117,7 +117,7 @@ def run_module1(
 
     # Validate input files
     verify_fasta_file(input_fasta)
-    verify_bed_file(repeatmasker_file)
+    verify_repeatmasker_file(repeatmasker_file)
     if not reference_fasta.startswith("http://") and not reference_fasta.startswith("https://"):
         verify_fasta_file(reference_fasta)
 
