@@ -62,19 +62,19 @@ Input:
 Command with major releases of reference genome:
 ```bash
 haplongliner rm \
-  --in your.genome.fa \
-  --mask repeatmasker.bed \
+  --in tests/test.genome.HG00410.1.fa \
+  --mask tests/test.genome.HG00410.1.fa \
   --ref hs1 \
-  --out output_dir
+  --out test_output_dir
 ```
 
 Or with custom reference genome:
 ```bash
 haplongliner rm \
   --in your.genome.fa \
-  --mask repeatmasker.bed \
-  --custom custom_reference.fa.gz \
-  --out output_dir
+  --mask your.repeatmasker.bed \
+  --custom your.reference.fa.gz \
+  --out your_output_dir
 ```
 
 Output:
