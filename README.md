@@ -67,25 +67,14 @@ haplongliner rm \
   --ref hs1 \
   --out output_dir
 ```
-The minimum L1 length cutoff is 5 kb by default and can be adjusted with
-`-l/--length`.
-Or:
+
+Or with custom reference genome:
 ```bash
 haplongliner rm \
   --in your.genome.fa \
   --mask repeatmasker.bed \
   --custom custom_reference.fa.gz \
   --out output_dir
-```
-To troubleshoot malformed RepeatMasker entries, use the optional
-`-g/--log` parameter to record skipped lines:
-```bash
-haplongliner rm \
-  --in your.genome.fa \
-  --mask repeatmasker.bed \
-  --ref hs1 \
-  --out output_dir \
-  --log skipped.log
 ```
 
 Output:
@@ -110,7 +99,7 @@ haplongliner sv \
   --log sv_skipped.log \
   --out output_file.bed
 ```
-The `-l/--length` option can be used here as well to change the minimum L1 length.
+
 Output:
 - OUT.TXT file with L1 info from your assembly and corresponding refence genome (hs1/hg38) coordinates and ORF status
 - Log file (when using `-g/--log`) that summarizes results of each step of the pipeline module
