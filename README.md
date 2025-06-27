@@ -59,7 +59,7 @@ Input:
 - RepeatMasker BED or .out file (plain or gzipped)
 - Reference genome FASTA (local or remote, e.g., hs1/hg38)
 
-Command:
+Command with major releases of reference genome:
 ```bash
 haplongliner rm \
   --in your.genome.fa \
