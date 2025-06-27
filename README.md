@@ -59,21 +59,21 @@ Input:
 - RepeatMasker BED or .out file (plain or gzipped)
 - Reference genome FASTA (local or remote, e.g., hs1/hg38)
 
-Command with major releases of reference genome:
+Command with test genome:
 ```bash
 haplongliner rm \
   --in tests/test.genome.HG00410.1.fa \
   --mask tests/test.genome.HG00410.1.out \
   --ref hs1 \
-  --out test_output_dir
+  --out test_output_module1
 ```
 
-Or with custom reference genome:
+Or with user provided genome:
 ```bash
 haplongliner rm \
   --in your.genome.fa \
   --mask your.repeatmasker.bed \
-  --custom your.reference.fa.gz \
+  --ref hs1 \
   --out your_output_dir
 ```
 
@@ -90,14 +90,22 @@ Input:
 - Structural variant (SV) callset (e.g., VCF or BED)
 - Pangenome-level L1 reference FASTA
 
-Command:
+Command with test genome:
 ```bash
 haplongliner sv \
   --in your.genome.fa \
   --sv your.sv.vcf \
   --l1ref pangenome_L1_reference.fa \
-  --log sv_skipped.log \
-  --out output_file.bed
+  --out test_output_module2
+```
+
+Command with user provided genome:
+```bash
+haplongliner sv \
+  --in your.genome.fa \
+  --sv your.sv.vcf \
+  --l1ref pangenome_L1_reference.fa \
+  --out your_output_dir
 ```
 
 Output:
