@@ -95,6 +95,7 @@ Command with test genome:
 haplongliner sv \
   --in tests/test.genome.HG00410.1.fa \
   --sv tests/test.genome.HG00410.vcf.gz \
+  --l1ref hprc \
   --ref hs1 \
   --out test_output_module2
 ```
@@ -104,7 +105,8 @@ Command with user provided genome:
 haplongliner sv \
   --in your.genome.fa \
   --sv your.sv.vcf \
-  --custom your.L1.bed \
+  --l1cus your.L1.bed \
+  --ref you_choose_hs1_or_hg38 \
   --out your_output_dir
 ```
 
