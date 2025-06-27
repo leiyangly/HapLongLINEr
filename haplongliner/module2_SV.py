@@ -3,7 +3,11 @@ import subprocess
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-from .utils import run_quiet
+from .utils import (
+    run_quiet,
+    verify_fasta_file,
+    verify_sv_file,
+)
 
 
 def _read_paf(path: Path) -> Dict[str, List[str]]:
@@ -198,6 +202,11 @@ def run_module2(
     out_path = Path(output_bed)
     outdir = out_path.parent
     outdir.mkdir(parents=True, exist_ok=True)
+
+    # Validate input files
+    verify_fasta_file(input_fasta)
+    verify_sv_file(sv_file)
+    verify_fasta_file(l1ref_fasta)
 
     minus_fa = Path('data') / '-2kb.fa'
     plus_fa = Path('data') / '+2kb.fa'
