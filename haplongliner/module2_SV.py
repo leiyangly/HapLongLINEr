@@ -207,11 +207,15 @@ def run_module2(
         f"  Min Length: {min_length}"
     )
 
+    print()
+
     outdir = Path(output_dir)
     outdir.mkdir(parents=True, exist_ok=True)
 
     verify_fasta_file(input_fasta)
     verify_sv_file(sv_file)
+
+    print("[STEP 1] Preparing reference L1 flanking sequences")
 
     if l1cus:
         verify_bed_file(l1cus)
@@ -256,6 +260,8 @@ def run_module2(
         plus_fa = Path("data") / "+2kb.fa"
         ref_bed = Path("data") / "HPRC_L1_hs1_v2_v2fl.bed"
 
+    print("\n[STEP 2] Mapping L1 flanks to input assembly")
+
     minus_paf = outdir / "minus2kb.paf"
     plus_paf = outdir / "plus2kb.paf"
 
@@ -270,20 +276,32 @@ def run_module2(
         check=True,
     )
 
+    print("\n[STEP 3] Lifting over candidate L1 coordinates")
+
     lifted = _liftover_l1s(minus_paf, plus_paf, ref_bed, min_length)
 
+    print("\n[STEP 4] Parsing structural variants")
+
     deletions, insertions = _parse_sv(Path(sv_file), Path(log) if log else None)
+
+    print("\n[STEP 5] Classifying deletions")
+
     status = _classify_deletions(lifted, deletions, outdir)
+
+    print("\n[STEP 6] Extracting candidate L1 sequences")
 
     candidate_fa = outdir / "candidates.fa"
     _extract_sequences(Path(input_fasta), lifted, status, candidate_fa)
 
     if candidate_fa.stat().st_size > 0:
+        print("\n[STEP 7] Running RepeatMasker on candidates")
         run_quiet(["RepeatMasker", str(candidate_fa)], check=True)
         rm_out = candidate_fa.with_suffix(".fa.out")
         l1_names = set(_parse_repeatmasker(rm_out))
     else:
         l1_names = set()
+
+    print("\n[STEP 8] Writing output table")
 
     out_table = outdir / "HapLongLINErSV.txt"
     with open(out_table, "w") as out:
