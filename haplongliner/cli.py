@@ -97,15 +97,17 @@ def main():
     )
 
     parser_rm.add_argument(
-        "--log-skipped",
-        dest="log_skipped",
+        "-g",
+        "--log",
+        dest="log",
         help="File to log malformed RepeatMasker lines",
     )
 
     ref_group = parser_rm.add_mutually_exclusive_group(required=True)
     ref_group.add_argument(
         "-r",
-        "--reference",
+        "--ref",
+        dest="ref",
         choices=["hs1", "hg38"],
         help="Reference genome: 'hs1' or 'hg38' (downloaded to data/ if missing)"
     )
@@ -128,7 +130,7 @@ def main():
     parser_sv._optionals.title = "Options"
     parser_sv.add_argument("-i", "--in", dest="input", required=True, help="Input haploid assembly FASTA")
     parser_sv.add_argument("-s", "--sv", required=True, help="Structural variant callset")
-    parser_sv.add_argument("-1", dest="l1ref", required=True, help="Pangenome-level L1 reference FASTA")
+    parser_sv.add_argument("-1", "--l1ref", dest="l1ref", required=True, help="Pangenome-level L1 reference FASTA")
     parser_sv.add_argument(
         "-l",
         "--length",
@@ -136,6 +138,12 @@ def main():
         type=int,
         default=5000,
         help="Minimum L1 length (default: 5000)",
+    )
+    parser_sv.add_argument(
+        "-g",
+        "--log",
+        dest="log",
+        help="File to log malformed SV lines",
     )
     parser_sv.add_argument("-o", "--out", dest="output", required=True, help="Output BED file")
     parser_sv.add_argument("-h", "--help", action="help", default=argparse.SUPPRESS,
@@ -186,9 +194,9 @@ def main():
 
     if args.command == "rm":
         # Determine reference path/URL
-        if args.reference == "hs1":
+        if args.ref == "hs1":
             reference = HS1_URL
-        elif args.reference == "hg38":
+        elif args.ref == "hg38":
             reference = HG38_URL
         else:
             reference = args.custom
@@ -197,7 +205,7 @@ def main():
             args.mask,
             reference,
             args.output,
-            log_skipped=args.log_skipped,
+            log=args.log,
             min_length=args.length,
         )
     elif args.command == "sv":
@@ -206,6 +214,7 @@ def main():
             args.sv,
             args.l1ref,
             args.output,
+            log=args.log,
             min_length=args.length,
         )
     elif args.command == "db":

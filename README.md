@@ -64,7 +64,7 @@ Command:
 haplongliner rm \
   --in your.genome.fa \
   --mask repeatmasker.bed \
-  --reference hs1 \
+  --ref hs1 \
   --out output_dir
 ```
 The minimum L1 length cutoff is 5 kb by default and can be adjusted with
@@ -78,14 +78,14 @@ haplongliner rm \
   --out output_dir
 ```
 To troubleshoot malformed RepeatMasker entries, use the optional
-`--log-skipped` parameter to record skipped lines:
+`-g/--log` parameter to record skipped lines:
 ```bash
 haplongliner rm \
   --in your.genome.fa \
   --mask repeatmasker.bed \
-  --reference hs1 \
+  --ref hs1 \
   --out output_dir \
-  --log-skipped skipped.log
+  --log skipped.log
 ```
 
 Output:
@@ -107,6 +107,7 @@ haplongliner sv \
   --in your.genome.fa \
   --sv your.sv.vcf \
   --l1ref pangenome_L1_reference.fa \
+  --log sv_skipped.log \
   --out output_file.bed
 ```
 The `-l/--length` option can be used here as well to change the minimum L1 length.

@@ -63,38 +63,51 @@ def _write_bed(entries: List[Tuple[str, int, int, str, int, str]], path: Path) -
             out.write(f"{chrom}\t{start}\t{end}\t{name}\t{length}\t{strand}\n")
 
 
-def _parse_sv(sv_path: Path) -> Tuple[List[Tuple[str, int, int]], List[Tuple[str, int, int]]]:
-    """Parse a simple VCF or BED SV file and return deletion and insertion regions."""
+def _parse_sv(
+    sv_path: Path, log_path: Path | None = None
+) -> Tuple[List[Tuple[str, int, int]], List[Tuple[str, int, int]]]:
+    """Parse a simple VCF or BED SV file and return deletion and insertion regions.
+    Unrecognized lines are written to ``log_path`` if provided."""
     deletions: List[Tuple[str, int, int]] = []
     insertions: List[Tuple[str, int, int]] = []
     is_vcf = sv_path.suffix.lower().endswith('vcf') or sv_path.suffix.lower() == '.gz'
+    skipped: List[str] = []
     with open(sv_path) as fh:
         for line in fh:
             if line.startswith('#') or not line.strip():
                 continue
             fields = line.rstrip().split('\t')
             if is_vcf or len(fields) > 5:
-                chrom = fields[0]
-                pos = int(fields[1]) - 1
-                info = fields[7] if len(fields) > 7 else ''
-                svtype = None
-                end = None
-                for item in info.split(';'):
-                    if item.startswith('SVTYPE='):
-                        svtype = item.split('=', 1)[1]
-                    elif item.startswith('END='):
-                        end = int(item.split('=', 1)[1]) - 1
-                if svtype == 'DEL' and end is not None:
-                    deletions.append((chrom, pos, end))
-                elif svtype == 'INS':
-                    insertions.append((chrom, pos, pos + 1))
+                try:
+                    chrom = fields[0]
+                    pos = int(fields[1]) - 1
+                    info = fields[7] if len(fields) > 7 else ''
+                    svtype = None
+                    end = None
+                    for item in info.split(';'):
+                        if item.startswith('SVTYPE='):
+                            svtype = item.split('=', 1)[1]
+                        elif item.startswith('END='):
+                            end = int(item.split('=', 1)[1]) - 1
+                    if svtype == 'DEL' and end is not None:
+                        deletions.append((chrom, pos, end))
+                    elif svtype == 'INS':
+                        insertions.append((chrom, pos, pos + 1))
+                except Exception:
+                    skipped.append(line.rstrip())
             else:
-                chrom, start, end = fields[:3]
-                svtype = fields[3].upper() if len(fields) > 3 else ''
-                if svtype == 'DEL':
-                    deletions.append((chrom, int(start), int(end)))
-                elif svtype == 'INS':
-                    insertions.append((chrom, int(start), int(end)))
+                try:
+                    chrom, start, end = fields[:3]
+                    svtype = fields[3].upper() if len(fields) > 3 else ''
+                    if svtype == 'DEL':
+                        deletions.append((chrom, int(start), int(end)))
+                    elif svtype == 'INS':
+                        insertions.append((chrom, int(start), int(end)))
+                except Exception:
+                    skipped.append(line.rstrip())
+    if log_path and skipped:
+        with open(log_path, 'w') as logf:
+            logf.write('\n'.join(skipped) + '\n')
     return deletions, insertions
 
 
@@ -163,9 +176,13 @@ def run_module2(
     sv_file: str,
     l1ref_fasta: str,
     output_bed: str,
+    log: str | None = None,
     min_length: int = 5000,
 ) -> None:
-    """RepeatMasker-free L1 discovery using structural variants."""
+    """RepeatMasker-free L1 discovery using structural variants.
+
+    ``log`` specifies a file to record malformed SV lines if provided.
+    """
 
     print(
         "Module 2 running with:\n"
@@ -192,7 +209,7 @@ def run_module2(
     ref_bed = Path('data') / 'HPRC_L1_hs_v2_v2fl.bed'
     lifted = _liftover_l1s(minus_paf, plus_paf, ref_bed, min_length)
 
-    deletions, insertions = _parse_sv(Path(sv_file))
+    deletions, insertions = _parse_sv(Path(sv_file), Path(log) if log else None)
     status = _classify_deletions(lifted, deletions, outdir)
 
     candidate_fa = outdir / 'candidates.fa'

@@ -94,19 +94,19 @@ def run_module1(
     repeatmasker_file,
     reference_fasta,
     output_dir="module1_output",
-    log_skipped=None,
+    log=None,
     min_length: int = 5000,
 ):
     """
     RepeatMasker-based L1 discovery pipeline.
     Downloads remote reference if needed.
     Handles RepeatMasker BED, BED.gz, .out, or .out.gz input.
-    ``log_skipped`` specifies a file to log malformed RepeatMasker lines. If not
-    provided, the ``HAPLOGLINER_LOG_SKIPPED`` environment variable is checked.
+    ``log`` specifies a file to log malformed RepeatMasker lines. If not
+    provided, the ``HAPLOGLINER_LOG`` environment variable is checked.
     ``min_length`` controls the minimum L1 length to retain (default 5000 bp).
     """
-    if log_skipped is None:
-        log_skipped = os.getenv("HAPLOGLINER_LOG_SKIPPED")
+    if log is None:
+        log = os.getenv("HAPLOGLINER_LOG")
     outdir = Path(output_dir)
     outdir.mkdir(parents=True, exist_ok=True)
 
@@ -128,7 +128,7 @@ def run_module1(
     print("[STEP 1] Parsing RepeatMasker output")
     # 1. Parse RepeatMasker file to unified BED6
     parsed_bed = outdir / "parsed_repeatmasker.bed"
-    parse_repeatmasker(repeatmasker_file, parsed_bed, log_skipped)
+    parse_repeatmasker(repeatmasker_file, parsed_bed, log)
 
     print("[STEP 2] Extracting full-length L1s")
     # 2. Extract full-length L1s from parsed BED
