@@ -2,7 +2,11 @@ import gzip
 from pathlib import Path
 import pytest
 
-from haplongliner.utils import verify_fasta_file, verify_repeatmasker_file
+from haplongliner.utils import (
+    verify_fasta_file,
+    verify_repeatmasker_file,
+    verify_sv_file,
+)
 
 
 def test_verify_fasta_file_accepts_gz(tmp_path):
@@ -31,3 +35,19 @@ def test_verify_repeatmasker_file_bad(tmp_path):
     bad.write_text('malformed line')
     with pytest.raises(SystemExit):
         verify_repeatmasker_file(str(bad))
+
+
+def test_verify_sv_file_accepts_gz_and_plain(tmp_path):
+    src_gz = Path('tests/test.genome.HG00410.vcf.gz')
+    plain = tmp_path / 'test.vcf'
+    with gzip.open(src_gz, 'rb') as f_in, open(plain, 'wb') as f_out:
+        f_out.write(f_in.read())
+    verify_sv_file(str(src_gz))
+    verify_sv_file(str(plain))
+
+
+def test_verify_sv_file_bad(tmp_path):
+    bad = tmp_path / 'bad.txt'
+    bad.write_text('bad line')
+    with pytest.raises(SystemExit):
+        verify_sv_file(str(bad))
