@@ -49,6 +49,9 @@ pip install -e .
 
 ## Usage
 
+Run `haplongliner`, `haplongliner rm`, `haplongliner sv` or `haplongliner db` with
+no arguments to see the available options for each command.
+
 ### Module 1: RepeatMasker-based
 
 Input:
@@ -73,7 +76,7 @@ haplongliner rm --in your.genome.fa --mask repeatmasker.bed \
 
 Output:
 - OUT.TXT file with L1 info from your assembly and corresponding refence genome (hs1/hg38) coordinates and ORF status
-- LOG.TXT file that summarizes results of each step of the pipeline module
+- Log file (when using `-g/--log`) that summarizes results of each step of the pipeline module
 - FASTA file containing all full length (>=5kb by default) L1HS, L1PA2, and intact L1PA3 sequences from the input assembly
 
 
@@ -90,7 +93,7 @@ haplongliner sv --in your.genome.fa --sv your.sv.vcf --l1ref pangenome_L1_refere
 ```
 Output:
 - OUT.TXT file with L1 info from your assembly and corresponding refence genome (hs1/hg38) coordinates and ORF status
-- LOG.TXT file that summarizes results of each step of the pipeline module
+- Log file (when using `-g/--log`) that summarizes results of each step of the pipeline module
 - FASTA file containing all full length (>=5kb by default) L1HS, L1PA2, and intact L1PA3 sequences from the input assembly
 
 ### Module 3: Sequence Repository

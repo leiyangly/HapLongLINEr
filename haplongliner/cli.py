@@ -2,6 +2,21 @@ import argparse
 import sys
 from textwrap import dedent
 
+
+class _Tee:
+    """Simple stdout splitter."""
+
+    def __init__(self, *streams):
+        self.streams = streams
+
+    def write(self, data):
+        for s in self.streams:
+            s.write(data)
+
+    def flush(self):
+        for s in self.streams:
+            s.flush()
+
 from .module1_RM import run_module1
 from .module2_SV import run_module2
 from .module3_DB import run_module3
@@ -48,6 +63,13 @@ def main():
         version=f"%(prog)s {__version__}",
         help="Show program's version number and exit.",
     )
+    parser.add_argument(
+        "-g",
+        "--log",
+        dest="log_file",
+        metavar="FILE",
+        help="Write console output to FILE",
+    )
 
     subparsers = parser.add_subparsers(dest="command")
 
@@ -72,7 +94,12 @@ def main():
     )
 
     ref_group = parser_rm.add_mutually_exclusive_group(required=True)
-    ref_group.add_argument("-r", "--reference", choices=["hs1", "hg38"], help="Reference genome: 'hs1' or 'hg38' (remote)")
+    ref_group.add_argument(
+        "-r",
+        "--reference",
+        choices=["hs1", "hg38"],
+        help="Reference genome: 'hs1' or 'hg38' (downloaded to data/ if missing)"
+    )
     ref_group.add_argument("-c", "--custom", help="Custom reference FASTA or gzipped FASTA (local path)")
 
     parser_rm.add_argument("-o", "--out", dest="output", required=True, help="Output directory for intermediate files")
@@ -132,6 +159,11 @@ def main():
 
     args = parser.parse_args()
 
+    log_handle = None
+    if getattr(args, "log_file", None):
+        log_handle = open(args.log_file, "w")
+        sys.stdout = _Tee(sys.stdout, log_handle)
+
     if args.command:
         check_dependencies()
 
@@ -154,6 +186,9 @@ def main():
         run_module2(args.input, args.sv, args.l1ref, args.output)
     elif args.command == "db":
         run_module3(args.output)
+
+    if log_handle:
+        log_handle.close()
 
 if __name__ == "__main__":
     main()
