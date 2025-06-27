@@ -63,7 +63,7 @@ Command with major releases of reference genome:
 ```bash
 haplongliner rm \
   --in tests/test.genome.HG00410.1.fa \
-  --mask tests/test.genome.HG00410.1.fa \
+  --mask tests/test.genome.HG00410.1.out \
   --ref hs1 \
   --out test_output_dir
 ```
