@@ -93,9 +93,9 @@ Input:
 Command with test genome:
 ```bash
 haplongliner sv \
-  --in your.genome.fa \
-  --sv your.sv.vcf \
-  --l1ref pangenome_L1_reference.fa \
+  --in tests/test.genome.HG00410.1.fa \
+  --sv tests/test.genome.HG00410.vcf.gz \
+  --ref hs1 \
   --out test_output_module2
 ```
 
@@ -104,7 +104,7 @@ Command with user provided genome:
 haplongliner sv \
   --in your.genome.fa \
   --sv your.sv.vcf \
-  --l1ref pangenome_L1_reference.fa \
+  --custom your.L1.bed \
   --out your_output_dir
 ```
 
