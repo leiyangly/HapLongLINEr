@@ -1,5 +1,4 @@
 import re
-import subprocess
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -7,7 +6,9 @@ from .utils import (
     run_quiet,
     verify_fasta_file,
     verify_sv_file,
+    verify_bed_file,
 )
+from .module1_RM import download_if_needed
 
 
 def _read_paf(path: Path) -> Dict[str, List[str]]:
@@ -180,63 +181,114 @@ def _parse_repeatmasker(out_file: Path) -> List[str]:
 def run_module2(
     input_fasta: str,
     sv_file: str,
-    l1ref_fasta: str,
-    output_bed: str,
+    reference_fasta: str,
+    output_dir: str,
+    *,
+    l1ref: str | None = None,
+    l1cus: str | None = None,
     log: str | None = None,
     min_length: int = 5000,
 ) -> None:
     """RepeatMasker-free L1 discovery using structural variants.
 
     ``log`` specifies a file to record malformed SV lines if provided.
+    ``reference_fasta`` can be a local path or URL (downloaded if needed).
     """
 
     print(
         "Module 2 running with:\n"
         f"  Input: {input_fasta}\n"
         f"  SV: {sv_file}\n"
-        f"  L1 Reference: {l1ref_fasta}\n"
-        f"  Output: {output_bed}\n"
+        f"  Reference: {reference_fasta}\n"
+        f"  Output Dir: {output_dir}\n"
         f"  Min Length: {min_length}"
     )
 
-    out_path = Path(output_bed)
-    outdir = out_path.parent
+    outdir = Path(output_dir)
     outdir.mkdir(parents=True, exist_ok=True)
 
-    # Validate input files
     verify_fasta_file(input_fasta)
     verify_sv_file(sv_file)
-    verify_fasta_file(l1ref_fasta)
 
-    minus_fa = Path('data') / '-2kb.fa'
-    plus_fa = Path('data') / '+2kb.fa'
+    if l1cus:
+        verify_bed_file(l1cus)
+        ref_path = reference_fasta
+        if ref_path.startswith("http://") or ref_path.startswith("https://"):
+            data_dir = Path("data")
+            data_dir.mkdir(exist_ok=True)
+            ref_local = data_dir / Path(ref_path).name
+            ref_path = download_if_needed(ref_path, ref_local)
+        else:
+            verify_fasta_file(ref_path)
 
-    minus_paf = outdir / 'minus2kb.paf'
-    plus_paf = outdir / 'plus2kb.paf'
+        minus_bed = outdir / "custom_minus2kb.bed"
+        plus_bed = outdir / "custom_plus2kb.bed"
+        run_quiet(
+            f"awk 'BEGIN{{OFS=\"\t\"}} {{$3=$2; $2=$2-2000; print $0}}' {l1cus} > {minus_bed}",
+            shell=True,
+            check=True,
+        )
+        run_quiet(
+            f"awk 'BEGIN{{OFS=\"\t\"}} {{$2=$3; $3=$3+2000; print $0}}' {l1cus} > {plus_bed}",
+            shell=True,
+            check=True,
+        )
+        minus_fa = outdir / "-2kb.fa"
+        plus_fa = outdir / "+2kb.fa"
+        run_quiet(
+            f"seqtk subseq {ref_path} {minus_bed} | seqtk seq -U -l 0 - > {minus_fa}",
+            shell=True,
+            check=True,
+        )
+        run_quiet(
+            f"seqtk subseq {ref_path} {plus_bed} | seqtk seq -U -l 0 - > {plus_fa}",
+            shell=True,
+            check=True,
+        )
+        ref_bed = Path(l1cus)
+    else:
+        if l1ref != "hprc":
+            raise ValueError("Unsupported L1 reference")
+        minus_fa = Path("data") / "-2kb.fa"
+        plus_fa = Path("data") / "+2kb.fa"
+        ref_bed = Path("data") / "HPRC_L1_hs1_v2_v2fl.bed"
 
-    run_quiet(f"minimap2 -x asm5 {input_fasta} {minus_fa} > {minus_paf}", shell=True, check=True)
-    run_quiet(f"minimap2 -x asm5 {input_fasta} {plus_fa} > {plus_paf}", shell=True, check=True)
+    minus_paf = outdir / "minus2kb.paf"
+    plus_paf = outdir / "plus2kb.paf"
 
-    ref_bed = Path('data') / 'HPRC_L1_hs_v2_v2fl.bed'
+    run_quiet(
+        f"minimap2 -x asm5 {input_fasta} {minus_fa} > {minus_paf}",
+        shell=True,
+        check=True,
+    )
+    run_quiet(
+        f"minimap2 -x asm5 {input_fasta} {plus_fa} > {plus_paf}",
+        shell=True,
+        check=True,
+    )
+
     lifted = _liftover_l1s(minus_paf, plus_paf, ref_bed, min_length)
 
     deletions, insertions = _parse_sv(Path(sv_file), Path(log) if log else None)
     status = _classify_deletions(lifted, deletions, outdir)
 
-    candidate_fa = outdir / 'candidates.fa'
+    candidate_fa = outdir / "candidates.fa"
     _extract_sequences(Path(input_fasta), lifted, status, candidate_fa)
 
     if candidate_fa.stat().st_size > 0:
-        run_quiet(['RepeatMasker', str(candidate_fa)], check=True)
-        rm_out = candidate_fa.with_suffix('.fa.out')
+        run_quiet(["RepeatMasker", str(candidate_fa)], check=True)
+        rm_out = candidate_fa.with_suffix(".fa.out")
         l1_names = set(_parse_repeatmasker(rm_out))
     else:
         l1_names = set()
 
-    with open(output_bed, 'w') as out:
+    out_table = outdir / "HapLongLINErSV.txt"
+    with open(out_table, "w") as out:
         for chrom, start, end, name, length, strand in lifted:
-            stat = status.get(name, 'present')
-            l1flag = 'L1' if name in l1_names else 'NA'
-            out.write(f"{chrom}\t{start}\t{end}\t{name}\t{length}\t{strand}\t{stat}\t{l1flag}\n")
+            stat = status.get(name, "present")
+            l1flag = "L1" if name in l1_names else "NA"
+            out.write(
+                f"{chrom}\t{start}\t{end}\t{name}\t{length}\t{strand}\t{stat}\t{l1flag}\n"
+            )
 
-    print(f"Module 2 completed. Results in {output_bed}")
+    print(f"Module 2 completed. Results in {out_table}")
