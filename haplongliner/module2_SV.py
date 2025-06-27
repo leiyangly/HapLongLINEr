@@ -78,8 +78,11 @@ def _parse_sv(
     deletions: List[Tuple[str, int, int]] = []
     insertions: List[Tuple[str, int, int]] = []
     is_vcf = sv_path.suffix.lower().endswith('vcf') or sv_path.suffix.lower() == '.gz'
+    import gzip
+
     skipped: List[str] = []
-    with open(sv_path) as fh:
+    opener = gzip.open if str(sv_path).endswith(".gz") else open
+    with opener(sv_path, "rt") as fh:
         for line in fh:
             if line.startswith('#') or not line.strip():
                 continue
