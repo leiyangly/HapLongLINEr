@@ -88,6 +88,15 @@ def main():
     parser_rm.add_argument("-m", "--mask", required=True, help="RepeatMasker BED or .out file")
 
     parser_rm.add_argument(
+        "-l",
+        "--length",
+        dest="length",
+        type=int,
+        default=5000,
+        help="Minimum L1 length (default: 5000)",
+    )
+
+    parser_rm.add_argument(
         "--log-skipped",
         dest="log_skipped",
         help="File to log malformed RepeatMasker lines",
@@ -119,7 +128,15 @@ def main():
     parser_sv._optionals.title = "Options"
     parser_sv.add_argument("-i", "--in", dest="input", required=True, help="Input haploid assembly FASTA")
     parser_sv.add_argument("-s", "--sv", required=True, help="Structural variant callset")
-    parser_sv.add_argument("-l", "--l1ref", required=True, help="Pangenome-level L1 reference FASTA")
+    parser_sv.add_argument("-1", dest="l1ref", required=True, help="Pangenome-level L1 reference FASTA")
+    parser_sv.add_argument(
+        "-l",
+        "--length",
+        dest="length",
+        type=int,
+        default=5000,
+        help="Minimum L1 length (default: 5000)",
+    )
     parser_sv.add_argument("-o", "--out", dest="output", required=True, help="Output BED file")
     parser_sv.add_argument("-h", "--help", action="help", default=argparse.SUPPRESS,
                            help="Show this help message and exit.")
@@ -181,9 +198,16 @@ def main():
             reference,
             args.output,
             log_skipped=args.log_skipped,
+            min_length=args.length,
         )
     elif args.command == "sv":
-        run_module2(args.input, args.sv, args.l1ref, args.output)
+        run_module2(
+            args.input,
+            args.sv,
+            args.l1ref,
+            args.output,
+            min_length=args.length,
+        )
     elif args.command == "db":
         run_module3(args.output)
 

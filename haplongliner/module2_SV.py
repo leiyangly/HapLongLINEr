@@ -18,8 +18,14 @@ def _read_paf(path: Path) -> Dict[str, List[str]]:
     return hits
 
 
-def _liftover_l1s(minus_paf: Path, plus_paf: Path, ref_bed: Path) -> List[Tuple[str, int, int, str, int, str]]:
-    """Infer target assembly coordinates for each L1 listed in ``ref_bed``."""
+def _liftover_l1s(
+    minus_paf: Path,
+    plus_paf: Path,
+    ref_bed: Path,
+    min_length: int,
+) -> List[Tuple[str, int, int, str, int, str]]:
+    """Infer target assembly coordinates for each L1 listed in ``ref_bed`` and
+    filter by ``min_length``."""
     minus = _read_paf(minus_paf)
     plus = _read_paf(plus_paf)
 
@@ -46,7 +52,8 @@ def _liftover_l1s(minus_paf: Path, plus_paf: Path, ref_bed: Path) -> List[Tuple[
             if end_t < start_t:
                 start_t, end_t = end_t, start_t
             length = int(end) - int(start)
-            lifted.append((tname, start_t, end_t, name, length, orient))
+            if length >= min_length:
+                lifted.append((tname, start_t, end_t, name, length, orient))
     return lifted
 
 
@@ -151,9 +158,22 @@ def _parse_repeatmasker(out_file: Path) -> List[str]:
     return hits
 
 
-def run_module2(input_fasta: str, sv_file: str, l1ref_fasta: str, output_bed: str) -> None:
+def run_module2(
+    input_fasta: str,
+    sv_file: str,
+    l1ref_fasta: str,
+    output_bed: str,
+    min_length: int = 5000,
+) -> None:
+    """RepeatMasker-free L1 discovery using structural variants."""
+
     print(
-        f"Module 2 running with:\n  Input: {input_fasta}\n  SV: {sv_file}\n  L1 Reference: {l1ref_fasta}\n  Output: {output_bed}"
+        "Module 2 running with:\n"
+        f"  Input: {input_fasta}\n"
+        f"  SV: {sv_file}\n"
+        f"  L1 Reference: {l1ref_fasta}\n"
+        f"  Output: {output_bed}\n"
+        f"  Min Length: {min_length}"
     )
 
     out_path = Path(output_bed)
@@ -170,7 +190,7 @@ def run_module2(input_fasta: str, sv_file: str, l1ref_fasta: str, output_bed: st
     subprocess.run(f"minimap2 -x asm5 {input_fasta} {plus_fa} > {plus_paf}", shell=True, check=True)
 
     ref_bed = Path('data') / 'HPRC_L1_hs_v2_v2fl.bed'
-    lifted = _liftover_l1s(minus_paf, plus_paf, ref_bed)
+    lifted = _liftover_l1s(minus_paf, plus_paf, ref_bed, min_length)
 
     deletions, insertions = _parse_sv(Path(sv_file))
     status = _classify_deletions(lifted, deletions, outdir)
