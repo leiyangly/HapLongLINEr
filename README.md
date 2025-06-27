@@ -106,7 +106,7 @@ Command:
 haplongliner sv \
   --in your.genome.fa \
   --sv your.sv.vcf \
-  -1 pangenome_L1_reference.fa \
+  --l1ref pangenome_L1_reference.fa \
   --out output_file.bed
 ```
 The `-l/--length` option can be used here as well to change the minimum L1 length.
