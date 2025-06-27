@@ -1,6 +1,5 @@
 /*
 !/haplongliner/
-!/legacy/
 !/scripts/
 !/tests/
 !/haplongliner.egg-info/
@@ -15,8 +14,6 @@
 !/data/HPRC_L1_hs1_master_v2fl.bed
 !/data/HPRC_L1_seq_by_site_v2.zip
 !/data/HPRC_L1_seq_by_site_v2fl.zip
-!/tests/FL.bed
-!/tests/HG00410.FL.bed
-!/tests/HapLongLINErRM.txt
-!/tests/HG00410.1.hs1.fa.HapLongLINErRM.txt
+!/tests/test.genome.HG00410.1.fa
+!/tests/test.genome.HG00410.1.out
 __pycache__/
