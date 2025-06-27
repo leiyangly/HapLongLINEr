@@ -102,10 +102,14 @@ def verify_bed_file(path: str) -> None:
 
 def verify_sv_file(path: str) -> None:
     """Exit if ``path`` is not a readable SV/VCF/BED file."""
-    if not Path(path).exists():
+    import gzip
+
+    spath = Path(path)
+    if not spath.exists():
         sys.exit(f"Error: file '{path}' not found.")
 
-    with open(path) as fh:
+    opener = gzip.open if str(spath).endswith(".gz") else open
+    with opener(spath, "rt") as fh:
         for line in fh:
             if line.startswith("#") or not line.strip():
                 continue
