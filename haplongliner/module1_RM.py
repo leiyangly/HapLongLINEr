@@ -10,7 +10,12 @@ from .process_orf import process_orf_fasta
 from .find_longest_orf import find_longest_orf
 from .find_intact_orf import find_intact_orf
 from .combine_table import combine_table
-from .utils import verify_blast_db, run_quiet
+from .utils import (
+    verify_blast_db,
+    run_quiet,
+    verify_fasta_file,
+    verify_bed_file,
+)
 
 def parse_repeatmasker(input_path, output_path, log_path=None):
     """
@@ -109,6 +114,12 @@ def run_module1(
         log = os.getenv("HAPLOGLINER_LOG")
     outdir = Path(output_dir)
     outdir.mkdir(parents=True, exist_ok=True)
+
+    # Validate input files
+    verify_fasta_file(input_fasta)
+    verify_bed_file(repeatmasker_file)
+    if not reference_fasta.startswith("http://") and not reference_fasta.startswith("https://"):
+        verify_fasta_file(reference_fasta)
 
     # If reference_fasta is a URL, download it to the data folder
     if reference_fasta.startswith("http://") or reference_fasta.startswith("https://"):

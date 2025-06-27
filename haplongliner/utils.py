@@ -50,3 +50,65 @@ def run_quiet(cmd, **kwargs):
             sys.stderr.write(_to_str(result.stdout))
         result.check_returncode()
     return result
+
+
+def verify_fasta_file(path: str) -> None:
+    """Exit if ``path`` is not a readable FASTA file."""
+    import gzip
+
+    fpath = Path(path)
+    if not fpath.exists():
+        sys.exit(f"Error: FASTA file '{path}' not found.")
+
+    opener = gzip.open if str(fpath).endswith(".gz") else open
+    try:
+        with opener(fpath, "rt") as fh:
+            first = fh.readline()
+        if not first.startswith(">"):
+            raise ValueError("Missing FASTA header")
+    except Exception as exc:
+        sys.exit(f"Error: FASTA file '{path}' appears malformed: {exc}")
+
+
+def _check_bed_line(line: str) -> None:
+    fields = line.rstrip().split()
+    if len(fields) < 3:
+        raise ValueError("fewer than 3 columns")
+    int(fields[1])
+    int(fields[2])
+
+
+def verify_bed_file(path: str) -> None:
+    """Exit if ``path`` is not a readable BED-like file."""
+    import gzip
+
+    bpath = Path(path)
+    if not bpath.exists():
+        sys.exit(f"Error: file '{path}' not found.")
+
+    opener = gzip.open if str(bpath).endswith(".gz") else open
+    try:
+        with opener(bpath, "rt") as fh:
+            for line in fh:
+                if line.startswith("#") or not line.strip():
+                    continue
+                _check_bed_line(line)
+                break
+            else:
+                raise ValueError("no data lines found")
+    except Exception as exc:
+        sys.exit(f"Error: BED file '{path}' appears malformed: {exc}")
+
+
+def verify_sv_file(path: str) -> None:
+    """Exit if ``path`` is not a readable SV/VCF/BED file."""
+    if not Path(path).exists():
+        sys.exit(f"Error: file '{path}' not found.")
+
+    with open(path) as fh:
+        for line in fh:
+            if line.startswith("#") or not line.strip():
+                continue
+            if len(line.rstrip().split("\t")) >= 3:
+                return
+        sys.exit(f"Error: SV file '{path}' appears malformed or empty.")
