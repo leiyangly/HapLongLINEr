@@ -54,8 +54,8 @@ def _liftover_l1s(
                 start_t = int(m[8])
                 end_t = int(p[7])
             else:
-                start_t = int(p[8])
-                end_t = int(m[7])
+                start_t = int(m[7])
+                end_t = int(p[8])
             if end_t < start_t:
                 start_t, end_t = end_t, start_t
             length = int(end) - int(start)
