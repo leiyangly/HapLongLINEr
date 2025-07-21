@@ -46,18 +46,25 @@ def _liftover_l1s(
             p = plus.get(f"{name}_+2kb")
             if not m or not p:
                 continue
-            if m[5] != p[5] or m[4] != p[4]:
+            if m[5] != p[5]:
                 continue
+
             tname = m[5]
             orient = m[4]
-            if orient == '+':
+
+            start_t: int | None = None
+            end_t: int | None = None
+            if int(m[7]) <= int(p[8]):
                 start_t = int(m[8])
                 end_t = int(p[7])
-            else:
-                start_t = int(m[7])
-                end_t = int(p[8])
+            if int(p[7]) <= int(m[8]):
+                start_t = int(p[8])
+                end_t = int(m[7])
+            if start_t is None or end_t is None:
+                continue
             if end_t < start_t:
                 start_t, end_t = end_t, start_t
+
             length = int(end) - int(start)
             if length >= min_length:
                 lifted.append((tname, start_t, end_t, name, length, orient))
