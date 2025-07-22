@@ -11,6 +11,7 @@ def test_liftover_l1s_plus_and_minus(tmp_path):
     minus_paf = tmp_path / "minus.paf"
     plus_paf = tmp_path / "plus.paf"
     ref_bed = tmp_path / "ref.bed"
+    master = tmp_path / "master.bed"
 
     minus_lines = [
         "\t".join([
@@ -82,8 +83,13 @@ def test_liftover_l1s_plus_and_minus(tmp_path):
         "chrY\t0\t100\tL1b\t-\n"
     )
 
-    lifted = _liftover_l1s(minus_paf, plus_paf, ref_bed, min_length=50)
+    master.write_text(
+        "\t".join(["L1a",".",".",".",".",".",".",".",".","chrA_100_1000_+","0"]) + "\n" +
+        "\t".join(["L1b",".",".",".",".",".",".",".",".","chrB_200_300_-","0"]) + "\n"
+    )
+
+    lifted = _liftover_l1s(minus_paf, plus_paf, ref_bed, min_length=50, master_files=[master])
     lifted.sort(key=lambda x: x[3])
 
-    assert lifted[0] == ("chrX", 1200, 1300, "L1a", 900, "+")
-    assert lifted[1] == ("chrY", 480, 500, "L1b", 100, "-")
+    assert lifted[0] == ("chrA", 100, 1000, "L1a", 900, "+")
+    assert lifted[1] == ("chrB", 200, 300, "L1b", 100, "-")
