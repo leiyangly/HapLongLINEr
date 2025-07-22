@@ -91,5 +91,23 @@ def test_liftover_l1s_plus_and_minus(tmp_path):
     lifted = _liftover_l1s(minus_paf, plus_paf, ref_bed, min_length=50, master_files=[master])
     lifted.sort(key=lambda x: x[3])
 
-    assert lifted[0] == ("chrA", 100, 1000, "L1a", 900, "+")
-    assert lifted[1] == ("chrB", 200, 300, "L1b", 100, "-")
+    assert lifted[0] == (
+        "chrA",
+        100,
+        1000,
+        "L1a",
+        900,
+        "+",
+        "chrX;1300;1500;+",
+        "chrX;1000;1200;+",
+    )
+    assert lifted[1] == (
+        "chrB",
+        200,
+        300,
+        "L1b",
+        100,
+        "-",
+        "chrY;300;480;-",
+        "chrY;500;700;-",
+    )
