@@ -31,15 +31,13 @@ def _load_master_coords(paths: Iterable[Path]) -> Dict[str, Tuple[str, int, int,
     for path in paths:
         with open(path) as fh:
             for line in fh:
-                if not line.strip():
+                if not line.strip() or line.startswith("#"):
                     continue
                 fields = line.strip().split()
-                if len(fields) < 10:
+                if len(fields) < 5:
                     continue
-                name = fields[0]
-                ref = fields[9]
+                chrom, start, end, name, strand = fields[:5]
                 try:
-                    chrom, start, end, strand = ref.split("_")
                     coords[name] = (chrom, int(start), int(end), strand)
                 except ValueError:
                     continue
@@ -55,10 +53,7 @@ def _liftover_l1s(
 ) -> List[Tuple[str, int, int, str, int, str]]:
     """Infer reference coordinates for each L1 by lifting from scaffolds."""
     if master_files is None:
-        master_files = [
-            Path("data") / "HPRC_L1_hs1_master_v2.bed",
-            Path("data") / "HPRC_L1_hs1_master_v2fl.bed",
-        ]
+        master_files = [Path("data") / "HPRC_L1_hs1_v2_v2fl.bed"]
     ref_coords = _load_master_coords(master_files)
 
     minus = _read_paf(minus_paf)
