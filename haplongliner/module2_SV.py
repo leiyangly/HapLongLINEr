@@ -197,13 +197,15 @@ def _classify_sv(
     with open(inter_del) as fh:
         for line in fh:
             f = line.strip().split("\t")
-            if len(f) < 9:
+            # expect 8 columns from the lifted BED entry and 3 from the
+            # deletion BED entry
+            if len(f) < 11:
                 continue
             a_start = int(f[1])
             a_end = int(f[2])
             name = f[3]
-            d_start = int(f[6])
-            d_end = int(f[7])
+            d_start = int(f[9])
+            d_end = int(f[10])
             overlap = max(0, min(a_end, d_end) - max(a_start, d_start))
             del_len = d_end - d_start
             cov = overlap / del_len if del_len else 0
@@ -215,9 +217,11 @@ def _classify_sv(
     with open(inter_ins) as fh:
         for line in fh:
             f = line.strip().split("\t")
-            if len(f) >= 10:
+            # expect 8 columns from the lifted BED entry and 4 from the
+            # insertion BED entry
+            if len(f) >= 12:
                 name = f[3]
-                seq = f[9]
+                seq = f[11]
                 ins_seqs[name] = seq
 
     return status, ins_seqs
