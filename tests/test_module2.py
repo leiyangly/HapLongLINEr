@@ -8,7 +8,8 @@ def test_parse_sv_handles_gz(tmp_path):
     sv_gz = Path('tests/test.genome.HG00410.vcf.gz')
     deletions, insertions = _parse_sv(sv_gz)
     assert deletions[0] == ('chr1', 10828, 10858)
-    assert insertions[0] == ('chr1', 66365, 66366)
+    assert insertions[0][:3] == ('chr1', 66365, 66366)
+    assert insertions[0][3].startswith('TATTATTATATA')
     assert len(deletions) == 20629
     assert len(insertions) == 23382
 

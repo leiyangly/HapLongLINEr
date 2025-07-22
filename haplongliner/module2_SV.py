@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-from typing import Dict, List, Tuple, Iterable
+from typing import Dict, List, Tuple, Iterable, Set
 
 from .utils import (
     run_quiet,
@@ -104,11 +104,13 @@ def _write_bed(entries: List[Tuple[str, int, int, str, int, str, str, str]], pat
 
 def _parse_sv(
     sv_path: Path, log_path: Path | None = None
-) -> Tuple[List[Tuple[str, int, int]], List[Tuple[str, int, int]]]:
+) -> Tuple[List[Tuple[str, int, int]], List[Tuple[str, int, int, str]]]:
     """Parse a simple VCF or BED SV file and return deletion and insertion regions.
-    Unrecognized lines are written to ``log_path`` if provided."""
+
+    For insertions the inserted sequence is also returned if present. Unrecognized
+    lines are written to ``log_path`` if provided."""
     deletions: List[Tuple[str, int, int]] = []
-    insertions: List[Tuple[str, int, int]] = []
+    insertions: List[Tuple[str, int, int, str]] = []
     is_vcf = sv_path.suffix.lower().endswith('vcf') or sv_path.suffix.lower() == '.gz'
     import gzip
 
@@ -134,7 +136,9 @@ def _parse_sv(
                     if svtype == 'DEL' and end is not None:
                         deletions.append((chrom, pos, end))
                     elif svtype == 'INS':
-                        insertions.append((chrom, pos, pos + 1))
+                        alt = fields[4]
+                        seq = '' if alt.startswith('<') else alt
+                        insertions.append((chrom, pos, pos + 1, seq))
                 except Exception:
                     skipped.append(line.rstrip())
             else:
@@ -144,7 +148,8 @@ def _parse_sv(
                     if svtype == 'DEL':
                         deletions.append((chrom, int(start), int(end)))
                     elif svtype == 'INS':
-                        insertions.append((chrom, int(start), int(end)))
+                        seq = fields[4] if len(fields) > 4 else ''
+                        insertions.append((chrom, int(start), int(end), seq))
                 except Exception:
                     skipped.append(line.rstrip())
     if log_path and skipped:
@@ -161,10 +166,12 @@ def _bedtools_intersect(a: Path, b: Path, output: Path) -> None:
 def _classify_sv(
     lifted: List[Tuple[str, int, int, str, int, str, str, str]],
     deletions: List[Tuple[str, int, int]],
-    insertions: List[Tuple[str, int, int]],
+    insertions: List[Tuple[str, int, int, str]],
     outdir: Path,
-) -> Dict[str, str]:
-    """Write SV BED files and intersect with lifted coordinates."""
+) -> Tuple[Dict[str, str], Dict[str, str]]:
+    """Write SV BED files and intersect with lifted coordinates.
+
+    Returns a status dictionary and a mapping of insertion sequences by L1 name."""
 
     lift_bed = outdir / "lifted.bed"
     del_bed = outdir / "sv_del.bed"
@@ -177,8 +184,8 @@ def _classify_sv(
             out.write(f"{chrom}\t{start}\t{end}\n")
 
     with open(ins_bed, "w") as out:
-        for chrom, start, end in insertions:
-            out.write(f"{chrom}\t{start}\t{end}\n")
+        for chrom, start, end, seq in insertions:
+            out.write(f"{chrom}\t{start}\t{end}\t{seq}\n")
 
     inter_del = outdir / "intersect_del.bed"
     inter_ins = outdir / "intersect_ins.bed"
@@ -186,6 +193,7 @@ def _classify_sv(
     _bedtools_intersect(lift_bed, ins_bed, inter_ins)
 
     status: Dict[str, str] = {name: "present" for _, _, _, name, _, _, _, _ in lifted}
+    ins_seqs: Dict[str, str] = {}
     with open(inter_del) as fh:
         for line in fh:
             f = line.strip().split("\t")
@@ -203,36 +211,64 @@ def _classify_sv(
                 status[name] = "missing"
             else:
                 status[name] = "absent"
-    return status
+
+    with open(inter_ins) as fh:
+        for line in fh:
+            f = line.strip().split("\t")
+            if len(f) >= 10:
+                name = f[3]
+                seq = f[9]
+                ins_seqs[name] = seq
+
+    return status, ins_seqs
 
 
 def _extract_sequences(
     fasta: Path,
     lifted: List[Tuple[str, int, int, str, int, str, str, str]],
     status: Dict[str, str],
+    ins_seqs: Dict[str, str],
     out_fa: Path,
+    min_length: int,
 ) -> None:
     bed_path = out_fa.with_suffix('.bed')
     with open(bed_path, 'w') as bed:
         for chrom, start, end, name, length, _, _, _ in lifted:
-            if status.get(name) in {'missing', 'absent'} and abs((end - start) - length) / length < 0.1:
+            if status.get(name) == 'missing' and abs((end - start) - length) / length < 0.1 and length >= min_length:
                 bed.write(f"{chrom}\t{start}\t{end}\t{name}\n")
+    tmp_del = out_fa.with_suffix('.del.fa')
     if bed_path.stat().st_size > 0:
-        cmd = f"seqtk subseq {fasta} {bed_path} | seqtk seq -U -l 0 - > {out_fa}"
+        cmd = f"seqtk subseq {fasta} {bed_path} | seqtk seq -U -l 0 - > {tmp_del}"
         run_quiet(cmd, shell=True, check=True)
     else:
-        out_fa.touch()
+        tmp_del.touch()
+
+    with open(out_fa, 'w') as out:
+        if tmp_del.stat().st_size > 0:
+            out.write(Path(tmp_del).read_text())
+        for chrom, start, end, name, length, _, _, _ in lifted:
+            seq = ins_seqs.get(name)
+            if seq and len(seq) >= min_length:
+                out.write(f">{name}\n{seq}\n")
+
+    tmp_del.unlink(missing_ok=True)
+    bed_path.unlink(missing_ok=True)
 
 
-def _parse_repeatmasker(out_file: Path) -> List[str]:
-    hits: List[str] = []
+def _parse_repeatmasker(out_file: Path, l1_len: int, cov_thresh: float) -> Set[str]:
+    """Return names of sequences covering ``cov_thresh`` of the L1 reference."""
+    coverage: Dict[str, int] = {}
     with open(out_file) as fh:
         for line in fh:
             if line.startswith(' '):
                 parts = line.split()
-                if len(parts) >= 10 and re.search(r'L1', parts[9]):
-                    hits.append(parts[4])
-    return hits
+                if len(parts) >= 14 and re.search(r'L1', parts[9]):
+                    name = parts[4]
+                    rep_start = int(parts[11].strip('()'))
+                    rep_end = int(parts[12].strip('()'))
+                    cov = abs(rep_end - rep_start) + 1
+                    coverage[name] = coverage.get(name, 0) + cov
+    return {n for n, c in coverage.items() if c / l1_len >= cov_thresh}
 
 
 def run_module2(
@@ -338,24 +374,21 @@ def run_module2(
 
     deletions, insertions = _parse_sv(Path(sv_file), Path(log) if log else None)
 
-    print("\n[STEP 5] Classifying structural variants")
+    print("\n[STEP 5] Validating candidate L1 sequences")
 
-    status = _classify_sv(lifted, deletions, insertions, outdir)
-
-    print("\n[STEP 6] Extracting candidate L1 sequences")
+    status, ins_seqs = _classify_sv(lifted, deletions, insertions, outdir)
 
     candidate_fa = outdir / "candidates.fa"
-    _extract_sequences(Path(input_fasta), lifted, status, candidate_fa)
+    _extract_sequences(Path(input_fasta), lifted, status, ins_seqs, candidate_fa, min_length)
 
     if candidate_fa.stat().st_size > 0:
-        print("\n[STEP 7] Running RepeatMasker on candidates")
-        run_quiet(["RepeatMasker", str(candidate_fa)], check=True)
+        run_quiet(["RepeatMasker", "-lib", str(Path("data") / "L1rp.fa"), str(candidate_fa)], check=True)
         rm_out = candidate_fa.with_suffix(".fa.out")
-        l1_names = set(_parse_repeatmasker(rm_out))
+        l1_names = _parse_repeatmasker(rm_out, 6019, 0.9)
     else:
         l1_names = set()
 
-    print("\n[STEP 8] Writing output table")
+    print("\n[STEP 6] Writing output table")
 
     out_table = outdir / "HapLongLINErSV.txt"
     with open(out_table, "w") as out:
