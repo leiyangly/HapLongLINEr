@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Iterable
 
 from .utils import (
     run_quiet,
@@ -25,49 +25,70 @@ def _read_paf(path: Path) -> Dict[str, List[str]]:
     return hits
 
 
+def _load_master_coords(paths: Iterable[Path]) -> Dict[str, Tuple[str, int, int, str]]:
+    """Return mapping ``name -> (chrom, start, end, strand)`` from master BED files."""
+    coords: Dict[str, Tuple[str, int, int, str]] = {}
+    for path in paths:
+        with open(path) as fh:
+            for line in fh:
+                if not line.strip():
+                    continue
+                fields = line.strip().split()
+                if len(fields) < 10:
+                    continue
+                name = fields[0]
+                ref = fields[9]
+                try:
+                    chrom, start, end, strand = ref.split("_")
+                    coords[name] = (chrom, int(start), int(end), strand)
+                except ValueError:
+                    continue
+    return coords
+
+
 def _liftover_l1s(
     minus_paf: Path,
     plus_paf: Path,
     ref_bed: Path,
     min_length: int,
+    master_files: Iterable[Path] | None = None,
 ) -> List[Tuple[str, int, int, str, int, str]]:
-    """Infer target assembly coordinates for each L1 listed in ``ref_bed`` and
-    filter by ``min_length``."""
+    """Infer reference coordinates for each L1 by lifting from scaffolds."""
+    if master_files is None:
+        master_files = [
+            Path("data") / "HPRC_L1_hs1_master_v2.bed",
+            Path("data") / "HPRC_L1_hs1_master_v2fl.bed",
+        ]
+    ref_coords = _load_master_coords(master_files)
+
     minus = _read_paf(minus_paf)
     plus = _read_paf(plus_paf)
 
     lifted: List[Tuple[str, int, int, str, int, str]] = []
-    with open(ref_bed) as fh:
-        for line in fh:
-            if not line.strip() or line.startswith('#'):
-                continue
-            chrom, start, end, name, strand = line.strip().split()[:5]
-            m = minus.get(f"{name}_-2kb")
-            p = plus.get(f"{name}_+2kb")
-            if not m or not p:
-                continue
-            if m[5] != p[5]:
-                continue
+    for name, (rchrom, rstart, rend, rstrand) in ref_coords.items():
+        m = minus.get(f"{name}_-2kb")
+        p = plus.get(f"{name}_+2kb")
+        if not m or not p:
+            continue
+        if m[5] != p[5]:
+            continue
 
-            tname = m[5]
-            orient = m[4]
+        start_t: int | None = None
+        end_t: int | None = None
+        if int(m[7]) <= int(p[8]):
+            start_t = int(m[8])
+            end_t = int(p[7])
+        if int(p[7]) <= int(m[8]):
+            start_t = int(p[8])
+            end_t = int(m[7])
+        if start_t is None or end_t is None:
+            continue
+        if end_t < start_t:
+            start_t, end_t = end_t, start_t
 
-            start_t: int | None = None
-            end_t: int | None = None
-            if int(m[7]) <= int(p[8]):
-                start_t = int(m[8])
-                end_t = int(p[7])
-            if int(p[7]) <= int(m[8]):
-                start_t = int(p[8])
-                end_t = int(m[7])
-            if start_t is None or end_t is None:
-                continue
-            if end_t < start_t:
-                start_t, end_t = end_t, start_t
-
-            length = int(end) - int(start)
-            if length >= min_length:
-                lifted.append((tname, start_t, end_t, name, length, orient))
+        length = rend - rstart
+        if length >= min_length:
+            lifted.append((rchrom, rstart, rend, name, length, rstrand))
     return lifted
 
 
