@@ -31,7 +31,7 @@ conda install haplongliner
 
 Install dependencies if necessary:
 ```bash
-conda install -c bioconda seqtk minimap2 bedtools emboss blast
+conda install -c bioconda seqtk minimap2 bedtools emboss blast repeatmasker
 ```
 
 Clone the repository:
@@ -89,6 +89,7 @@ Input:
 - Haploid assembly FASTA
 - Structural variant (SV) callset (e.g., VCF or BED)
 - Pangenome-level L1 reference FASTA
+- RepeatMasker is used in this module to validate insertions, not to call insertions in the target genome
 
 Command with test genome:
 ```bash
