@@ -154,20 +154,37 @@ def _bedtools_intersect(a: Path, b: Path, output: Path) -> None:
         run_quiet(['bedtools', 'intersect', '-wa', '-wb', '-a', str(a), '-b', str(b)], check=True, stdout=out)
 
 
-def _classify_deletions(lifted: List[Tuple[str, int, int, str, int, str]], deletions: List[Tuple[str, int, int]], outdir: Path) -> Dict[str, str]:
-    lift_bed = outdir / 'lifted.bed'
-    del_bed = outdir / 'sv_del.bed'
+def _classify_sv(
+    lifted: List[Tuple[str, int, int, str, int, str]],
+    deletions: List[Tuple[str, int, int]],
+    insertions: List[Tuple[str, int, int]],
+    outdir: Path,
+) -> Dict[str, str]:
+    """Write SV BED files and intersect with lifted coordinates."""
+
+    lift_bed = outdir / "lifted.bed"
+    del_bed = outdir / "sv_del.bed"
+    ins_bed = outdir / "sv_ins.bed"
+
     _write_bed(lifted, lift_bed)
-    with open(del_bed, 'w') as out:
+
+    with open(del_bed, "w") as out:
         for chrom, start, end in deletions:
             out.write(f"{chrom}\t{start}\t{end}\n")
-    inter_file = outdir / 'intersect.bed'
-    _bedtools_intersect(lift_bed, del_bed, inter_file)
 
-    status: Dict[str, str] = {name: 'present' for _, _, _, name, _, _ in lifted}
-    with open(inter_file) as fh:
+    with open(ins_bed, "w") as out:
+        for chrom, start, end in insertions:
+            out.write(f"{chrom}\t{start}\t{end}\n")
+
+    inter_del = outdir / "intersect_del.bed"
+    inter_ins = outdir / "intersect_ins.bed"
+    _bedtools_intersect(lift_bed, del_bed, inter_del)
+    _bedtools_intersect(lift_bed, ins_bed, inter_ins)
+
+    status: Dict[str, str] = {name: "present" for _, _, _, name, _, _ in lifted}
+    with open(inter_del) as fh:
         for line in fh:
-            f = line.strip().split('\t')
+            f = line.strip().split("\t")
             if len(f) < 9:
                 continue
             a_start = int(f[1])
@@ -179,9 +196,9 @@ def _classify_deletions(lifted: List[Tuple[str, int, int, str, int, str]], delet
             del_len = d_end - d_start
             cov = overlap / del_len if del_len else 0
             if cov >= 0.95:
-                status[name] = 'missing'
+                status[name] = "missing"
             else:
-                status[name] = 'absent'
+                status[name] = "absent"
     return status
 
 
@@ -312,9 +329,9 @@ def run_module2(
 
     deletions, insertions = _parse_sv(Path(sv_file), Path(log) if log else None)
 
-    print("\n[STEP 5] Classifying deletions")
+    print("\n[STEP 5] Classifying structural variants")
 
-    status = _classify_deletions(lifted, deletions, outdir)
+    status = _classify_sv(lifted, deletions, insertions, outdir)
 
     print("\n[STEP 6] Extracting candidate L1 sequences")
 
