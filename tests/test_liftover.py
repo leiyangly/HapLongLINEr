@@ -84,8 +84,8 @@ def test_liftover_l1s_plus_and_minus(tmp_path):
     )
 
     master.write_text(
-        "\t".join(["L1a",".",".",".",".",".",".",".",".","chrA_100_1000_+","0"]) + "\n" +
-        "\t".join(["L1b",".",".",".",".",".",".",".",".","chrB_200_300_-","0"]) + "\n"
+        "chrA\t100\t1000\tL1a\t+\n" +
+        "chrB\t200\t300\tL1b\t-\n"
     )
 
     lifted = _liftover_l1s(minus_paf, plus_paf, ref_bed, min_length=50, master_files=[master])
