@@ -256,27 +256,35 @@ def _extract_sequences(
     out_fa: Path,
     min_length: int,
 ) -> None:
+    """Extract candidate L1 sequences from the target assembly."""
+
     bed_path = out_fa.with_suffix('.bed')
     with open(bed_path, 'w') as bed:
-        for chrom, start, end, name, length, _, _, _, *_ in lifted:
-            if status.get(name) == 'missing' and abs((end - start) - length) / length < 0.1 and length >= min_length:
-                bed.write(f"{chrom}\t{start}\t{end}\t{name}\n")
-    tmp_del = out_fa.with_suffix('.del.fa')
-    if bed_path.stat().st_size > 0:
-        cmd = f"seqtk subseq {fasta} {bed_path} | seqtk seq -U -l 0 - > {tmp_del}"
-        run_quiet(cmd, shell=True, check=True)
-    else:
-        tmp_del.touch()
+        for _, _, _, name, _, _, plus_info, _, t_start, t_end in lifted:
+            scaf, _ps, _pe, t_strand = plus_info.split(';')
+            bed.write(f"{scaf}\t{t_start}\t{t_end}\t{name}\t0\t{t_strand}\n")
 
-    with open(out_fa, 'w') as out:
-        if tmp_del.stat().st_size > 0:
-            out.write(Path(tmp_del).read_text())
-        for chrom, start, end, name, length, _, _, _, *_ in lifted:
-            seq = ins_seqs.get(name)
-            if seq and len(seq) >= min_length:
-                out.write(f">{name}\n{seq}\n")
+    run_quiet(
+        [
+            'bedtools',
+            'getfasta',
+            '-fi',
+            str(fasta),
+            '-bed',
+            str(bed_path),
+            '-name',
+            '-fo',
+            str(out_fa),
+            '-s',
+        ],
+        check=True,
+    )
 
-    tmp_del.unlink(missing_ok=True)
+    with open(out_fa, 'a') as out:
+        for name, seq in ins_seqs.items():
+            if len(seq) >= min_length:
+                out.write(f">{name}_ins\n{seq}\n")
+
     bed_path.unlink(missing_ok=True)
 
 
@@ -362,6 +370,49 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
             intact.add(name)
 
     return present, intact
+
+
+def _validate_presence(candidate_fa: Path) -> Set[str]:
+    """Return names of sequences covering >90% of L1rp.fa by BLASTN."""
+    present: Set[str] = set()
+    if candidate_fa.stat().st_size == 0:
+        return present
+
+    blastn_out = candidate_fa.with_suffix('.blastn')
+    ref_fa = Path('data') / 'L1rp.fa'
+    run_quiet([
+        'blastn',
+        '-query',
+        str(candidate_fa),
+        '-subject',
+        str(ref_fa),
+        '-outfmt',
+        '6 qacc length slen',
+        '-out',
+        str(blastn_out),
+    ], check=True)
+
+    coverage: Dict[str, int] = {}
+    slen: Dict[str, int] = {}
+    with open(blastn_out) as fh:
+        for line in fh:
+            if not line.strip():
+                continue
+            f = line.strip().split()
+            if len(f) < 3:
+                continue
+            name = re.sub(r'_[0-9]+$', '', f[0])
+            length = int(f[1])
+            s_len = int(f[2])
+            coverage[name] = coverage.get(name, 0) + length
+            slen[name] = s_len
+
+    for name, cov in coverage.items():
+        s_len = slen.get(name)
+        if s_len and cov / s_len >= 0.9:
+            present.add(name)
+
+    return present
 
 
 def run_module2(
@@ -474,26 +525,36 @@ def run_module2(
     candidate_fa = outdir / "candidates.fa"
     _extract_sequences(Path(input_fasta), lifted, status, ins_seqs, candidate_fa, min_length)
 
-    present_names, intact_names = _validate_orfs(candidate_fa)
+    intact_names = _validate_orfs(candidate_fa)[1]
+    presence_names = _validate_presence(candidate_fa)
 
     print("\n[STEP 6] Writing output table")
 
     out_table = outdir / "HapLongLINErSV.txt"
     with open(out_table, "w") as out:
         for chrom, start, end, name, length, strand, plus_info, minus_info, t_start, t_end in lifted:
-            stat = status.get(name, "present")
-            scaf = plus_info.split(";")[0]
-            t_strand = plus_info.split(";")[-1]
+            base_stat = status.get(name, "present")
+            scaf, *_rest, t_strand = plus_info.split(";")
             target_len = t_end - t_start
+
+            if base_stat in {"missing", "absent"}:
+                final_stat = "absent"
+            else:
+                if name in presence_names:
+                    final_stat = "intact" if name in intact_names else "present"
+                else:
+                    final_stat = "absent"
+
             if name in ins_seqs:
                 sv_stat = "INS"
-            elif stat in {"missing", "absent"}:
+            elif base_stat in {"missing", "absent"}:
                 sv_stat = "DEL"
             else:
                 sv_stat = "ALN"
+
             target_info = f"{scaf};{t_start};{t_end};{target_len};{t_strand};{sv_stat}"
             out.write(
-                f"{chrom}\t{start}\t{end}\t{name}\t{length}\t{strand}\t{stat}\t{target_info}\n"
+                f"{chrom}\t{start}\t{end}\t{name}\t{length}\t{strand}\t{final_stat}\t{target_info}\n"
             )
 
     print(f"Module 2 completed. Results in {out_table}")
