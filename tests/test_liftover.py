@@ -100,6 +100,8 @@ def test_liftover_l1s_plus_and_minus(tmp_path):
         "+",
         "chrX;1300;1500;+",
         "chrX;1000;1200;+",
+        1200,
+        1300,
     )
     assert lifted[1] == (
         "chrB",
@@ -110,4 +112,6 @@ def test_liftover_l1s_plus_and_minus(tmp_path):
         "-",
         "chrY;300;480;-",
         "chrY;500;700;-",
+        480,
+        500,
     )
