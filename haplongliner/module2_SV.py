@@ -53,12 +53,14 @@ def _liftover_l1s(
     ref_bed: Path,
     min_length: int,
     master_files: Iterable[Path] | None = None,
-) -> List[Tuple[str, int, int, str, int, str, str, str]]:
+) -> List[Tuple[str, int, int, str, int, str, str, str, int, int]]:
     """Infer reference coordinates for each L1 by lifting from scaffolds.
 
-    Returns tuples of ``(chrom, start, end, name, length, strand, plus, minus)``
-    where ``plus`` and ``minus`` are ``scaffold;start;end;strand`` strings
-    describing the originating PAF alignments.
+    Returns tuples of ``(chrom, start, end, name, length, strand, plus, minus,
+    t_start, t_end)`` where ``plus`` and ``minus`` are
+    ``scaffold;start;end;strand`` strings describing the originating PAF
+    alignments and ``t_start``/``t_end`` are the lifted coordinates on the
+    target assembly.
     """
     if master_files is None:
         master_files = [Path("data") / "HPRC_L1_hs1_v2_v2fl.bed"]
@@ -67,7 +69,7 @@ def _liftover_l1s(
     minus = _read_paf(minus_paf)
     plus = _read_paf(plus_paf)
 
-    lifted: List[Tuple[str, int, int, str, int, str, str, str]] = []
+    lifted: List[Tuple[str, int, int, str, int, str, str, str, int, int]] = []
     for name, (rchrom, rstart, rend, rstrand) in ref_coords.items():
         m = minus.get(f"{name}_-2kb")
         p = plus.get(f"{name}_+2kb")
@@ -93,13 +95,29 @@ def _liftover_l1s(
         if length >= min_length:
             plus_info = f"{p[5]};{p[7]};{p[8]};{p[4]}"
             minus_info = f"{m[5]};{m[7]};{m[8]};{m[4]}"
-            lifted.append((rchrom, rstart, rend, name, length, rstrand, plus_info, minus_info))
+            lifted.append(
+                (
+                    rchrom,
+                    rstart,
+                    rend,
+                    name,
+                    length,
+                    rstrand,
+                    plus_info,
+                    minus_info,
+                    start_t,
+                    end_t,
+                )
+            )
     return lifted
 
 
-def _write_bed(entries: List[Tuple[str, int, int, str, int, str, str, str]], path: Path) -> None:
+def _write_bed(
+    entries: List[Tuple[str, int, int, str, int, str, str, str, int, int]],
+    path: Path,
+) -> None:
     with open(path, 'w') as out:
-        for chrom, start, end, name, length, strand, plus_info, minus_info in entries:
+        for chrom, start, end, name, length, strand, plus_info, minus_info, *_ in entries:
             out.write(
                 f"{chrom}\t{start}\t{end}\t{name}\t{length}\t{strand}\t{plus_info}\t{minus_info}\n"
             )
@@ -167,7 +185,7 @@ def _bedtools_intersect(a: Path, b: Path, output: Path) -> None:
 
 
 def _classify_sv(
-    lifted: List[Tuple[str, int, int, str, int, str, str, str]],
+    lifted: List[Tuple[str, int, int, str, int, str, str, str, int, int]],
     deletions: List[Tuple[str, int, int]],
     insertions: List[Tuple[str, int, int, str]],
     outdir: Path,
@@ -195,7 +213,7 @@ def _classify_sv(
     _bedtools_intersect(lift_bed, del_bed, inter_del)
     _bedtools_intersect(lift_bed, ins_bed, inter_ins)
 
-    status: Dict[str, str] = {name: "present" for _, _, _, name, _, _, _, _ in lifted}
+    status: Dict[str, str] = {name: "present" for _, _, _, name, _, _, _, _, _, _ in lifted}
     ins_seqs: Dict[str, str] = {}
     with open(inter_del) as fh:
         for line in fh:
@@ -232,7 +250,7 @@ def _classify_sv(
 
 def _extract_sequences(
     fasta: Path,
-    lifted: List[Tuple[str, int, int, str, int, str, str, str]],
+    lifted: List[Tuple[str, int, int, str, int, str, str, str, int, int]],
     status: Dict[str, str],
     ins_seqs: Dict[str, str],
     out_fa: Path,
@@ -240,7 +258,7 @@ def _extract_sequences(
 ) -> None:
     bed_path = out_fa.with_suffix('.bed')
     with open(bed_path, 'w') as bed:
-        for chrom, start, end, name, length, _, _, _ in lifted:
+        for chrom, start, end, name, length, _, _, _, *_ in lifted:
             if status.get(name) == 'missing' and abs((end - start) - length) / length < 0.1 and length >= min_length:
                 bed.write(f"{chrom}\t{start}\t{end}\t{name}\n")
     tmp_del = out_fa.with_suffix('.del.fa')
@@ -253,7 +271,7 @@ def _extract_sequences(
     with open(out_fa, 'w') as out:
         if tmp_del.stat().st_size > 0:
             out.write(Path(tmp_del).read_text())
-        for chrom, start, end, name, length, _, _, _ in lifted:
+        for chrom, start, end, name, length, _, _, _, *_ in lifted:
             seq = ins_seqs.get(name)
             if seq and len(seq) >= min_length:
                 out.write(f">{name}\n{seq}\n")
@@ -462,16 +480,20 @@ def run_module2(
 
     out_table = outdir / "HapLongLINErSV.txt"
     with open(out_table, "w") as out:
-        for chrom, start, end, name, length, strand, _, _ in lifted:
+        for chrom, start, end, name, length, strand, plus_info, minus_info, t_start, t_end in lifted:
             stat = status.get(name, "present")
-            if name in intact_names:
-                l1flag = "intact"
-            elif name in present_names:
-                l1flag = "present"
+            scaf = plus_info.split(";")[0]
+            t_strand = plus_info.split(";")[-1]
+            target_len = t_end - t_start
+            if name in ins_seqs:
+                sv_stat = "INS"
+            elif stat in {"missing", "absent"}:
+                sv_stat = "DEL"
             else:
-                l1flag = "NA"
+                sv_stat = "ALN"
+            target_info = f"{scaf};{t_start};{t_end};{target_len};{t_strand};{sv_stat}"
             out.write(
-                f"{chrom}\t{start}\t{end}\t{name}\t{length}\t{strand}\t{stat}\t{l1flag}\n"
+                f"{chrom}\t{start}\t{end}\t{name}\t{length}\t{strand}\t{stat}\t{target_info}\n"
             )
 
     print(f"Module 2 completed. Results in {out_table}")
