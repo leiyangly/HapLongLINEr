@@ -7,8 +7,11 @@ from .utils import (
     verify_fasta_file,
     verify_sv_file,
     verify_bed_file,
+    verify_blast_db,
 )
 from .module1_RM import download_if_needed
+from .find_longest_orf import find_longest_orf
+from .find_intact_orf import find_intact_orf
 
 
 def _read_paf(path: Path) -> Dict[str, List[str]]:
@@ -275,6 +278,74 @@ def _parse_repeatmasker(out_file: Path, l1_len: int, cov_thresh: float) -> Set[s
     return {n for n, c in coverage.items() if c / l1_len >= cov_thresh}
 
 
+def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
+    """Return sets of names with >90% ORF coverage and with intact ORFs."""
+    present: Set[str] = set()
+    intact: Set[str] = set()
+    if candidate_fa.stat().st_size == 0:
+        return present, intact
+
+    orf_fa = candidate_fa.with_suffix('.orf.fa')
+    run_quiet([
+        'getorf',
+        '-sequence',
+        str(candidate_fa),
+        '-find',
+        '1',
+        '-outseq',
+        str(orf_fa),
+    ], check=True)
+
+    blastp_out = candidate_fa.with_suffix('.blastp')
+    db_prefix = Path('data') / 'L1rpORF12p.fa'
+    verify_blast_db(db_prefix)
+    run_quiet([
+        'blastp',
+        '-db',
+        str(db_prefix),
+        '-query',
+        str(orf_fa),
+        '-outfmt',
+        '6 std qlen slen sacc',
+        '-out',
+        str(blastp_out),
+    ], check=True)
+
+    combined = candidate_fa.with_suffix('.combine.blastp')
+    find_longest_orf(blastp_out, combined)
+
+    intact_file = candidate_fa.with_suffix('.intact.blastp')
+    find_intact_orf(combined, intact_file)
+
+    with open(combined) as fh:
+        for line in fh:
+            if not line.strip():
+                continue
+            fields = line.strip().split()
+            if len(fields) < 30:
+                continue
+            name = re.sub(r'_[0-9]+$', '', fields[0])
+            try:
+                cov1 = int(fields[3]) / int(fields[13])
+                cov2 = int(fields[18]) / int(fields[28])
+            except (ValueError, ZeroDivisionError):
+                continue
+            if cov1 >= 0.9 and cov2 >= 0.9:
+                present.add(name)
+
+    with open(intact_file) as fh:
+        for line in fh:
+            if not line.strip():
+                continue
+            fields = line.strip().split()
+            if len(fields) < 30:
+                continue
+            name = re.sub(r'_[0-9]+$', '', fields[0])
+            intact.add(name)
+
+    return present, intact
+
+
 def run_module2(
     input_fasta: str,
     sv_file: str,
@@ -378,19 +449,14 @@ def run_module2(
 
     deletions, insertions = _parse_sv(Path(sv_file), Path(log) if log else None)
 
-    print("\n[STEP 5] Validating candidate L1 sequences")
+    print("\n[STEP 5] Validating candidate L1s and their ORFs")
 
     status, ins_seqs = _classify_sv(lifted, deletions, insertions, outdir)
 
     candidate_fa = outdir / "candidates.fa"
     _extract_sequences(Path(input_fasta), lifted, status, ins_seqs, candidate_fa, min_length)
 
-    if candidate_fa.stat().st_size > 0:
-        run_quiet(["RepeatMasker", "-lib", str(Path("data") / "L1rp.fa"), str(candidate_fa)], check=True)
-        rm_out = candidate_fa.with_suffix(".fa.out")
-        l1_names = _parse_repeatmasker(rm_out, 6019, 0.9)
-    else:
-        l1_names = set()
+    present_names, intact_names = _validate_orfs(candidate_fa)
 
     print("\n[STEP 6] Writing output table")
 
@@ -398,7 +464,12 @@ def run_module2(
     with open(out_table, "w") as out:
         for chrom, start, end, name, length, strand, _, _ in lifted:
             stat = status.get(name, "present")
-            l1flag = "L1" if name in l1_names else "NA"
+            if name in intact_names:
+                l1flag = "intact"
+            elif name in present_names:
+                l1flag = "present"
+            else:
+                l1flag = "NA"
             out.write(
                 f"{chrom}\t{start}\t{end}\t{name}\t{length}\t{strand}\t{stat}\t{l1flag}\n"
             )
