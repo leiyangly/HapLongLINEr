@@ -372,8 +372,8 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
     return present, intact
 
 
-def _validate_presence(candidate_fa: Path) -> Set[str]:
-    """Return names of sequences covering >90% of L1rp.fa by BLASTN."""
+def _validate_presence(candidate_fa: Path, min_length: int = 5000) -> Set[str]:
+    """Return names of sequences aligning at least ``min_length`` bp to L1rp."""
     present: Set[str] = set()
     if candidate_fa.stat().st_size == 0:
         return present
@@ -392,8 +392,7 @@ def _validate_presence(candidate_fa: Path) -> Set[str]:
         str(blastn_out),
     ], check=True)
 
-    coverage: Dict[str, int] = {}
-    slen: Dict[str, int] = {}
+    longest: Dict[str, int] = {}
     with open(blastn_out) as fh:
         for line in fh:
             if not line.strip():
@@ -403,13 +402,12 @@ def _validate_presence(candidate_fa: Path) -> Set[str]:
                 continue
             name = re.sub(r'_[0-9]+$', '', f[0])
             length = int(f[1])
-            s_len = int(f[2])
-            coverage[name] = coverage.get(name, 0) + length
-            slen[name] = s_len
+            prev = longest.get(name, 0)
+            if length > prev:
+                longest[name] = length
 
-    for name, cov in coverage.items():
-        s_len = slen.get(name)
-        if s_len and cov / s_len >= 0.9:
+    for name, aln_len in longest.items():
+        if aln_len >= min_length:
             present.add(name)
 
     return present
@@ -526,7 +524,7 @@ def run_module2(
     _extract_sequences(Path(input_fasta), lifted, status, ins_seqs, candidate_fa, min_length)
 
     intact_names = _validate_orfs(candidate_fa)[1]
-    presence_names = _validate_presence(candidate_fa)
+    presence_names = _validate_presence(candidate_fa, min_length)
 
     print("\n[STEP 6] Writing output table")
 
