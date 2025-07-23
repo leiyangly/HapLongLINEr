@@ -1,10 +1,63 @@
 from pathlib import Path
 
-from haplongliner.module2_SV import _liftover_l1s
+from haplongliner.module2_SV import _liftover_l1s, _read_paf
 
 
 def write_paf(path: Path, lines: list[str]) -> None:
     path.write_text("\n".join(lines) + "\n")
+
+
+def test_read_paf_filters_and_selects_longest(tmp_path):
+    paf = tmp_path / "test.paf"
+    lines = [
+        "\t".join([
+            "q1",
+            "1000",
+            "0",
+            "180",
+            "+",
+            "chr1",
+            "10000",
+            "0",
+            "180",
+            "180",
+            "180",
+            "60",
+        ]),
+        "\t".join([
+            "q1",
+            "1000",
+            "0",
+            "400",
+            "+",
+            "chr1",
+            "10000",
+            "200",
+            "600",
+            "400",
+            "400",
+            "60",
+        ]),
+        "\t".join([
+            "q2",
+            "1000",
+            "0",
+            "150",
+            "+",
+            "chr1",
+            "10000",
+            "0",
+            "150",
+            "150",
+            "150",
+            "60",
+        ]),
+    ]
+    write_paf(paf, lines)
+    hits = _read_paf(paf)
+    assert "q1" in hits
+    assert hits["q1"][3] == "400"
+    assert "q2" not in hits
 
 
 def test_liftover_l1s_plus_and_minus(tmp_path):
