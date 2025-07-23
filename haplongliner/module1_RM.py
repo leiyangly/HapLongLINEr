@@ -221,15 +221,15 @@ def run_module1(
 
     print("\n[STEP 6] Mapping flanks to reference genome")
     # 6. Map flanking regions to reference genome with minimap2 (using local FASTA)
-    fl_minus2kb_minimap = outdir / "FL-2kb.minimap.txt"
-    fl_plus2kb_minimap = outdir / "FL+2kb.minimap.txt"
+    fl_minus2kb_paf = outdir / "FL-2kb.paf"
+    fl_plus2kb_paf = outdir / "FL+2kb.paf"
     run_quiet(
-        f"minimap2 -x asm5 {reference_fasta} {fl_minus2kb_fa} > {fl_minus2kb_minimap}",
+        f"minimap2 -x asm5 {reference_fasta} {fl_minus2kb_fa} > {fl_minus2kb_paf}",
         shell=True,
         check=True,
     )
     run_quiet(
-        f"minimap2 -x asm5 {reference_fasta} {fl_plus2kb_fa} > {fl_plus2kb_minimap}",
+        f"minimap2 -x asm5 {reference_fasta} {fl_plus2kb_fa} > {fl_plus2kb_paf}",
         shell=True,
         check=True,
     )
@@ -277,8 +277,8 @@ def run_module1(
     # 9. Integrate ORF status and liftover information
     combined_out = outdir / "HapLongLINErRM.txt"
     combine_table(
-        fl_plus2kb_minimap,
-        fl_minus2kb_minimap,
+        fl_plus2kb_paf,
+        fl_minus2kb_paf,
         intact_out,
         fl_bed,
         combined_out,

@@ -1,22 +1,13 @@
 import sys
 import re
-from typing import Dict
+from typing import Dict, List
+
+from .utils import read_paf
 
 
-def _read_minimap(file_path: str) -> Dict[str, str]:
-    result = {}
-    with open(file_path) as fh:
-        for line in fh:
-            if not line.strip():
-                continue
-            fields = line.strip().split()
-            if len(fields) < 4:
-                continue
-            key = fields[0]
-            aln_len = int(fields[3]) - int(fields[2])
-            if aln_len >= 200 and (key not in result or "_" in result[key]):
-                result[key] = line.strip()
-    return result
+def _read_minimap(file_path: str) -> Dict[str, List[str]]:
+    """Wrapper around :func:`haplongliner.utils.read_paf`."""
+    return read_paf(file_path)
 
 
 def _read_intact(file_path: str) -> Dict[str, str]:
@@ -60,8 +51,8 @@ def combine_table(plus_file: str, minus_file: str, intact_file: str, fl_bed: str
             # ORF headers store 1-based coordinates
             ikey = f"{chrom}_{mx}_{end_i}"
 
-            m_val = minus.get(mkey, "").split("\t") if minus.get(mkey) else []
-            p_val = plus.get(pkey, "").split("\t") if plus.get(pkey) else []
+            m_val = minus.get(mkey, [])
+            p_val = plus.get(pkey, [])
 
             status = "present"
             if ikey in intact:

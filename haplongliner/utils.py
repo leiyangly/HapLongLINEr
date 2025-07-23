@@ -1,6 +1,7 @@
 import shutil
 import sys
 from pathlib import Path
+from typing import Dict, List
 
 def check_dependencies():
     """Ensure required external tools are available."""
@@ -116,6 +117,37 @@ def verify_sv_file(path: str) -> None:
             if len(line.rstrip().split("\t")) >= 3:
                 return
         sys.exit(f"Error: SV file '{path}' appears malformed or empty.")
+
+
+def read_paf(path: str | Path) -> Dict[str, List[str]]:
+    """Return mapping ``query_name -> fields`` from a minimap2 PAF.
+
+    Alignments shorter than 200 bp are ignored and, if multiple alignments are
+    present for a query, the longest one is retained.
+    """
+
+    hits: Dict[str, List[str]] = {}
+    lengths: Dict[str, int] = {}
+    with open(path) as fh:
+        for line in fh:
+            if not line.strip():
+                continue
+            fields = line.rstrip().split('\t')
+            if len(fields) < 4:
+                continue
+            qname = fields[0]
+            try:
+                aln_len = int(fields[3]) - int(fields[2])
+            except ValueError:
+                continue
+            if aln_len < 200:
+                continue
+            prev_len = lengths.get(qname, -1)
+            if aln_len > prev_len:
+                hits[qname] = fields
+                lengths[qname] = aln_len
+
+    return hits
 
 
 def verify_repeatmasker_file(path: str) -> None:
