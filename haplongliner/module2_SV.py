@@ -1,4 +1,5 @@
 import re
+import shutil
 from pathlib import Path
 from typing import Dict, List, Tuple, Iterable, Set
 
@@ -10,7 +11,7 @@ from .utils import (
     verify_blast_db,
     read_paf,
 )
-from .module1_RM import download_if_needed
+from .module1_RM import download_if_needed, _rename_fa_with_bed
 from .find_longest_orf import find_longest_orf
 from .find_intact_orf import find_intact_orf
 
@@ -472,18 +473,38 @@ def run_module2(
             shell=True,
             check=True,
         )
+        _rename_fa_with_bed(minus_fa, minus_bed)
         run_quiet(
             f"seqtk subseq {ref_path} {plus_bed} | seqtk seq -U -l 0 - > {plus_fa}",
             shell=True,
             check=True,
         )
+        _rename_fa_with_bed(plus_fa, plus_bed)
         ref_bed = Path(l1cus)
     else:
         if l1ref != "hprc":
             raise ValueError("Unsupported L1 reference")
-        minus_fa = Path("data") / "-2kb.fa"
-        plus_fa = Path("data") / "+2kb.fa"
+        minus_fa_src = Path("data") / "-2kb.fa"
+        plus_fa_src = Path("data") / "+2kb.fa"
+        minus_fa = outdir / "-2kb.fa"
+        plus_fa = outdir / "+2kb.fa"
+        shutil.copyfile(minus_fa_src, minus_fa)
+        shutil.copyfile(plus_fa_src, plus_fa)
         ref_bed = Path("data") / "HPRC_L1_hs1_v2_v2fl.bed"
+        minus_bed = outdir / "hprc_minus2kb.bed"
+        plus_bed = outdir / "hprc_plus2kb.bed"
+        run_quiet(
+            f"awk 'BEGIN{{OFS=\"\t\"}} {{$3=$2; $2=$2-2000; print $0}}' {ref_bed} > {minus_bed}",
+            shell=True,
+            check=True,
+        )
+        run_quiet(
+            f"awk 'BEGIN{{OFS=\"\t\"}} {{$2=$3; $3=$3+2000; print $0}}' {ref_bed} > {plus_bed}",
+            shell=True,
+            check=True,
+        )
+        _rename_fa_with_bed(minus_fa, minus_bed)
+        _rename_fa_with_bed(plus_fa, plus_bed)
 
     print("\n[STEP 2] Mapping L1 flanks to input assembly")
 
