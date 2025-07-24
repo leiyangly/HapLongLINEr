@@ -81,6 +81,8 @@ def _liftover_l1s(
             continue
         if end_t < start_t:
             start_t, end_t = end_t, start_t
+        if end_t - start_t > 2 * min_length:
+            continue
 
         length = rend - rstart
         if length >= min_length:
