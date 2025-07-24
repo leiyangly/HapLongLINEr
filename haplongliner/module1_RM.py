@@ -204,7 +204,7 @@ def run_module1(
         )
         run_quiet(minus_cmd, shell=True, stdout=out_fa, check=True)
 
-
+        
     print("\n[STEP 4] Extracting 2kb flanking regions")
     # 4. Extract flanking 2kb regions (upstream and downstream)
     fl_minus2kb_bed = outdir / "FL-2kb.bed"
