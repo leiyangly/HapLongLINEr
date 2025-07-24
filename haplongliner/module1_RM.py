@@ -94,6 +94,32 @@ def download_if_needed(url, local_path):
     print(f"[INFO] Download complete: {local_path}")
     return str(local_path)
 
+
+def _rename_fa_with_bed(fa_path: Path, bed_path: Path) -> None:
+    """Rename FASTA headers based on BED coordinates."""
+    records = []
+    with open(bed_path) as bed:
+        for line in bed:
+            if not line.strip() or line.startswith("#"):
+                continue
+            f = line.strip().split()
+            if len(f) < 6:
+                continue
+            chrom, start, end, *_rest, strand = f[:6]
+            records.append((chrom, int(start) + 1, int(end), strand))
+
+    tmp = fa_path.with_suffix(".tmp")
+    with open(fa_path) as fin, open(tmp, "w") as out:
+        idx = 0
+        for line in fin:
+            if line.startswith(">"):
+                chrom, s, e, strand = records[idx]
+                out.write(f">{chrom};{s};{e};{strand}\n")
+                idx += 1
+            else:
+                out.write(line)
+    os.replace(tmp, fa_path)
+
 def run_module1(
     input_fasta,
     repeatmasker_file,
@@ -166,7 +192,7 @@ def run_module1(
             f"awk '$6==\"+\"' {fl_bed} | "
             f"seqtk subseq {input_fasta} - | "
             f"seqtk seq -U -l 0 - | "
-            "sed '/^>/ s/$/(+)/'"
+            "sed -e '/^>/ s/:/;/' -e '/^>/ s/-/;/' -e '/^>/ s/$/;+/'"
         )
         run_quiet(plus_cmd, shell=True, stdout=out_fa, check=True)
         # Minus strand
@@ -174,28 +200,10 @@ def run_module1(
             f"awk '$6==\"-\"' {fl_bed} | "
             f"seqtk subseq {input_fasta} - | "
             f"seqtk seq -U -r -l 0 - | "
-            "sed '/^>/ s/$/(-)/'"
+            "sed -e '/^>/ s/:/;/' -e '/^>/ s/-/;/' -e '/^>/ s/$/;-/'"
         )
         run_quiet(minus_cmd, shell=True, stdout=out_fa, check=True)
 
-    # Sanitize FASTA headers for getorf compatibility
-    fl_rename_fa = outdir / "FL.rename.fa"
-    with open(fl_fa) as fin, open(fl_rename_fa, "w") as fout:
-        for line in fin:
-            if line.startswith(">"):
-                header = line.strip()
-                # Temporarily replace strand annotation to protect the minus sign
-                header = (
-                    header.replace("(+)", "_plus")
-                    .replace("(-)", "_minus")
-                    .replace(":", "_")
-                    .replace("-", "_")
-                    .replace("_plus", "_+")
-                    .replace("_minus", "_-")
-                )
-                fout.write(header + "\n")
-            else:
-                fout.write(line)
 
     print("\n[STEP 4] Extracting 2kb flanking regions")
     # 4. Extract flanking 2kb regions (upstream and downstream)
@@ -216,8 +224,18 @@ def run_module1(
     # 5. Extract sequences for flanking regions
     fl_minus2kb_fa = outdir / "FL-2kb.fa"
     fl_plus2kb_fa = outdir / "FL+2kb.fa"
-    run_quiet(f"seqtk subseq {input_fasta} {fl_minus2kb_bed} | seqtk seq -U -l 0 - > {fl_minus2kb_fa}", shell=True, check=True)
-    run_quiet(f"seqtk subseq {input_fasta} {fl_plus2kb_bed} | seqtk seq -U -l 0 - > {fl_plus2kb_fa}", shell=True, check=True)
+    run_quiet(
+        f"seqtk subseq {input_fasta} {fl_minus2kb_bed} | seqtk seq -U -l 0 - > {fl_minus2kb_fa}",
+        shell=True,
+        check=True,
+    )
+    _rename_fa_with_bed(fl_minus2kb_fa, fl_minus2kb_bed)
+    run_quiet(
+        f"seqtk subseq {input_fasta} {fl_plus2kb_bed} | seqtk seq -U -l 0 - > {fl_plus2kb_fa}",
+        shell=True,
+        check=True,
+    )
+    _rename_fa_with_bed(fl_plus2kb_fa, fl_plus2kb_bed)
 
     print("\n[STEP 6] Mapping flanks to reference genome")
     # 6. Map flanking regions to reference genome with minimap2 (using local FASTA)
@@ -240,7 +258,7 @@ def run_module1(
     run_quiet([
         "getorf",
         "-sequence",
-        fl_rename_fa,
+        str(fl_fa),
         "-find",
         "1",
         "-outseq",
@@ -292,7 +310,6 @@ def run_module1(
     # for tmp in [
     #     blastp_out,
     #     orf_fa,
-    #     fl_rename_fa,
     #     fl_fa,
     #     parsed_bed,
     #     fl_minus2kb_fa,

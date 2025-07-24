@@ -17,7 +17,7 @@ def _read_intact(file_path: str) -> Dict[str, str]:
             if not line.strip():
                 continue
             fields = line.strip().split()
-            m = re.match(r"^(.+?)_(\d+)_(\d+)_([+-])(?:_.*)?$", fields[0])
+            m = re.match(r"^(.+?)[;_](\d+)[;_](\d+)[;_]([+-])(?:_.*)?$", fields[0])
             if not m:
                 continue
             chrom, start, end, _ = m.groups()
@@ -53,8 +53,8 @@ def combine_table(
             p = end_i + 2000
             px = end_i + 1
             mx = start_i + 1
-            mkey = f"{chrom}:{m}-{start_i}"
-            pkey = f"{chrom}:{px}-{p}"
+            mkey = f"{chrom};{m};{start_i};{strand}"
+            pkey = f"{chrom};{px};{p};{strand}"
             # ORF headers store 1-based coordinates
             ikey = f"{chrom}_{mx}_{end_i}"
 
