@@ -17,6 +17,7 @@ from .utils import (
     verify_repeatmasker_file,
 )
 
+
 def parse_repeatmasker(input_path, output_path, log_path=None):
     """
     Parse RepeatMasker BED, BED.gz, .out, or .out.gz file and write a unified
@@ -70,14 +71,13 @@ def parse_repeatmasker(input_path, output_path, log_path=None):
                 continue
 
             length = end - start
-            fout.write(
-                f"{chrom}\t{start}\t{end}\t{name}\t{length}\t{strand}\n"
-            )
+            fout.write(f"{chrom}\t{start}\t{end}\t{name}\t{length}\t{strand}\n")
 
     if log_path and skipped:
         with open(log_path, "w") as logf:
             logf.write("\n".join(skipped) + "\n")
     print(f"Skipped {len(skipped)} malformed lines")
+
 
 def download_if_needed(url, local_path):
     """
@@ -89,7 +89,7 @@ def download_if_needed(url, local_path):
         return str(local_path)
     print(f"[INFO] Downloading reference genome from {url} ...")
     local_path.parent.mkdir(parents=True, exist_ok=True)
-    with urllib.request.urlopen(url) as response, open(local_path, 'wb') as out_file:
+    with urllib.request.urlopen(url) as response, open(local_path, "wb") as out_file:
         shutil.copyfileobj(response, out_file)
     print(f"[INFO] Download complete: {local_path}")
     return str(local_path)
@@ -123,6 +123,7 @@ def _rename_fa_with_bed(fa_path: Path, bed_path: Path) -> None:
                 out.write(line)
     os.replace(tmp, fa_path)
 
+
 def run_module1(
     input_fasta,
     repeatmasker_file,
@@ -147,7 +148,9 @@ def run_module1(
     # Validate input files
     verify_fasta_file(input_fasta)
     verify_repeatmasker_file(repeatmasker_file)
-    if not reference_fasta.startswith("http://") and not reference_fasta.startswith("https://"):
+    if not reference_fasta.startswith("http://") and not reference_fasta.startswith(
+        "https://"
+    ):
         verify_fasta_file(reference_fasta)
 
     # If reference_fasta is a URL, download it to the data folder
@@ -174,25 +177,28 @@ def run_module1(
 
     print("\n[STEP 2] Extracting full-length L1s")
     # 2. Extract full-length L1s from parsed BED
-    fl_bed = outdir / "FL.bed"
-    run_quiet([
-        "python3",
-        "-m",
-        "haplongliner.extract_l1",
-        parsed_bed,
-        "-o",
-        str(fl_bed),
-        "-l",
-        str(min_length),
-    ], check=True)
+    candidate_bed = outdir / "candidate.bed"
+    run_quiet(
+        [
+            "python3",
+            "-m",
+            "haplongliner.extract_l1",
+            parsed_bed,
+            "-o",
+            str(candidate_bed),
+            "-l",
+            str(min_length),
+        ],
+        check=True,
+    )
 
     print("\n[STEP 3] Extracting full-length L1 sequences")
     # 3. Extract the sequence of the full-length L1s (plus and minus strand)
-    fl_fa = outdir / "FL.fa"
-    with open(fl_fa, "w") as out_fa:
+    candidate_fa = outdir / "candidate.fa"
+    with open(candidate_fa, "w") as out_fa:
         # Plus strand
         plus_cmd = (
-            f"awk '$6==\"+\"' {fl_bed} | "
+            f"awk '$6==\"+\"' {candidate_bed} | "
             f"seqtk subseq {input_fasta} - | "
             f"seqtk seq -U -l 0 - | "
             "sed -e '/^>/ s/:/;/' -e '/^>/ s/-/;/' -e '/^>/ s/$/;+/'"
@@ -200,76 +206,80 @@ def run_module1(
         run_quiet(plus_cmd, shell=True, stdout=out_fa, check=True)
         # Minus strand
         minus_cmd = (
-            f"awk '$6==\"-\"' {fl_bed} | "
+            f"awk '$6==\"-\"' {candidate_bed} | "
             f"seqtk subseq {input_fasta} - | "
             f"seqtk seq -U -r -l 0 - | "
             "sed -e '/^>/ s/:/;/' -e '/^>/ s/-/;/' -e '/^>/ s/$/;-/'"
         )
         run_quiet(minus_cmd, shell=True, stdout=out_fa, check=True)
 
-        
     print("\n[STEP 4] Extracting 2kb flanking regions")
     # 4. Extract flanking 2kb regions (upstream and downstream)
-    fl_minus2kb_bed = outdir / "FL-2kb.bed"
-    fl_plus2kb_bed = outdir / "FL+2kb.bed"
+    candidate_minus2kb_bed = outdir / "candidate_minus2kb.bed"
+    candidate_plus2kb_bed = outdir / "candidate_plus2kb.bed"
     # Upstream
     run_quiet(
-        f"""awk 'BEGIN{{OFS=\"\t\"}} {{$3=$2; $2=$2-2000; print $0}}' {fl_bed} > {fl_minus2kb_bed}""",
-        shell=True, check=True
+        f"""awk 'BEGIN{{OFS=\"\t\"}} {{$3=$2; $2=$2-2000; print $0}}' {candidate_bed} > {candidate_minus2kb_bed}""",
+        shell=True,
+        check=True,
     )
     # Downstream
     run_quiet(
-        f"""awk 'BEGIN{{OFS=\"\t\"}} {{$2=$3; $3=$3+2000; print $0}}' {fl_bed} > {fl_plus2kb_bed}""",
-        shell=True, check=True
+        f"""awk 'BEGIN{{OFS=\"\t\"}} {{$2=$3; $3=$3+2000; print $0}}' {candidate_bed} > {candidate_plus2kb_bed}""",
+        shell=True,
+        check=True,
     )
 
     print("\n[STEP 5] Getting sequences for flanking regions")
     # 5. Extract sequences for flanking regions
-    fl_minus2kb_fa = outdir / "FL-2kb.fa"
-    fl_plus2kb_fa = outdir / "FL+2kb.fa"
+    candidate_minus2kb_fa = outdir / "candidate_minus2kb.fa"
+    candidate_plus2kb_fa = outdir / "candidate_plus2kb.fa"
     run_quiet(
-        f"seqtk subseq {input_fasta} {fl_minus2kb_bed} | seqtk seq -U -l 0 - > {fl_minus2kb_fa}",
+        f"seqtk subseq {input_fasta} {candidate_minus2kb_bed} | seqtk seq -U -l 0 - > {candidate_minus2kb_fa}",
         shell=True,
         check=True,
     )
-    _rename_fa_with_bed(fl_minus2kb_fa, fl_minus2kb_bed)
+    _rename_fa_with_bed(candidate_minus2kb_fa, candidate_minus2kb_bed)
     run_quiet(
-        f"seqtk subseq {input_fasta} {fl_plus2kb_bed} | seqtk seq -U -l 0 - > {fl_plus2kb_fa}",
+        f"seqtk subseq {input_fasta} {candidate_plus2kb_bed} | seqtk seq -U -l 0 - > {candidate_plus2kb_fa}",
         shell=True,
         check=True,
     )
-    _rename_fa_with_bed(fl_plus2kb_fa, fl_plus2kb_bed)
+    _rename_fa_with_bed(candidate_plus2kb_fa, candidate_plus2kb_bed)
 
     print("\n[STEP 6] Mapping flanks to reference genome")
     # 6. Map flanking regions to reference genome with minimap2 (using local FASTA)
-    fl_minus2kb_paf = outdir / "FL-2kb.paf"
-    fl_plus2kb_paf = outdir / "FL+2kb.paf"
+    candidate_minus2kb_paf = outdir / "candidate_minus2kb.paf"
+    candidate_plus2kb_paf = outdir / "candidate_plus2kb.paf"
     run_quiet(
-        f"minimap2 -x asm5 {reference_fasta} {fl_minus2kb_fa} > {fl_minus2kb_paf}",
+        f"minimap2 -x asm5 {reference_fasta} {candidate_minus2kb_fa} > {candidate_minus2kb_paf}",
         shell=True,
         check=True,
     )
     run_quiet(
-        f"minimap2 -x asm5 {reference_fasta} {fl_plus2kb_fa} > {fl_plus2kb_paf}",
+        f"minimap2 -x asm5 {reference_fasta} {candidate_plus2kb_fa} > {candidate_plus2kb_paf}",
         shell=True,
         check=True,
     )
 
     print("\n[STEP 7] Detecting ORFs")
     # 7. Detect ORFs and choose the longest ORF1/ORF2 per locus
-    orf_fa = outdir / "FLAllORF.fa"
-    run_quiet([
-        "getorf",
-        "-sequence",
-        str(fl_fa),
-        "-find",
-        "1",
-        "-outseq",
-        str(orf_fa),
-    ], check=True)
-    orf_bed = outdir / "FLAllORF.bed"
+    orf_fa = outdir / "candidate_orf.fa"
+    run_quiet(
+        [
+            "getorf",
+            "-sequence",
+            str(candidate_fa),
+            "-find",
+            "1",
+            "-outseq",
+            str(orf_fa),
+        ],
+        check=True,
+    )
+    orf_bed = outdir / "candidate_orf.bed"
     process_orf_fasta(orf_fa, orf_bed)
-    blastp_out = outdir / "FLAllORF.blastp"
+    blastp_out = outdir / "candidate_orf.blastp"
     db_prefix = Path("data") / "L1rpORF12p.fa"
     verify_blast_db(db_prefix)
     run_quiet(
@@ -286,22 +296,22 @@ def run_module1(
         ],
         check=True,
     )
-    longest_orf_out = outdir / "FLAllORF.combine.blastp"
+    longest_orf_out = outdir / "candidate_orf.combine.blastp"
     find_longest_orf(blastp_out, longest_orf_out)
 
     print("\n[STEP 8] Identifying intact ORFs")
     # 8. Identify intact ORFs
-    intact_out = outdir / "FLAllORF.intact.blastp"
+    intact_out = outdir / "candidate_orf.intact.blastp"
     find_intact_orf(longest_orf_out, intact_out)
 
     print("\n[STEP 9] Integrating ORF status and liftover info")
     # 9. Integrate ORF status and liftover information
-    combined_out = outdir / "HapLongLINErRM.txt"
+    combined_out = outdir / "haplongliner_rm.bed"
     combine_table(
-        fl_plus2kb_paf,
-        fl_minus2kb_paf,
+        candidate_plus2kb_paf,
+        candidate_minus2kb_paf,
         intact_out,
-        fl_bed,
+        candidate_bed,
         combined_out,
         min_length=min_length,
     )
@@ -322,4 +332,3 @@ def run_module1(
     #         os.remove(tmp)
     #     except FileNotFoundError:
     #         pass
-
