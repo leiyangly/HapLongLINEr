@@ -110,8 +110,18 @@ def _write_bed(
     entries: List[Tuple[str, int, int, str, int, str, str, str, int, int]],
     path: Path,
 ) -> None:
-    with open(path, 'w') as out:
-        for chrom, start, end, name, length, strand, plus_info, minus_info, *_ in entries:
+    with open(path, "w") as out:
+        for (
+            chrom,
+            start,
+            end,
+            name,
+            length,
+            strand,
+            plus_info,
+            minus_info,
+            *_,
+        ) in entries:
             out.write(
                 f"{chrom}\t{start}\t{end}\t{name}\t{length}\t{strand}\t{plus_info}\t{minus_info}\n"
             )
@@ -126,56 +136,60 @@ def _parse_sv(
     lines are written to ``log_path`` if provided."""
     deletions: List[Tuple[str, int, int]] = []
     insertions: List[Tuple[str, int, int, str]] = []
-    is_vcf = sv_path.suffix.lower().endswith('vcf') or sv_path.suffix.lower() == '.gz'
+    is_vcf = sv_path.suffix.lower().endswith("vcf") or sv_path.suffix.lower() == ".gz"
     import gzip
 
     skipped: List[str] = []
     opener = gzip.open if str(sv_path).endswith(".gz") else open
     with opener(sv_path, "rt") as fh:
         for line in fh:
-            if line.startswith('#') or not line.strip():
+            if line.startswith("#") or not line.strip():
                 continue
-            fields = line.rstrip().split('\t')
+            fields = line.rstrip().split("\t")
             if is_vcf or len(fields) > 5:
                 try:
                     chrom = fields[0]
                     pos = int(fields[1]) - 1
-                    info = fields[7] if len(fields) > 7 else ''
+                    info = fields[7] if len(fields) > 7 else ""
                     svtype = None
                     end = None
-                    for item in info.split(';'):
-                        if item.startswith('SVTYPE='):
-                            svtype = item.split('=', 1)[1]
-                        elif item.startswith('END='):
-                            end = int(item.split('=', 1)[1]) - 1
-                    if svtype == 'DEL' and end is not None:
+                    for item in info.split(";"):
+                        if item.startswith("SVTYPE="):
+                            svtype = item.split("=", 1)[1]
+                        elif item.startswith("END="):
+                            end = int(item.split("=", 1)[1]) - 1
+                    if svtype == "DEL" and end is not None:
                         deletions.append((chrom, pos, end))
-                    elif svtype == 'INS':
+                    elif svtype == "INS":
                         alt = fields[4]
-                        seq = '' if alt.startswith('<') else alt
+                        seq = "" if alt.startswith("<") else alt
                         insertions.append((chrom, pos, pos + 1, seq))
                 except Exception:
                     skipped.append(line.rstrip())
             else:
                 try:
                     chrom, start, end = fields[:3]
-                    svtype = fields[3].upper() if len(fields) > 3 else ''
-                    if svtype == 'DEL':
+                    svtype = fields[3].upper() if len(fields) > 3 else ""
+                    if svtype == "DEL":
                         deletions.append((chrom, int(start), int(end)))
-                    elif svtype == 'INS':
-                        seq = fields[4] if len(fields) > 4 else ''
+                    elif svtype == "INS":
+                        seq = fields[4] if len(fields) > 4 else ""
                         insertions.append((chrom, int(start), int(end), seq))
                 except Exception:
                     skipped.append(line.rstrip())
     if log_path and skipped:
-        with open(log_path, 'w') as logf:
-            logf.write('\n'.join(skipped) + '\n')
+        with open(log_path, "w") as logf:
+            logf.write("\n".join(skipped) + "\n")
     return deletions, insertions
 
 
 def _bedtools_intersect(a: Path, b: Path, output: Path) -> None:
-    with open(output, 'w') as out:
-        run_quiet(['bedtools', 'intersect', '-wa', '-wb', '-a', str(a), '-b', str(b)], check=True, stdout=out)
+    with open(output, "w") as out:
+        run_quiet(
+            ["bedtools", "intersect", "-wa", "-wb", "-a", str(a), "-b", str(b)],
+            check=True,
+            stdout=out,
+        )
 
 
 def _classify_sv(
@@ -207,7 +221,9 @@ def _classify_sv(
     _bedtools_intersect(lift_bed, del_bed, inter_del)
     _bedtools_intersect(lift_bed, ins_bed, inter_ins)
 
-    status: Dict[str, str] = {name: "present" for _, _, _, name, _, _, _, _, _, _ in lifted}
+    status: Dict[str, str] = {
+        name: "present" for _, _, _, name, _, _, _, _, _, _ in lifted
+    }
     ins_seqs: Dict[str, str] = {}
     with open(inter_del) as fh:
         for line in fh:
@@ -252,29 +268,29 @@ def _extract_sequences(
 ) -> None:
     """Extract candidate L1 sequences from the target assembly."""
 
-    bed_path = out_fa.with_suffix('.bed')
-    with open(bed_path, 'w') as bed:
+    bed_path = out_fa.with_suffix(".bed")
+    with open(bed_path, "w") as bed:
         for _, _, _, name, _, _, plus_info, _, t_start, t_end in lifted:
-            scaf, _ps, _pe, t_strand = plus_info.split(';')
+            scaf, _ps, _pe, t_strand = plus_info.split(";")
             bed.write(f"{scaf}\t{t_start}\t{t_end}\t{name}\t0\t{t_strand}\n")
 
     run_quiet(
         [
-            'bedtools',
-            'getfasta',
-            '-fi',
+            "bedtools",
+            "getfasta",
+            "-fi",
             str(fasta),
-            '-bed',
+            "-bed",
             str(bed_path),
-            '-name',
-            '-fo',
+            "-name",
+            "-fo",
             str(out_fa),
-            '-s',
+            "-s",
         ],
         check=True,
     )
 
-    with open(out_fa, 'a') as out:
+    with open(out_fa, "a") as out:
         for name, seq in ins_seqs.items():
             if len(seq) >= min_length:
                 out.write(f">{name}_ins\n{seq}\n")
@@ -287,12 +303,12 @@ def _parse_repeatmasker(out_file: Path, l1_len: int, cov_thresh: float) -> Set[s
     coverage: Dict[str, int] = {}
     with open(out_file) as fh:
         for line in fh:
-            if line.startswith(' '):
+            if line.startswith(" "):
                 parts = line.split()
-                if len(parts) >= 14 and re.search(r'L1', parts[9]):
+                if len(parts) >= 14 and re.search(r"L1", parts[9]):
                     name = parts[4]
-                    rep_start = int(parts[11].strip('()'))
-                    rep_end = int(parts[12].strip('()'))
+                    rep_start = int(parts[11].strip("()"))
+                    rep_end = int(parts[12].strip("()"))
                     cov = abs(rep_end - rep_start) + 1
                     coverage[name] = coverage.get(name, 0) + cov
     return {n for n, c in coverage.items() if c / l1_len >= cov_thresh}
@@ -305,36 +321,42 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
     if candidate_fa.stat().st_size == 0:
         return present, intact
 
-    orf_fa = candidate_fa.with_suffix('.orf.fa')
-    run_quiet([
-        'getorf',
-        '-sequence',
-        str(candidate_fa),
-        '-find',
-        '1',
-        '-outseq',
-        str(orf_fa),
-    ], check=True)
+    orf_fa = candidate_fa.with_suffix(".orf.fa")
+    run_quiet(
+        [
+            "getorf",
+            "-sequence",
+            str(candidate_fa),
+            "-find",
+            "1",
+            "-outseq",
+            str(orf_fa),
+        ],
+        check=True,
+    )
 
-    blastp_out = candidate_fa.with_suffix('.blastp')
-    db_prefix = Path('data') / 'L1rpORF12p.fa'
+    blastp_out = candidate_fa.with_suffix(".blastp")
+    db_prefix = Path("data") / "L1rpORF12p.fa"
     verify_blast_db(db_prefix)
-    run_quiet([
-        'blastp',
-        '-db',
-        str(db_prefix),
-        '-query',
-        str(orf_fa),
-        '-outfmt',
-        '6 std qlen slen sacc',
-        '-out',
-        str(blastp_out),
-    ], check=True)
+    run_quiet(
+        [
+            "blastp",
+            "-db",
+            str(db_prefix),
+            "-query",
+            str(orf_fa),
+            "-outfmt",
+            "6 std qlen slen sacc",
+            "-out",
+            str(blastp_out),
+        ],
+        check=True,
+    )
 
-    combined = candidate_fa.with_suffix('.combine.blastp')
+    combined = candidate_fa.with_suffix(".combine.blastp")
     find_longest_orf(blastp_out, combined)
 
-    intact_file = candidate_fa.with_suffix('.intact.blastp')
+    intact_file = candidate_fa.with_suffix(".intact.blastp")
     find_intact_orf(combined, intact_file)
 
     with open(combined) as fh:
@@ -344,7 +366,7 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
             fields = line.strip().split()
             if len(fields) < 30:
                 continue
-            name = re.sub(r'_[0-9]+$', '', fields[0])
+            name = re.sub(r"_[0-9]+$", "", fields[0])
             try:
                 cov1 = int(fields[3]) / int(fields[13])
                 cov2 = int(fields[18]) / int(fields[28])
@@ -360,7 +382,7 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
             fields = line.strip().split()
             if len(fields) < 30:
                 continue
-            name = re.sub(r'_[0-9]+$', '', fields[0])
+            name = re.sub(r"_[0-9]+$", "", fields[0])
             intact.add(name)
 
     return present, intact
@@ -372,19 +394,22 @@ def _validate_presence(candidate_fa: Path, min_length: int = 5000) -> Set[str]:
     if candidate_fa.stat().st_size == 0:
         return present
 
-    blastn_out = candidate_fa.with_suffix('.blastn')
-    ref_fa = Path('data') / 'L1rp.fa'
-    run_quiet([
-        'blastn',
-        '-query',
-        str(candidate_fa),
-        '-subject',
-        str(ref_fa),
-        '-outfmt',
-        '6 qacc length slen',
-        '-out',
-        str(blastn_out),
-    ], check=True)
+    blastn_out = candidate_fa.with_suffix(".blastn")
+    ref_fa = Path("data") / "L1rp.fa"
+    run_quiet(
+        [
+            "blastn",
+            "-query",
+            str(candidate_fa),
+            "-subject",
+            str(ref_fa),
+            "-outfmt",
+            "6 qacc length slen",
+            "-out",
+            str(blastn_out),
+        ],
+        check=True,
+    )
 
     longest: Dict[str, int] = {}
     with open(blastn_out) as fh:
@@ -394,7 +419,7 @@ def _validate_presence(candidate_fa: Path, min_length: int = 5000) -> Set[str]:
             f = line.strip().split()
             if len(f) < 3:
                 continue
-            name = re.sub(r'_[0-9]+$', '', f[0])
+            name = re.sub(r"_[0-9]+$", "", f[0])
             length = int(f[1])
             prev = longest.get(name, 0)
             if length > prev:
@@ -466,8 +491,8 @@ def run_module2(
             shell=True,
             check=True,
         )
-        minus_fa = outdir / "-2kb.fa"
-        plus_fa = outdir / "+2kb.fa"
+        minus_fa = outdir / "ref_minus2kb.fa"
+        plus_fa = outdir / "ref_plus2kb.fa"
         run_quiet(
             f"seqtk subseq {ref_path} {minus_bed} | seqtk seq -U -l 0 - > {minus_fa}",
             shell=True,
@@ -486,8 +511,8 @@ def run_module2(
             raise ValueError("Unsupported L1 reference")
         minus_fa_src = Path("data") / "-2kb.fa"
         plus_fa_src = Path("data") / "+2kb.fa"
-        minus_fa = outdir / "-2kb.fa"
-        plus_fa = outdir / "+2kb.fa"
+        minus_fa = outdir / "ref_minus2kb.fa"
+        plus_fa = outdir / "ref_plus2kb.fa"
         shutil.copyfile(minus_fa_src, minus_fa)
         shutil.copyfile(plus_fa_src, plus_fa)
         ref_bed = Path("data") / "HPRC_L1_hs1_v2_v2fl.bed"
@@ -505,11 +530,13 @@ def run_module2(
         )
         _rename_fa_with_bed(minus_fa, minus_bed)
         _rename_fa_with_bed(plus_fa, plus_bed)
+        minus_bed.unlink(missing_ok=True)
+        plus_bed.unlink(missing_ok=True)
 
     print("\n[STEP 2] Mapping L1 flanks to input assembly")
 
-    minus_paf = outdir / "minus2kb.paf"
-    plus_paf = outdir / "plus2kb.paf"
+    minus_paf = outdir / "ref_minus2kb.paf"
+    plus_paf = outdir / "ref_plus2kb.paf"
 
     run_quiet(
         f"minimap2 -x asm5 {input_fasta} {minus_fa} > {minus_paf}",
@@ -535,16 +562,29 @@ def run_module2(
     status, ins_seqs = _classify_sv(lifted, deletions, insertions, outdir)
 
     candidate_fa = outdir / "candidates.fa"
-    _extract_sequences(Path(input_fasta), lifted, status, ins_seqs, candidate_fa, min_length)
+    _extract_sequences(
+        Path(input_fasta), lifted, status, ins_seqs, candidate_fa, min_length
+    )
 
     intact_names = _validate_orfs(candidate_fa)[1]
     presence_names = _validate_presence(candidate_fa, min_length)
 
     print("\n[STEP 6] Writing output table")
 
-    out_table = outdir / "HapLongLINErSV.txt"
+    out_table = outdir / "haplongliner_sv.bed"
     with open(out_table, "w") as out:
-        for chrom, start, end, name, length, strand, plus_info, minus_info, t_start, t_end in lifted:
+        for (
+            chrom,
+            start,
+            end,
+            name,
+            length,
+            strand,
+            plus_info,
+            minus_info,
+            t_start,
+            t_end,
+        ) in lifted:
             base_stat = status.get(name, "present")
             scaf, *_rest, t_strand = plus_info.split(";")
             target_len = t_end - t_start
