@@ -282,6 +282,7 @@ def run_module1(
         intact_out,
         fl_bed,
         combined_out,
+        min_length=min_length,
     )
 
     # Final output table
