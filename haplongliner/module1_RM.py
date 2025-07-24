@@ -289,16 +289,17 @@ def run_module1(
     print(f"Module 1 completed. Results in {combined_out}")
 
     # Remove large intermediate files to save space
-    for tmp in [
-        blastp_out,
-        orf_fa,
-        fl_rename_fa,
-        fl_fa,
-        parsed_bed,
-        fl_minus2kb_fa,
-        fl_plus2kb_fa,
-    ]:
-        try:
-            os.remove(tmp)
-        except FileNotFoundError:
-            pass
+    # for tmp in [
+    #     blastp_out,
+    #     orf_fa,
+    #     fl_rename_fa,
+    #     fl_fa,
+    #     parsed_bed,
+    #     fl_minus2kb_fa,
+    #     fl_plus2kb_fa,
+    # ]:
+    #     try:
+    #         os.remove(tmp)
+    #     except FileNotFoundError:
+    #         pass
+
