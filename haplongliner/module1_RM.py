@@ -102,10 +102,13 @@ def _rename_fa_with_bed(fa_path: Path, bed_path: Path) -> None:
         for line in bed:
             if not line.strip() or line.startswith("#"):
                 continue
-            f = line.strip().split()
-            if len(f) < 6:
+            fields = line.strip().split()
+            if len(fields) < 5:
                 continue
-            chrom, start, end, *_rest, strand = f[:6]
+            if len(fields) == 5:
+                chrom, start, end, _name, strand = fields
+            else:
+                chrom, start, end, *_rest, strand = fields[:6]
             records.append((chrom, int(start) + 1, int(end), strand))
 
     tmp = fa_path.with_suffix(".tmp")
