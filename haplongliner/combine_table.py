@@ -26,7 +26,14 @@ def _read_intact(file_path: str) -> Dict[str, str]:
     return result
 
 
-def combine_table(plus_file: str, minus_file: str, intact_file: str, fl_bed: str, out_file: str) -> None:
+def combine_table(
+    plus_file: str,
+    minus_file: str,
+    intact_file: str,
+    fl_bed: str,
+    out_file: str,
+    min_length: int = 5000,
+) -> None:
     plus = _read_minimap(plus_file)
     minus = _read_minimap(minus_file)
     intact = _read_intact(intact_file)
@@ -71,15 +78,18 @@ def combine_table(plus_file: str, minus_file: str, intact_file: str, fl_bed: str
 
             start_ref = "NA"
             end_ref = "NA"
-            if len(m_val) > 8 and len(p_val) > 8 and len(m_val) > 8 and m_val[5] == p_val[5]:
+            if len(m_val) > 8 and len(p_val) > 8 and m_val[5] == p_val[5]:
                 if int(m_val[7]) <= int(p_val[8]):
                     start_ref = m_val[8]
                     end_ref = p_val[7]
                 if int(p_val[7]) <= int(m_val[8]):
                     start_ref = p_val[8]
                     end_ref = m_val[7]
-                if start_ref != "NA" and end_ref != "NA" and int(end_ref) < int(start_ref):
-                    start_ref, end_ref = end_ref, start_ref
+                if start_ref != "NA" and end_ref != "NA":
+                    if int(end_ref) < int(start_ref):
+                        start_ref, end_ref = end_ref, start_ref
+                    if int(end_ref) - int(start_ref) > 2 * min_length:
+                        start_ref, end_ref = "NA", "NA"
 
             out.write(
                 f"{chrom}_{start}_{end}_{strand}_{dot}_{name}_{status}\t{chr_ref}_{start_ref}_{end_ref}_{out_strand}\n"
