@@ -166,7 +166,7 @@ def run_module1(
             f"awk '$6==\"+\"' {fl_bed} | "
             f"seqtk subseq {input_fasta} - | "
             f"seqtk seq -U -l 0 - | "
-            "sed '/^>/ s/$/(+)/'"
+            "sed -e '/^>/ s/:/;/' -e '/^>/ s/-/;/' -e '/^>/ s/$/;+/'"
         )
         run_quiet(plus_cmd, shell=True, stdout=out_fa, check=True)
         # Minus strand
@@ -174,7 +174,7 @@ def run_module1(
             f"awk '$6==\"-\"' {fl_bed} | "
             f"seqtk subseq {input_fasta} - | "
             f"seqtk seq -U -r -l 0 - | "
-            "sed '/^>/ s/$/(-)/'"
+            "sed -e '/^>/ s/:/;/' -e '/^>/ s/-/;/' -e '/^>/ s/$/;-/'"
         )
         run_quiet(minus_cmd, shell=True, stdout=out_fa, check=True)
 
@@ -183,16 +183,7 @@ def run_module1(
     with open(fl_fa) as fin, open(fl_rename_fa, "w") as fout:
         for line in fin:
             if line.startswith(">"):
-                header = line.strip()
-                # Temporarily replace strand annotation to protect the minus sign
-                header = (
-                    header.replace("(+)", "_plus")
-                    .replace("(-)", "_minus")
-                    .replace(":", "_")
-                    .replace("-", "_")
-                    .replace("_plus", "_+")
-                    .replace("_minus", "_-")
-                )
+                header = line.strip().replace(";", "_")
                 fout.write(header + "\n")
             else:
                 fout.write(line)
