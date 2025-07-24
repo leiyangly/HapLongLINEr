@@ -168,3 +168,60 @@ def test_liftover_l1s_plus_and_minus(tmp_path):
         480,
         500,
     )
+
+
+def test_liftover_l1s_distance_cutoff(tmp_path):
+    minus_paf = tmp_path / "minus.paf"
+    plus_paf = tmp_path / "plus.paf"
+    ref_bed = tmp_path / "ref.bed"
+    master = tmp_path / "master.bed"
+
+    write_paf(
+        minus_paf,
+        [
+            "\t".join(
+                [
+                    "L1c_-2kb",
+                    "1000",
+                    "0",
+                    "1000",
+                    "+",
+                    "scaf1",
+                    "10000",
+                    "2000",
+                    "4000",
+                    "100",
+                    "200",
+                    "60",
+                ]
+            )
+        ],
+    )
+
+    write_paf(
+        plus_paf,
+        [
+            "\t".join(
+                [
+                    "L1c_+2kb",
+                    "1000",
+                    "0",
+                    "1000",
+                    "+",
+                    "scaf1",
+                    "10000",
+                    "6000",
+                    "8000",
+                    "100",
+                    "200",
+                    "60",
+                ]
+            )
+        ],
+    )
+
+    ref_bed.write_text("scafR\t0\t900\tL1c\t+\n")
+    master.write_text("chrM\t100\t1000\tL1c\t+\n")
+
+    lifted = _liftover_l1s(minus_paf, plus_paf, ref_bed, min_length=50, master_files=[master])
+    assert lifted == []
