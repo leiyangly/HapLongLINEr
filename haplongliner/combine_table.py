@@ -17,7 +17,7 @@ def _read_intact(file_path: str) -> Dict[str, str]:
             if not line.strip():
                 continue
             fields = line.strip().split()
-            m = re.match(r"^(.+?)[;_](\d+)[;_](\d+)[;_]([+-])(?:_.*)?$", fields[0])
+            m = re.match(r"^(.+?)[;_](\d+)[;_](\d+)[;_]([+-])(?:[;_].*)?$", fields[0])
             if not m:
                 continue
             chrom, start, end, _ = m.groups()
