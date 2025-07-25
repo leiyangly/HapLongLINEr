@@ -61,87 +61,58 @@ def test_read_paf_filters_and_selects_longest(tmp_path):
 
 
 def test_liftover_l1s_plus_and_minus(tmp_path):
-    minus_paf = tmp_path / "minus.paf"
-    plus_paf = tmp_path / "plus.paf"
+    paf = tmp_path / "aln.paf"
     ref_bed = tmp_path / "ref.bed"
     master = tmp_path / "master.bed"
 
-    minus_lines = [
+    paf_lines = [
         "\t".join([
-            "L1a_-2kb",
+            "chrA",
             "1000",
             "0",
             "1000",
             "+",
             "chrX",
             "10000",
-            "1000",
             "1200",
-            "100",
-            "200",
+            "2200",
+            "1000",
+            "1000",
             "60",
+            "tp:A:P",
+            "cg:Z:1000M",
         ]),
         "\t".join([
-            "L1b_-2kb",
+            "chrB",
             "1000",
             "0",
-            "1000",
-            "-",
-            "chrY",
-            "10000",
-            "500",
-            "700",
             "100",
-            "200",
-            "60",
-        ]),
-    ]
-
-    plus_lines = [
-        "\t".join([
-            "L1a_+2kb",
-            "1000",
-            "0",
-            "1000",
             "+",
-            "chrX",
-            "10000",
-            "1300",
-            "1500",
-            "100",
-            "200",
-            "60",
-        ]),
-        "\t".join([
-            "L1b_+2kb",
-            "1000",
-            "0",
-            "1000",
-            "-",
             "chrY",
             "10000",
             "300",
-            "480",
+            "400",
             "100",
-            "200",
+            "100",
             "60",
+            "tp:A:P",
+            "cg:Z:100M",
         ]),
     ]
 
-    write_paf(minus_paf, minus_lines)
-    write_paf(plus_paf, plus_lines)
+    write_paf(paf, paf_lines)
 
     ref_bed.write_text(
-        "chrX\t0\t900\tL1a\t+\n" +
-        "chrY\t0\t100\tL1b\t-\n"
+        "chrA\t100\t900\tL1a\t+\n" +
+        "chrB\t0\t100\tL1b\t-\n"
     )
 
     master.write_text(
         "chrA\t100\t1000\tL1a\t+\n" +
-        "chrB\t200\t300\tL1b\t-\n"
+        "chrB\t0\t100\tL1b\t-\n"
     )
 
-    lifted = _liftover_l1s(minus_paf, plus_paf, ref_bed, min_length=50, master_files=[master])
+    lifted = _liftover_l1s(paf, ref_bed, min_length=50, master_files=[master])
     lifted.sort(key=lambda x: x[3])
 
     assert lifted[0] == (
@@ -151,77 +122,52 @@ def test_liftover_l1s_plus_and_minus(tmp_path):
         "L1a",
         900,
         "+",
-        "chrX;1300;1500;+",
-        "chrX;1000;1200;+",
-        1200,
+        "chrX;1300;2100;+",
+        "chrX;1300;2100;+",
         1300,
+        2100,
     )
     assert lifted[1] == (
         "chrB",
-        200,
-        300,
+        0,
+        100,
         "L1b",
         100,
         "-",
-        "chrY;300;480;-",
-        "chrY;500;700;-",
-        480,
-        500,
+        "chrY;300;400;+",
+        "chrY;300;400;+",
+        300,
+        400,
     )
 
 
-def test_liftover_l1s_distance_cutoff(tmp_path):
-    minus_paf = tmp_path / "minus.paf"
-    plus_paf = tmp_path / "plus.paf"
+def test_liftover_respects_min_length(tmp_path):
+    paf = tmp_path / "aln.paf"
     ref_bed = tmp_path / "ref.bed"
     master = tmp_path / "master.bed"
 
-    write_paf(
-        minus_paf,
-        [
-            "\t".join(
-                [
-                    "L1c_-2kb",
-                    "1000",
-                    "0",
-                    "1000",
-                    "+",
-                    "scaf1",
-                    "10000",
-                    "2000",
-                    "4000",
-                    "100",
-                    "200",
-                    "60",
-                ]
-            )
-        ],
+    paf.write_text(
+        "\t".join([
+            "chrC",
+            "1000",
+            "0",
+            "80",
+            "+",
+            "scaf1",
+            "10000",
+            "2000",
+            "2080",
+            "80",
+            "80",
+            "60",
+            "tp:A:P",
+            "cg:Z:80M",
+        ])
+        + "\n"
     )
 
-    write_paf(
-        plus_paf,
-        [
-            "\t".join(
-                [
-                    "L1c_+2kb",
-                    "1000",
-                    "0",
-                    "1000",
-                    "+",
-                    "scaf1",
-                    "10000",
-                    "6000",
-                    "8000",
-                    "100",
-                    "200",
-                    "60",
-                ]
-            )
-        ],
-    )
+    ref_bed.write_text("chrC\t100\t180\tL1c\t+\n")
+    master.write_text("chrC\t100\t180\tL1c\t+\n")
 
-    ref_bed.write_text("scafR\t0\t900\tL1c\t+\n")
-    master.write_text("chrM\t100\t1000\tL1c\t+\n")
-
-    lifted = _liftover_l1s(minus_paf, plus_paf, ref_bed, min_length=50, master_files=[master])
+    lifted = _liftover_l1s(paf, ref_bed, min_length=100, master_files=[master])
     assert lifted == []
