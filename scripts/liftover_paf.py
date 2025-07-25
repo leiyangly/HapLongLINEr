@@ -17,7 +17,7 @@ from typing import Dict, Iterable, List, Tuple
 # interval utilities (port of Interval.* helpers in paftools.js)
 # ---------------------------------------------------------------------------
 
-Interval = List[List[int]]
+Interval = List[List]
 
 
 def interval_sort(a: Interval) -> None:
@@ -101,12 +101,13 @@ def read_bed(path: str | None, to_merge: bool) -> Dict[str, Interval]:
             if len(fields) < 3:
                 continue
             chrom, start, end = fields[:3]
+            strand = fields[5] if len(fields) > 5 else "+"
             try:
                 s = int(start)
                 e = int(end)
             except ValueError:
                 continue
-            bed.setdefault(chrom, []).append([s, e])
+            bed.setdefault(chrom, []).append([s, e, strand])
     for chrom in list(bed.keys()):
         interval_sort(bed[chrom])
         if to_merge:
@@ -221,7 +222,7 @@ def liftover_paf(
                     r[idx][0] = coord
                 else:
                     r[idx][1] = coord + 1
-            for i, (s, e, *_) in enumerate(regs):
+            for i, (s, e, b_strand, *_) in enumerate(regs):
                 name = f"{t[0]}_{s}_{e}"
                 start = r[i][0]
                 end = r[i][1]
@@ -231,7 +232,8 @@ def liftover_paf(
                 if end < 0:
                     name += "_t3"
                     end = t[8]
-                print("\t".join([t[5], str(start), str(end), name, "0", strand]))
+                out_strand = t[4] if b_strand == "+" else ("+" if t[4] == "-" else "-")
+                print("\t".join([t[5], str(start), str(end), name, "0", out_strand]))
 
 
 # ---------------------------------------------------------------------------
