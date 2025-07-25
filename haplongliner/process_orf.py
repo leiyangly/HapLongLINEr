@@ -27,7 +27,7 @@ def process_orf_fasta(in_fasta, out_bed):
             strand = "+" if pos_end >= pos_start else "-"
 
             header = fields[0][1:]
-            m = re.match(r"^(.+?)[;_](\d+)[;_](\d+)[;_]([+-])(?:_.*)?$", header)
+            m = re.match(r"^(.+?)[;_](\d+)[;_](\d+)[;_]([+-])(?:[;_].*)?$", header)
             if not m:
                 continue
             chrom, lstart, lend, l1_strand = m.groups()

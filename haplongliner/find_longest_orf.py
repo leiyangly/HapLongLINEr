@@ -17,7 +17,7 @@ def find_longest_orf(blastp_file, out_file):
             if not line.strip():
                 continue
             F = line.strip().split()
-            name = re.sub(r"_[0-9]+$", "", F[0])
+            name = re.sub(r"[;_][0-9]+$", "", F[0])
             subject = F[1]
             aln_len = int(F[3])
             if aln_len >= len_dict.get(name, {}).get(subject, 0):
