@@ -263,12 +263,12 @@ def run_module1(
     candidate_minus2kb_paf = outdir / "candidate_minus2kb.paf"
     candidate_plus2kb_paf = outdir / "candidate_plus2kb.paf"
     run_quiet(
-        f"minimap2 -x asm5 {reference_fasta} {candidate_minus2kb_fa} > {candidate_minus2kb_paf}",
+        f"minimap2 -x asm10 {reference_fasta} {candidate_minus2kb_fa} > {candidate_minus2kb_paf}",
         shell=True,
         check=True,
     )
     run_quiet(
-        f"minimap2 -x asm5 {reference_fasta} {candidate_plus2kb_fa} > {candidate_plus2kb_paf}",
+        f"minimap2 -x asm10 {reference_fasta} {candidate_plus2kb_fa} > {candidate_plus2kb_paf}",
         shell=True,
         check=True,
     )

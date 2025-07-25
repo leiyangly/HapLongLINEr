@@ -539,12 +539,12 @@ def run_module2(
     plus_paf = outdir / "ref_plus2kb.paf"
 
     run_quiet(
-        f"minimap2 -x asm5 {input_fasta} {minus_fa} > {minus_paf}",
+        f"minimap2 -x asm10 {input_fasta} {minus_fa} > {minus_paf}",
         shell=True,
         check=True,
     )
     run_quiet(
-        f"minimap2 -x asm5 {input_fasta} {plus_fa} > {plus_paf}",
+        f"minimap2 -x asm10 {input_fasta} {plus_fa} > {plus_paf}",
         shell=True,
         check=True,
     )
