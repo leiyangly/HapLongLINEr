@@ -101,13 +101,15 @@ def read_bed(path: str | None, to_merge: bool) -> Dict[str, Interval]:
             if len(fields) < 3:
                 continue
             chrom, start, end = fields[:3]
+            name = fields[3] if len(fields) > 3 else ""
+            score = fields[4] if len(fields) > 4 else "0"
             strand = fields[5] if len(fields) > 5 else "+"
             try:
                 s = int(start)
                 e = int(end)
             except ValueError:
                 continue
-            bed.setdefault(chrom, []).append([s, e, strand])
+            bed.setdefault(chrom, []).append([s, e, strand, name, score])
     for chrom in list(bed.keys()):
         interval_sort(bed[chrom])
         if to_merge:
@@ -222,8 +224,8 @@ def liftover_paf(
                     r[idx][0] = coord
                 else:
                     r[idx][1] = coord + 1
-            for i, (s, e, b_strand, *_) in enumerate(regs):
-                name = f"{t[0]}_{s}_{e}"
+            for i, (s, e, b_strand, b_name, b_score, *_) in enumerate(regs):
+                name = f"{t[0]};{s};{e};{b_strand};{b_name}"
                 start = r[i][0]
                 end = r[i][1]
                 if start < 0:
@@ -233,7 +235,7 @@ def liftover_paf(
                     name += "_t3"
                     end = t[8]
                 out_strand = t[4] if b_strand == "+" else ("+" if t[4] == "-" else "-")
-                print("\t".join([t[5], str(start), str(end), name, "0", out_strand]))
+                print("\t".join([t[5], str(start), str(end), name, str(b_score), out_strand]))
 
 
 # ---------------------------------------------------------------------------
