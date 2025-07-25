@@ -124,6 +124,17 @@ def _rename_fa_with_bed(fa_path: Path, bed_path: Path) -> None:
     os.replace(tmp, fa_path)
 
 
+def _fix_getorf_headers(fa_path: Path) -> None:
+    """Replace '_' before ORF indices with ';' in ``getorf`` FASTA headers."""
+    tmp = fa_path.with_suffix(".tmp")
+    with open(fa_path) as fin, open(tmp, "w") as out:
+        for line in fin:
+            if line.startswith(">"):
+                line = re.sub(r"^>([^\s]+)_([0-9]+)", r">\1;\2", line)
+            out.write(line)
+    os.replace(tmp, fa_path)
+
+
 def run_module1(
     input_fasta,
     repeatmasker_file,
@@ -277,6 +288,7 @@ def run_module1(
         ],
         check=True,
     )
+    _fix_getorf_headers(orf_fa)
     orf_bed = outdir / "candidate_orf.bed"
     process_orf_fasta(orf_fa, orf_bed)
     blastp_out = outdir / "candidate_orf.blastp"
