@@ -442,11 +442,13 @@ def run_module2(
     l1cus: str | None = None,
     log: str | None = None,
     min_length: int = 5000,
+    asm: int = 10,
 ) -> None:
     """RepeatMasker-free L1 discovery using structural variants.
 
     ``log`` specifies a file to record malformed SV lines if provided.
     ``reference_fasta`` can be a local path or URL (downloaded if needed).
+    ``asm`` sets the minimap2 assembly preset (5, 10, or 20; default 10).
     """
 
     print(
@@ -455,7 +457,8 @@ def run_module2(
         f"  SV: {sv_file}\n"
         f"  Reference: {reference_fasta}\n"
         f"  Output Dir: {output_dir}\n"
-        f"  Min Length: {min_length}"
+        f"  Min Length: {min_length}\n"
+        f"  ASM preset: asm{asm}"
     )
 
     print()
@@ -539,12 +542,12 @@ def run_module2(
     plus_paf = outdir / "ref_plus2kb.paf"
 
     run_quiet(
-        f"minimap2 -x asm10 {input_fasta} {minus_fa} > {minus_paf}",
+        f"minimap2 -x asm{asm} {input_fasta} {minus_fa} > {minus_paf}",
         shell=True,
         check=True,
     )
     run_quiet(
-        f"minimap2 -x asm10 {input_fasta} {plus_fa} > {plus_paf}",
+        f"minimap2 -x asm{asm} {input_fasta} {plus_fa} > {plus_paf}",
         shell=True,
         check=True,
     )

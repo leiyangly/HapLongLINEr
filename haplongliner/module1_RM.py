@@ -142,6 +142,7 @@ def run_module1(
     output_dir="module1_output",
     log=None,
     min_length: int = 5000,
+    asm: int = 10,
 ):
     """
     RepeatMasker-based L1 discovery pipeline.
@@ -150,6 +151,7 @@ def run_module1(
     ``log`` specifies a file to log malformed RepeatMasker lines. If not
     provided, the ``HAPLOGLINER_LOG`` environment variable is checked.
     ``min_length`` controls the minimum L1 length to retain (default 5000 bp).
+    ``asm`` sets the minimap2 assembly preset (5, 10, or 20; default 10).
     """
     if log is None:
         log = os.getenv("HAPLOGLINER_LOG")
@@ -177,6 +179,7 @@ def run_module1(
         f"  RepeatMasker: {repeatmasker_file}\n"
         f"  Reference: {reference_fasta}\n"
         f"  Output Dir: {outdir}\n"
+        f"  ASM preset: asm{asm}"
     )
 
     print()
@@ -263,12 +266,12 @@ def run_module1(
     candidate_minus2kb_paf = outdir / "candidate_minus2kb.paf"
     candidate_plus2kb_paf = outdir / "candidate_plus2kb.paf"
     run_quiet(
-        f"minimap2 -x asm10 {reference_fasta} {candidate_minus2kb_fa} > {candidate_minus2kb_paf}",
+        f"minimap2 -x asm{asm} {reference_fasta} {candidate_minus2kb_fa} > {candidate_minus2kb_paf}",
         shell=True,
         check=True,
     )
     run_quiet(
-        f"minimap2 -x asm10 {reference_fasta} {candidate_plus2kb_fa} > {candidate_plus2kb_paf}",
+        f"minimap2 -x asm{asm} {reference_fasta} {candidate_plus2kb_fa} > {candidate_plus2kb_paf}",
         shell=True,
         check=True,
     )

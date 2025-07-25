@@ -102,6 +102,15 @@ def main():
         dest="log",
         help="File to log malformed RepeatMasker lines",
     )
+    parser_rm.add_argument(
+        "-a",
+        "--asm",
+        dest="asm",
+        type=int,
+        choices=[5, 10, 20],
+        default=10,
+        help="minimap2 asm preset (5, 10, or 20; default: 10)",
+    )
 
     ref_group = parser_rm.add_mutually_exclusive_group(required=True)
     ref_group.add_argument(
@@ -165,6 +174,15 @@ def main():
         "--log",
         dest="log",
         help="File to log malformed SV lines",
+    )
+    parser_sv.add_argument(
+        "-a",
+        "--asm",
+        dest="asm",
+        type=int,
+        choices=[5, 10, 20],
+        default=10,
+        help="minimap2 asm preset (5, 10, or 20; default: 10)",
     )
     parser_sv.add_argument(
         "-o",
@@ -234,6 +252,7 @@ def main():
             args.output,
             log=args.log,
             min_length=args.length,
+            asm=args.asm,
         )
     elif args.command == "sv":
         # Determine reference path/URL for generating flanks when needed
@@ -250,6 +269,7 @@ def main():
             l1cus=args.l1cus,
             log=args.log,
             min_length=args.length,
+            asm=args.asm,
         )
     elif args.command == "db":
         run_module3(args.output)
