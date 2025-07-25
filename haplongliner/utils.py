@@ -30,7 +30,7 @@ def verify_blast_db(db_prefix):
 
 
 def run_quiet(cmd, **kwargs):
-    """Run a subprocess suppressing output unless errors occur."""
+    """Run a subprocess suppressing output from successful commands."""
     import subprocess
 
     kwargs.setdefault("stdout", subprocess.PIPE)
@@ -44,9 +44,9 @@ def run_quiet(cmd, **kwargs):
             return stream.decode()
         return str(stream)
 
-    if result.stderr:
-        sys.stderr.write(_to_str(result.stderr))
     if result.returncode != 0:
+        if result.stderr:
+            sys.stderr.write(_to_str(result.stderr))
         if kwargs.get("stdout") == subprocess.PIPE and result.stdout:
             sys.stderr.write(_to_str(result.stdout))
         result.check_returncode()
