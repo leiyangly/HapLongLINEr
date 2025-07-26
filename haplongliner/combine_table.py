@@ -49,13 +49,13 @@ def combine_table(
             start_i = int(start)
             end_i = int(end)
             # Convert to the coordinate system used by the legacy pipeline.
-            m = start_i - 1999
+            m = start_i - 2000
             p = end_i + 2000
-            px = end_i + 1
-            mx = start_i + 1
+            px = end_i
+            mx = start_i
             mkey = f"{chrom};{m};{start_i};{strand}"
             pkey = f"{chrom};{px};{p};{strand}"
-            # ORF headers store 1-based coordinates
+            # ORF headers now store 0-based coordinates
             ikey = f"{chrom}_{mx}_{end_i}"
 
             m_val = minus.get(mkey, [])
