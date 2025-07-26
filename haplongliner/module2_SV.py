@@ -421,7 +421,7 @@ def _validate_presence(candidate_fa: Path, min_length: int = 5000) -> Set[str]:
             "-subject",
             str(ref_fa),
             "-outfmt",
-            "6 qacc length slen",
+            "6 std qlen slen",
             "-out",
             str(blastn_out),
         ],
@@ -434,10 +434,13 @@ def _validate_presence(candidate_fa: Path, min_length: int = 5000) -> Set[str]:
             if not line.strip():
                 continue
             f = line.strip().split()
-            if len(f) < 3:
+            if len(f) < 14:
                 continue
             name = re.sub(r"_[0-9]+$", "", f[0])
-            length = int(f[1])
+            try:
+                length = int(f[3])
+            except ValueError:
+                continue
             prev = longest.get(name, 0)
             if length > prev:
                 longest[name] = length
