@@ -1,5 +1,6 @@
 import shutil
 import sys
+import os
 from pathlib import Path
 from typing import Dict, List
 
@@ -51,6 +52,27 @@ def run_quiet(cmd, **kwargs):
             sys.stderr.write(_to_str(result.stdout))
         result.check_returncode()
     return result
+
+
+def shift_fasta_start(fa_path: Path, delta: int = -1) -> None:
+    """Adjust start coordinate in FASTA headers by ``delta``.
+
+    Headers must follow ``chrom;start;end;...``. Lines that do not conform are
+    left unchanged.
+    """
+    tmp = fa_path.with_suffix(".tmp")
+    with open(fa_path) as fin, open(tmp, "w") as out:
+        for line in fin:
+            if line.startswith(">"):
+                parts = line[1:].strip().split(";")
+                if len(parts) >= 2:
+                    try:
+                        parts[1] = str(int(parts[1]) + delta)
+                        line = ">" + ";".join(parts) + "\n"
+                    except ValueError:
+                        pass
+            out.write(line)
+    os.replace(tmp, fa_path)
 
 
 def verify_fasta_file(path: str) -> None:

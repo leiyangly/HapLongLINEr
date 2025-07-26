@@ -15,6 +15,7 @@ from .utils import (
     run_quiet,
     verify_fasta_file,
     verify_repeatmasker_file,
+    shift_fasta_start,
 )
 
 
@@ -109,7 +110,7 @@ def _rename_fa_with_bed(fa_path: Path, bed_path: Path) -> None:
                 chrom, start, end, _name, strand = fields
             else:
                 chrom, start, end, *_rest, strand = fields[:6]
-            records.append((chrom, int(start) + 1, int(end), strand))
+            records.append((chrom, int(start), int(end), strand))
 
     tmp = fa_path.with_suffix(".tmp")
     with open(fa_path) as fin, open(tmp, "w") as out:
@@ -226,6 +227,8 @@ def run_module1(
             "sed -e '/^>/ s/:/;/' -e '/^>/ s/-/;/' -e '/^>/ s/$/;-/'"
         )
         run_quiet(minus_cmd, shell=True, stdout=out_fa, check=True)
+
+    shift_fasta_start(candidate_fa)
 
     print("\n[STEP 4] Extracting 2kb flanking regions")
     # 4. Extract flanking 2kb regions (upstream and downstream)

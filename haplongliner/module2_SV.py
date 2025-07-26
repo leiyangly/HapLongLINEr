@@ -8,6 +8,7 @@ from .utils import (
     verify_sv_file,
     verify_bed_file,
     verify_blast_db,
+    shift_fasta_start,
     read_paf,
 )
 from .module1_RM import download_if_needed
@@ -307,6 +308,8 @@ def _extract_sequences(
             "sed -e '/^>/ s/:/;/' -e '/^>/ s/-/;/' -e '/^>/ s/$/;-/'"
         )
         run_quiet(minus_cmd, shell=True, stdout=out, check=True)
+
+    shift_fasta_start(out_fa)
 
     with open(out_fa, "a") as out:
         for name, seq in ins_seqs.items():
