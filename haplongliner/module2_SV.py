@@ -291,21 +291,22 @@ def _extract_sequences(
             scaf, _ps, _pe, t_strand = plus_info.split(";")
             bed.write(f"{scaf}\t{t_start}\t{t_end}\t{name}\t0\t{t_strand}\n")
 
-    run_quiet(
-        [
-            "bedtools",
-            "getfasta",
-            "-fi",
-            str(fasta),
-            "-bed",
-            str(bed_path),
-            "-name",
-            "-fo",
-            str(out_fa),
-            "-s",
-        ],
-        check=True,
-    )
+    with open(out_fa, "w") as out:
+        plus_cmd = (
+            f"awk '$6==\"+\"' {bed_path} | "
+            f"seqtk subseq {fasta} - | "
+            f"seqtk seq -U -l 0 - | "
+            "sed -e '/^>/ s/:/;/' -e '/^>/ s/-/;/' -e '/^>/ s/$/;+/'"
+        )
+        run_quiet(plus_cmd, shell=True, stdout=out, check=True)
+
+        minus_cmd = (
+            f"awk '$6==\"-\"' {bed_path} | "
+            f"seqtk subseq {fasta} - | "
+            f"seqtk seq -U -r -l 0 - | "
+            "sed -e '/^>/ s/:/;/' -e '/^>/ s/-/;/' -e '/^>/ s/$/;-/'"
+        )
+        run_quiet(minus_cmd, shell=True, stdout=out, check=True)
 
     with open(out_fa, "a") as out:
         for name, seq in ins_seqs.items():
