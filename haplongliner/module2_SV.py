@@ -540,8 +540,9 @@ def run_module2(
         Path(input_fasta), lifted, status, ins_seqs, candidate_fa, min_length
     )
 
-    intact_names = _validate_orfs(candidate_fa)[1]
+    orf_present, intact_names = _validate_orfs(candidate_fa)
     presence_names = _validate_presence(candidate_fa, min_length)
+    presence_names.update(orf_present)
 
     print("\n[STEP 6] Writing output table")
 
