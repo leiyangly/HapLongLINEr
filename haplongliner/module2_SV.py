@@ -537,7 +537,9 @@ def run_module2(
     )
 
     orf_present, intact_names = _validate_orfs(candidate_fa)
+    # candidates.blastn determines presence status
     presence_names = _validate_presence(candidate_fa, min_length)
+    # also mark sequences with >90% ORF coverage as present
     presence_names.update(orf_present)
 
     print("\n[STEP 6] Writing output table")
@@ -560,13 +562,17 @@ def run_module2(
             scaf, *_rest, t_strand = plus_info.split(";")
             target_len = t_end - t_start
 
-            if base_stat in {"missing", "absent"}:
-                final_stat = "absent"
+            # Presence is determined solely by candidates.blastn and
+            # candidates.intact.blastp results. Any sequence found in
+            # candidates.intact.blastp is labeled "intact"; those only in
+            # candidates.blastn are labeled "present". Everything else is
+            # considered "absent".
+            if name in intact_names:
+                final_stat = "intact"
+            elif name in presence_names:
+                final_stat = "present"
             else:
-                if name in presence_names:
-                    final_stat = "intact" if name in intact_names else "present"
-                else:
-                    final_stat = "absent"
+                final_stat = "absent"
 
             if name in ins_seqs:
                 sv_stat = "INS"
