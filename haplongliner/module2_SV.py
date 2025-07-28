@@ -8,9 +8,15 @@ from .utils import (
     verify_sv_file,
     verify_bed_file,
     verify_blast_db,
-    shift_fasta_start,
     read_paf,
 )
+from pyfaidx import Fasta
+
+
+def _revcomp(seq: str) -> str:
+    complement = str.maketrans("ACGTacgtNn", "TGCAtgcaNn")
+    return seq.translate(complement)[::-1]
+
 from .module1_RM import download_if_needed
 from .find_longest_orf import find_longest_orf
 from .find_intact_orf import find_intact_orf
@@ -286,37 +292,20 @@ def _extract_sequences(
 ) -> None:
     """Extract candidate L1 sequences from the target assembly."""
 
-    bed_path = out_fa.with_suffix(".bed")
-    with open(bed_path, "w") as bed:
-        for _, _, _, name, _, _, plus_info, _, t_start, t_end in lifted:
-            scaf, _ps, _pe, t_strand = plus_info.split(";")
-            bed.write(f"{scaf}\t{t_start}\t{t_end}\t{name}\t0\t{t_strand}\n")
+    fa = Fasta(str(fasta))
 
     with open(out_fa, "w") as out:
-        plus_cmd = (
-            f"awk '$6==\"+\"' {bed_path} | "
-            f"seqtk subseq {fasta} - | "
-            f"seqtk seq -U -l 0 - | "
-            "sed -e '/^>/ s/:/;/' -e '/^>/ s/-/;/' -e '/^>/ s/$/;+/'"
-        )
-        run_quiet(plus_cmd, shell=True, stdout=out, check=True)
+        for _, _, _, name, _, _, plus_info, _, t_start, t_end in lifted:
+            scaf, _ps, _pe, t_strand = plus_info.split(";")
+            seq = fa[scaf][t_start:t_end].seq
+            if t_strand == "-":
+                seq = _revcomp(seq)
+            header = f"{name};{scaf};{t_start};{t_end};{t_strand}"
+            out.write(f">{header}\n{seq}\n")
 
-        minus_cmd = (
-            f"awk '$6==\"-\"' {bed_path} | "
-            f"seqtk subseq {fasta} - | "
-            f"seqtk seq -U -r -l 0 - | "
-            "sed -e '/^>/ s/:/;/' -e '/^>/ s/-/;/' -e '/^>/ s/$/;-/'"
-        )
-        run_quiet(minus_cmd, shell=True, stdout=out, check=True)
-
-    shift_fasta_start(out_fa)
-
-    with open(out_fa, "a") as out:
         for name, seq in ins_seqs.items():
             if len(seq) >= min_length:
                 out.write(f">{name}_ins\n{seq}\n")
-
-    bed_path.unlink(missing_ok=True)
 
 
 def _parse_repeatmasker(out_file: Path, l1_len: int, cov_thresh: float) -> Set[str]:
@@ -387,7 +376,7 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
             fields = line.strip().split()
             if len(fields) < 30:
                 continue
-            name = re.sub(r"_[0-9]+$", "", fields[0])
+            name = re.sub(r"_[0-9]+$", "", fields[0]).split(";", 1)[0]
             try:
                 cov1 = int(fields[3]) / int(fields[13])
                 cov2 = int(fields[18]) / int(fields[28])
@@ -403,7 +392,7 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
             fields = line.strip().split()
             if len(fields) < 30:
                 continue
-            name = re.sub(r"_[0-9]+$", "", fields[0])
+            name = re.sub(r"_[0-9]+$", "", fields[0]).split(";", 1)[0]
             intact.add(name)
 
     return present, intact
@@ -440,7 +429,7 @@ def _validate_presence(candidate_fa: Path, min_length: int = 5000) -> Set[str]:
             f = line.strip().split()
             if len(f) < 14:
                 continue
-            name = re.sub(r"_[0-9]+$", "", f[0])
+            name = re.sub(r"_[0-9]+$", "", f[0]).split(";", 1)[0]
             try:
                 length = int(f[3])
             except ValueError:
