@@ -376,7 +376,8 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
             fields = line.strip().split()
             if len(fields) < 30:
                 continue
-            name = re.sub(r"_[0-9]+$", "", fields[0]).split(";", 1)[0]
+            name = re.sub(r"_[0-9]+$", "", fields[0])
+            name = ";".join(name.split(";")[:3])
             try:
                 cov1 = int(fields[3]) / int(fields[13])
                 cov2 = int(fields[18]) / int(fields[28])
@@ -392,7 +393,8 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
             fields = line.strip().split()
             if len(fields) < 30:
                 continue
-            name = re.sub(r"_[0-9]+$", "", fields[0]).split(";", 1)[0]
+            name = re.sub(r"_[0-9]+$", "", fields[0])
+            name = ";".join(name.split(";")[:3])
             intact.add(name)
 
     return present, intact
@@ -429,7 +431,8 @@ def _validate_presence(candidate_fa: Path, min_length: int = 5000) -> Set[str]:
             f = line.strip().split()
             if len(f) < 14:
                 continue
-            name = re.sub(r"_[0-9]+$", "", f[0]).split(";", 1)[0]
+            name = re.sub(r"_[0-9]+$", "", f[0])
+            name = ";".join(name.split(";")[:3])
             try:
                 length = int(f[3])
             except ValueError:
@@ -567,9 +570,11 @@ def run_module2(
             # candidates.intact.blastp is labeled "intact"; those only in
             # candidates.blastn are labeled "present". Everything else is
             # considered "absent".
-            if name in intact_names:
+            key = f"{name};{scaf};{t_start}"
+
+            if key in intact_names:
                 final_stat = "intact"
-            elif name in presence_names:
+            elif key in presence_names:
                 final_stat = "present"
             else:
                 final_stat = "absent"
