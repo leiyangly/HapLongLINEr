@@ -16,7 +16,6 @@ requirements:
   run:
     - python
     - pyfaidx
-    - seqtk
     - minimap2
     - emboss
     - blast
