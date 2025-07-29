@@ -125,12 +125,13 @@ resulting FASTA.
 Currently, coordinate lookup is only available for the **hs1** reference genome.
 Queries on other references are not yet supported.
 
-Command:
+Example command with single coordinate:
 ```bash
-# Single coordinate example
 haplongliner db -q chr1:48841802-48841812 -o chr1:48841802-48841812.fa
+```
 
-# Coordinates from BED file with user provided extra L1 sequences
+Command using coordinates from BED file and user provided extra L1 sequences:
+```bash
 haplongliner db -q sites.bed -e extra.fa -o out.fa
 ```
 
