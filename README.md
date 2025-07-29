@@ -116,19 +116,26 @@ Output:
 - Log file (when using `-g/--log`) that summarizes results of each step of the pipeline module
 - FASTA file containing all full length (>=5kb by default) L1HS, L1PA2, and intact L1PA3 sequences from the input assembly
 
-### Module 3: Sequence Repository
+### Module 3: Sequence Retrieval
 
-Module 3 builds a sequence repository from previously identified insertions.
-Currently the only required argument is the output directory.
+Module 3 retrieves the sequences of L1 insertions present in the HPRC
+repository.  The user supplies a coordinate (``chr:start-end``) or a BED file of
+coordinates and the module outputs the corresponding L1 sequences.  Additional
+FASTA files from other individuals can be provided and will be appended to the
+resulting FASTA.
 
 Command:
 ```bash
-haplongliner db --out output_folder
+# Single coordinate
+haplongliner db -q chr1:1000-2000 -o out.fa
+
+# Coordinates from BED file with extra sequences
+haplongliner db -q sites.bed -e extra.fa -o out.fa
 ```
 
 Output:
-- Annotated BED file that adds the following columns to each L1 record: Frequency of presence in HPRC haploids; Intactness status in HPRC; Liftover coordinate in the chosen reference (hs1 or hg38)
-- FASTA file that Contains all L1 sequences at the insertion site from all HPRC haploids that carry that L1
+- FASTA file containing all L1 sequences found at the queried coordinates,
+  optionally combined with sequences from ``-e/--extra``.
 
 
 ## Authors
