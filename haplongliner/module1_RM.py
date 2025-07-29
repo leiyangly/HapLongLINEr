@@ -6,6 +6,8 @@ import urllib.request
 import shutil
 import os
 
+from pyfaidx import Fasta
+
 from .process_orf import process_orf_fasta
 from .find_longest_orf import find_longest_orf
 from .find_intact_orf import find_intact_orf
@@ -15,8 +17,12 @@ from .utils import (
     run_quiet,
     verify_fasta_file,
     verify_repeatmasker_file,
-    shift_fasta_start,
 )
+
+
+def _revcomp(seq: str) -> str:
+    complement = str.maketrans("ACGTacgtNn", "TGCAtgcaNn")
+    return seq.translate(complement)[::-1]
 
 
 def parse_repeatmasker(input_path, output_path, log_path=None):
@@ -96,33 +102,6 @@ def download_if_needed(url, local_path):
     return str(local_path)
 
 
-def _rename_fa_with_bed(fa_path: Path, bed_path: Path) -> None:
-    """Rename FASTA headers based on BED coordinates."""
-    records = []
-    with open(bed_path) as bed:
-        for line in bed:
-            if not line.strip() or line.startswith("#"):
-                continue
-            fields = line.strip().split()
-            if len(fields) < 5:
-                continue
-            if len(fields) == 5:
-                chrom, start, end, _name, strand = fields
-            else:
-                chrom, start, end, *_rest, strand = fields[:6]
-            records.append((chrom, int(start), int(end), strand))
-
-    tmp = fa_path.with_suffix(".tmp")
-    with open(fa_path) as fin, open(tmp, "w") as out:
-        idx = 0
-        for line in fin:
-            if line.startswith(">"):
-                chrom, s, e, strand = records[idx]
-                out.write(f">{chrom};{s};{e};{strand}\n")
-                idx += 1
-            else:
-                out.write(line)
-    os.replace(tmp, fa_path)
 
 
 def _fix_getorf_headers(fa_path: Path) -> None:
@@ -134,6 +113,25 @@ def _fix_getorf_headers(fa_path: Path) -> None:
                 line = re.sub(r"^>([^\s]+)_([0-9]+)", r">\1;\2", line)
             out.write(line)
     os.replace(tmp, fa_path)
+
+
+def _extract_fasta(fa: Fasta, bed: Path, out: Path) -> None:
+    """Write sequences for regions in ``bed`` to ``out`` using ``fa``."""
+
+    with open(bed) as b, open(out, "w") as out_f:
+        for line in b:
+            if not line.strip() or line.startswith("#"):
+                continue
+            fields = line.strip().split()
+            if len(fields) < 6:
+                continue
+            chrom, start, end, *_rest, strand = fields[:6]
+            start_i = int(start)
+            end_i = int(end)
+            seq = fa[chrom][start_i:end_i].seq.upper()
+            if strand == "-":
+                seq = _revcomp(seq)
+            out_f.write(f">{chrom};{start_i};{end_i};{strand}\n{seq}\n")
 
 
 def run_module1(
@@ -208,27 +206,10 @@ def run_module1(
     )
 
     print("\n[STEP 3] Extracting full-length L1 sequences")
-    # 3. Extract the sequence of the full-length L1s (plus and minus strand)
+    # 3. Extract the sequence of the full-length L1s using pyfaidx
     candidate_fa = outdir / "candidate.fa"
-    with open(candidate_fa, "w") as out_fa:
-        # Plus strand
-        plus_cmd = (
-            f"awk '$6==\"+\"' {candidate_bed} | "
-            f"seqtk subseq {input_fasta} - | "
-            f"seqtk seq -U -l 0 - | "
-            "sed -e '/^>/ s/:/;/' -e '/^>/ s/-/;/' -e '/^>/ s/$/;+/'"
-        )
-        run_quiet(plus_cmd, shell=True, stdout=out_fa, check=True)
-        # Minus strand
-        minus_cmd = (
-            f"awk '$6==\"-\"' {candidate_bed} | "
-            f"seqtk subseq {input_fasta} - | "
-            f"seqtk seq -U -r -l 0 - | "
-            "sed -e '/^>/ s/:/;/' -e '/^>/ s/-/;/' -e '/^>/ s/$/;-/'"
-        )
-        run_quiet(minus_cmd, shell=True, stdout=out_fa, check=True)
-
-    shift_fasta_start(candidate_fa)
+    fa = Fasta(str(input_fasta))
+    _extract_fasta(fa, candidate_bed, candidate_fa)
 
     print("\n[STEP 4] Extracting 2kb flanking regions")
     # 4. Extract flanking 2kb regions (upstream and downstream)
@@ -251,18 +232,8 @@ def run_module1(
     # 5. Extract sequences for flanking regions
     candidate_minus2kb_fa = outdir / "candidate_minus2kb.fa"
     candidate_plus2kb_fa = outdir / "candidate_plus2kb.fa"
-    run_quiet(
-        f"seqtk subseq {input_fasta} {candidate_minus2kb_bed} | seqtk seq -U -l 0 - > {candidate_minus2kb_fa}",
-        shell=True,
-        check=True,
-    )
-    _rename_fa_with_bed(candidate_minus2kb_fa, candidate_minus2kb_bed)
-    run_quiet(
-        f"seqtk subseq {input_fasta} {candidate_plus2kb_bed} | seqtk seq -U -l 0 - > {candidate_plus2kb_fa}",
-        shell=True,
-        check=True,
-    )
-    _rename_fa_with_bed(candidate_plus2kb_fa, candidate_plus2kb_bed)
+    _extract_fasta(fa, candidate_minus2kb_bed, candidate_minus2kb_fa)
+    _extract_fasta(fa, candidate_plus2kb_bed, candidate_plus2kb_fa)
 
     print("\n[STEP 6] Mapping flanks to reference genome")
     # 6. Map flanking regions to reference genome with minimap2 (using local FASTA)
