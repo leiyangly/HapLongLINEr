@@ -47,19 +47,34 @@ def _load_sequences(zip_path: Path) -> Dict[Tuple[str, str, str], str]:
     return seqs
 
 
-def _parse_hs1_coord(field: str) -> Tuple[str, int, int, str]:
-    """Return ``(chrom, start, end, strand)`` from ``chr1_123_456_+`` format."""
-    chrom, start, end, strand = field.split("_")
-    return chrom, int(start), int(end), strand
+def _load_ref_coords(path: Path) -> Dict[str, Tuple[str, int, int, int, str]]:
+    """Return mapping ``name -> (chrom, start, end, length, strand)`` from BED."""
+    coords: Dict[str, Tuple[str, int, int, int, str]] = {}
+    with open(path) as fh:
+        for line in fh:
+            if not line.strip() or line.startswith("#"):
+                continue
+            fields = line.strip().split()
+            if len(fields) < 6:
+                continue
+            chrom, start_s, end_s, name, length_s, strand = fields[:6]
+            try:
+                start = int(start_s)
+                end = int(end_s)
+                length = int(length_s)
+            except ValueError:
+                continue
+            coords[name] = (chrom, start, end, length, strand)
+    return coords
 
 
 def _parse_bed(
     bed: Path,
     sequences: Dict[Tuple[str, str, str], str],
     ref_seq: str,
+    ref_coords: Dict[str, Tuple[str, int, int, int, str]],
 ) -> Iterable[Dict[str, str]]:
     """Yield dictionaries for each BED row with alignment info added."""
-    hs1_ranges: Dict[str, Tuple[str, int, int, str]] = {}
     rows = []
 
     with open(bed) as fh:
@@ -78,7 +93,7 @@ def _parse_bed(
             present_freq = fields[6]
             intact_freq = fields[7]
             assembly_info = fields[8]
-            hs1_coord = fields[9] if len(fields) > 9 else ""
+            hs1_coord = ""
 
             hap = "1" if "paternal" in hap_status else "2"
             seq = sequences.get((l1_name, sample, hap))
@@ -86,19 +101,10 @@ def _parse_bed(
             if seq:
                 orient, cigar = _best_alignment(seq, ref_seq)
 
-            if hs1_coord:
-                chrom, start, end, strand = _parse_hs1_coord(hs1_coord)
-                rng = hs1_ranges.get(l1_name)
-                if rng is None:
-                    hs1_ranges[l1_name] = (chrom, start, end, strand)
-                else:
-                    c, s, e, st = rng
-                    hs1_ranges[l1_name] = (
-                        c,
-                        min(s, start),
-                        max(e, end),
-                        st,
-                    )
+            coords = ref_coords.get(l1_name)
+            if coords:
+                chrom, start, end, _length, strand = coords
+                hs1_coord = f"{chrom}_{start}_{end}_{strand}"
 
             rows.append(
                 {
@@ -117,12 +123,7 @@ def _parse_bed(
                 }
             )
 
-    # Update hs1 coordinate ranges to use largest span
     for row in rows:
-        rng = hs1_ranges.get(row["l1_name"])
-        if rng:
-            chrom, start, end, strand = rng
-            row["hs1_coord"] = f"{chrom}_{start}_{end}_{strand}"
         yield row
 
 
@@ -130,13 +131,18 @@ def create_database(output: Path) -> None:
     """Create the combined database and write it to ``output``."""
     ref_seq = _load_reference(Path("data") / "L1rp.fa")
 
+    ref_coords = _load_ref_coords(Path("data") / "HPRC_L1_hs1_v2_v2fl.bed")
+
     # Load all sequences
     seq_v2 = _load_sequences(Path("data") / "HPRC_L1_seq_by_site_v2.zip")
     seq_v2fl = _load_sequences(Path("data") / "HPRC_L1_seq_by_site_v2fl.zip")
 
     rows: Iterable[Dict[str, str]] = []
-    rows = list(_parse_bed(Path("HPRC_L1_hs1_master_v2.bed"), seq_v2, ref_seq)) + \
-        list(_parse_bed(Path("HPRC_L1_hs1_master_v2fl.bed"), seq_v2fl, ref_seq))
+    rows = list(
+        _parse_bed(Path("HPRC_L1_hs1_master_v2.bed"), seq_v2, ref_seq, ref_coords)
+    ) + list(
+        _parse_bed(Path("HPRC_L1_hs1_master_v2fl.bed"), seq_v2fl, ref_seq, ref_coords)
+    )
 
     fieldnames = [
         "l1_name",
