@@ -4,7 +4,10 @@ setup(
     name="haplongliner",
     version="0.1.0",
     packages=find_packages(),
-    install_requires=["pyfaidx"],
+    install_requires=[
+        "pyfaidx",
+        "edlib",
+    ],
     entry_points={
         "console_scripts": [
             "haplongliner=haplongliner.cli:main"
