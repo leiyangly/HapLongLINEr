@@ -42,7 +42,7 @@ Install HapLongLINEr with pip:
 ```bash
 cd HapLongLINEr
 
-pip install -e .  # installs pyfaidx automatically
+pip install -e .
 ```
 
 
