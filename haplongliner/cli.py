@@ -249,10 +249,8 @@ def main():
         log_handle = open(args.log_file, "w")
         sys.stdout = _Tee(sys.stdout, log_handle)
 
-    if args.command:
-        check_dependencies()
-
     if args.command == "rm":
+        check_dependencies()
         # Determine reference path/URL
         if args.ref == "hs1":
             reference = HS1_URL
@@ -275,6 +273,7 @@ def main():
             reference = HS1_URL
         else:
             reference = HG38_URL
+        check_dependencies()
         run_module2(
             args.input,
             args.sv,

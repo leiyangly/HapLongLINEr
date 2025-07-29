@@ -84,7 +84,7 @@ def _load_database() -> Dict[str, List[Tuple[str, str]]]:
 def _load_reference(path: Path) -> str:
     fa = Fasta(str(path))
     first = next(iter(fa.records.values()))
-    return str(first.seq)
+    return str(first[:])
 
 
 Coord = Tuple[str, int, int]
