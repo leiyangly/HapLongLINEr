@@ -123,6 +123,8 @@ repository.  The user supplies a coordinate (``chr:start-end``) or a BED file of
 coordinates and the module outputs the corresponding L1 sequences.  Additional
 FASTA files from other individuals can be provided and will be appended to the
 resulting FASTA.
+Currently, coordinate lookup is only available for the **hs1** reference genome.
+Queries on other references are not yet supported.
 
 Command:
 ```bash
