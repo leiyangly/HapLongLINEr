@@ -127,10 +127,10 @@ Queries on other references are not yet supported.
 
 Command:
 ```bash
-# Single coordinate
-haplongliner db -q chr1:1000-2000 -o out.fa
+# Single coordinate example
+haplongliner db -q chr1:48841802-48841812 -o chr1:48841802-48841812.fa
 
-# Coordinates from BED file with extra sequences
+# Coordinates from BED file with user provided extra L1 sequences
 haplongliner db -q sites.bed -e extra.fa -o out.fa
 ```
 
