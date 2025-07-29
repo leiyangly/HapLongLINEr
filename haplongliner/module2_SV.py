@@ -308,6 +308,53 @@ def _extract_sequences(
                 out.write(f">{name}_ins\n{seq}\n")
 
 
+def _write_sv_sequences(
+    fasta: Path,
+    lifted: List[Tuple[str, int, int, str, int, str, str, str, int, int]],
+    status: Dict[str, str],
+    ins_seqs: Dict[str, str],
+    out_fa: Path,
+) -> None:
+    """Write sequences from the target assembly for ALN and INS entries."""
+
+    fa = Fasta(str(fasta))
+
+    with open(out_fa, "w") as out:
+        for (
+            _chrom,
+            _start,
+            _end,
+            name,
+            _length,
+            _strand,
+            plus_info,
+            _minus_info,
+            t_start,
+            t_end,
+        ) in lifted:
+            base_stat = status.get(name, "present")
+            scaf, *_rest, t_strand = plus_info.split(";")
+
+            if name in ins_seqs:
+                sv_stat = "INS"
+            elif base_stat in {"missing", "absent"}:
+                sv_stat = "DEL"
+            else:
+                sv_stat = "ALN"
+
+            target_info = f"{scaf};{t_start};{t_end};{t_end - t_start};{t_strand};{sv_stat}"
+
+            if sv_stat == "ALN":
+                seq = fa[scaf][t_start:t_end].seq
+                if t_strand == "-":
+                    seq = _revcomp(seq)
+                out.write(f">{target_info}\n{seq}\n")
+            elif sv_stat == "INS":
+                seq = ins_seqs.get(name, "")
+                if seq:
+                    out.write(f">{target_info}\n{seq}\n")
+
+
 def _parse_repeatmasker(out_file: Path, l1_len: int, cov_thresh: float) -> Set[str]:
     """Return names of sequences covering ``cov_thresh`` of the L1 reference."""
     coverage: Dict[str, int] = {}
@@ -539,6 +586,9 @@ def run_module2(
         Path(input_fasta), lifted, status, ins_seqs, candidate_fa, min_length
     )
 
+    sv_fa = outdir / "haplongliner_sv.fa"
+    _write_sv_sequences(Path(input_fasta), lifted, status, ins_seqs, sv_fa)
+
     orf_present, intact_names = _validate_orfs(candidate_fa)
     # candidates.blastn determines presence status
     presence_names = _validate_presence(candidate_fa, min_length)
@@ -591,4 +641,4 @@ def run_module2(
                 f"{chrom}\t{start}\t{end}\t{name}\t{length}\t{strand}\t{final_stat}\t{target_info}\n"
             )
 
-    print(f"Module 2 completed. Results in {out_table}")
+    print(f"Module 2 completed. Results in {out_table} and {sv_fa}")
