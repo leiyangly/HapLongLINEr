@@ -8,7 +8,6 @@
 - HapLongLINEr discovers and curates full-length (≥5 kb by default) young LINE-1 elements (L1HS, L1PA2, and potentially intact L1PA3) in haploid long-read assemblies.  
 - The pipeline supports both RepeatMasker-based and RepeatMasker-free approaches and provides a curated pangenome-level L1 sequence repository.
 - Each L1 identified is marked with its intact ORF status.
-- 🚧 Early Alpha: This project is under active development. Features and interfaces may change without notice. Use with caution.
 
 
 ## Installation
@@ -22,7 +21,7 @@ conda config --add channels bioconda
 conda config --add channels conda-forge
 ```
 
-Install HapLongLINEr (includes the `pyfaidx` dependency automatically):
+Install HapLongLINEr:
 ```bash
 conda install haplongliner
 ```
