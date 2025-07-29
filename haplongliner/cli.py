@@ -201,7 +201,7 @@ def main():
         usage=argparse.SUPPRESS,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Usage:   haplongliner db [options]",
-        help="Module 3: Retrieve L1 sequences by coordinate",
+        help="Module 3: Retrieve L1 sequences by coordinate (hs1 only)",
     )
     parser_db._positionals.title = ""
     parser_db._optionals.title = "Options"
@@ -210,7 +210,7 @@ def main():
         "--query",
         dest="query",
         required=True,
-        help="Coordinate as chr:start-end or BED file",
+        help="Coordinate on hs1 as chr:start-end or BED file",
     )
     parser_db.add_argument(
         "-e",
