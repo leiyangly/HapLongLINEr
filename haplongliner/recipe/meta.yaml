@@ -15,6 +15,7 @@ requirements:
     - pip
   run:
     - python
+    - pyfaidx
     - seqtk
     - minimap2
     - emboss
@@ -30,3 +31,4 @@ about:
   home: https://github.com/leiyangly/HapLongLINEr
   summary: "Pipeline for discovering and curating full-length young LINE-1 elements."
   license: MIT
+

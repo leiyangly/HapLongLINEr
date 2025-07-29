@@ -22,9 +22,9 @@ conda config --add channels bioconda
 conda config --add channels conda-forge
 ```
 
-Install HapLongLINEr:
+Install HapLongLINEr along with `pyfaidx`:
 ```bash
-conda install haplongliner
+conda install haplongliner pyfaidx
 ```
 
 ### Using Git
@@ -43,7 +43,7 @@ Install HapLongLINEr with pip:
 ```bash
 cd HapLongLINEr
 
-pip install -e .
+pip install -e .  # installs pyfaidx automatically
 ```
 
 
