@@ -201,11 +201,26 @@ def main():
         usage=argparse.SUPPRESS,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Usage:   haplongliner db [options]",
-        help="Module 3: L1 sequence repository",
+        help="Module 3: Retrieve L1 sequences by coordinate",
     )
     parser_db._positionals.title = ""
     parser_db._optionals.title = "Options"
-    parser_db.add_argument("-o", "--out", dest="output", required=True, help="Output directory or file")
+    parser_db.add_argument(
+        "-q",
+        "--query",
+        dest="query",
+        required=True,
+        help="Coordinate as chr:start-end or BED file",
+    )
+    parser_db.add_argument(
+        "-e",
+        "--extra",
+        dest="extra",
+        help="Additional FASTA with non-HPRC L1s",
+    )
+    parser_db.add_argument(
+        "-o", "--out", dest="output", required=True, help="Output FASTA file"
+    )
     parser_db.add_argument("-h", "--help", action="help", default=argparse.SUPPRESS,
                            help="Show this help message and exit.")
 
@@ -272,7 +287,7 @@ def main():
             asm=args.asm,
         )
     elif args.command == "db":
-        run_module3(args.output)
+        run_module3(args.query, args.output, extra_fasta=args.extra)
 
     if log_handle:
         log_handle.close()
