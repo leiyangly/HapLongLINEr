@@ -740,8 +740,10 @@ def run_module2(
                 continue
             target_len = end - start
             target_info = f"{chrom};{start};{end};{target_len};.;INS"
+            # mark non-reference insertions with a ';nr' suffix
+            name_out = f"{name};nr"
             out.write(
-                f"{chrom}\t{start}\t{end}\t{name}\t{target_len}\t.\t{final_stat}\t{target_info}\n"
+                f"{chrom}\t{start}\t{end}\t{name_out}\t{target_len}\t.\t{final_stat}\t{target_info}\n"
             )
 
     print(f"Module 2 completed. Results in {out_table} and {sv_fa}")
