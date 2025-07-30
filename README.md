@@ -111,7 +111,7 @@ haplongliner sv \
 ```
 
 Output:
-- OUT.TXT file with L1 info from your assembly and corresponding refence genome (hs1/hg38) coordinates and ORF status
+- OUT.TXT file (`haplongliner_sv.bed`) summarizing L1 coordinates and ORF status. Names from insertion calls that do not overlap lifted L1s end with `;nr`.
 - Log file (when using `-g/--log`) that summarizes results of each step of the pipeline module
 - FASTA file containing all full length (>=5kb by default) L1HS, L1PA2, and intact L1PA3 sequences from the input assembly
 
