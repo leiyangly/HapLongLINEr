@@ -151,7 +151,7 @@ def _write_rm_sequences(fasta: Path, bed: Path, out_fa: Path) -> None:
             seq = fa[chrom][start_i:end_i].seq.upper()
             if strand == "-":
                 seq = _revcomp(seq)
-            header = f"{chrom};{start_i};{end_i};{end_i - start_i};{strand};ALN"
+            header = f"{chrom};{start_i};{end_i};{end_i - start_i};{strand};RPM"
             out.write(f">{header}\n{seq}\n")
 
 

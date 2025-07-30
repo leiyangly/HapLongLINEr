@@ -96,10 +96,13 @@ def combine_table(
                 if start_ref != "NA" and end_ref != "NA"
                 else "NA"
             )
-            target_info = f"{chr_ref};{start_ref};{end_ref};{ref_len};{out_strand};ALN"
+            # Coordinates in the final BED should use the reference (hs1)
+            # coordinates while the original scaffold information is stored in
+            # the last semicolon-delimited column.
+            scaffold_info = f"{chrom};{start};{end};{dot};{strand};RPM"
 
             out.write(
-                f"{chrom}\t{start}\t{end}\t{name}\t{dot}\t{strand}\t{status}\t{target_info}\n"
+                f"{chr_ref}\t{start_ref}\t{end_ref}\t{name}\t{ref_len}\t{out_strand}\t{status}\t{scaffold_info}\n"
             )
 
 
