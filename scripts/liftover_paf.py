@@ -229,10 +229,10 @@ def liftover_paf(
                 start = r[i][0]
                 end = r[i][1]
                 if start < 0:
-                    name += "_t5"
+                    name += ";t5"
                     start = t[7]
                 if end < 0:
-                    name += "_t3"
+                    name += ";t3"
                     end = t[8]
                 out_strand = t[4] if b_strand == "+" else ("+" if t[4] == "-" else "-")
                 print("\t".join([t[5], str(start), str(end), name, str(b_score), out_strand]))
