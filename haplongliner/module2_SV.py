@@ -231,6 +231,40 @@ def _bedtools_intersect(a: Path, b: Path, output: Path) -> None:
         )
 
 
+def _collect_long_insertions(
+    insertions: List[Tuple[str, int, int, str]],
+    inter_ins: Path,
+    min_length: int,
+) -> List[Tuple[str, int, int, str, str]]:
+    """Return insertion entries not overlapping lifted L1s with length >= ``min_length``.
+
+    The returned list contains tuples of ``(chrom, start, end, seq, name)`` where
+    ``name`` is generated from the coordinates (``INS_<chrom>_<start>``).
+    """
+
+    overlapped: Set[Tuple[str, int, int]] = set()
+    if inter_ins.exists():
+        with open(inter_ins) as fh:
+            for line in fh:
+                f = line.strip().split("\t")
+                if len(f) >= 12:
+                    try:
+                        chrom = f[8]
+                        start = int(f[9])
+                        end = int(f[10])
+                    except ValueError:
+                        continue
+                    overlapped.add((chrom, start, end))
+
+    extras: List[Tuple[str, int, int, str, str]] = []
+    for chrom, start, end, seq in insertions:
+        if len(seq) >= min_length and (chrom, start, end) not in overlapped:
+            name = f"INS_{chrom}_{start}"
+            extras.append((chrom, start, end, seq, name))
+
+    return extras
+
+
 def _classify_sv(
     lifted: List[Tuple[str, int, int, str, int, str, str, str, int, int]],
     deletions: List[Tuple[str, int, int]],
@@ -304,6 +338,7 @@ def _extract_sequences(
     ins_seqs: Dict[str, str],
     out_fa: Path,
     min_length: int,
+    extra_ins: List[Tuple[str, int, int, str, str]] | None = None,
 ) -> None:
     """Extract candidate L1 sequences from the target assembly."""
 
@@ -322,6 +357,12 @@ def _extract_sequences(
             if len(seq) >= min_length:
                 out.write(f">{name}_ins\n{seq}\n")
 
+        if extra_ins:
+            for chrom, start, end, seq, name in extra_ins:
+                if len(seq) >= min_length:
+                    header = f"{name};{chrom};{start};{end};."
+                    out.write(f">{header}\n{seq}\n")
+
 
 def _write_sv_sequences(
     fasta: Path,
@@ -329,10 +370,18 @@ def _write_sv_sequences(
     status: Dict[str, str],
     ins_seqs: Dict[str, str],
     out_fa: Path,
+    extra_ins: List[Tuple[str, int, int, str, str]] | None = None,
+    present: Set[str] | None = None,
+    intact: Set[str] | None = None,
 ) -> None:
     """Write sequences from the target assembly for ALN and INS entries."""
 
     fa = Fasta(str(fasta))
+    if present is None:
+        present = set()
+    if intact is None:
+        intact = set()
+    extras = extra_ins or []
 
     with open(out_fa, "w") as out:
         for (
@@ -368,6 +417,13 @@ def _write_sv_sequences(
                 seq = ins_seqs.get(name, "")
                 if seq:
                     out.write(f">{target_info}\n{seq}\n")
+
+        for chrom, start, end, seq, name in extras:
+            key = f"{name};{chrom};{start}"
+            if key not in present and key not in intact:
+                continue
+            target_info = f"{chrom};{start};{end};{end - start};.;INS"
+            out.write(f">{target_info}\n{seq}\n")
 
 
 def _parse_repeatmasker(out_file: Path, l1_len: int, cov_thresh: float) -> Set[str]:
@@ -596,19 +652,37 @@ def run_module2(
 
     status, ins_seqs = _classify_sv(lifted, deletions, insertions, outdir)
 
+    inter_ins = outdir / "intersect_ins.bed"
+    extra_ins = _collect_long_insertions(insertions, inter_ins, min_length)
+
     candidate_fa = outdir / "candidates.fa"
     _extract_sequences(
-        Path(input_fasta), lifted, status, ins_seqs, candidate_fa, min_length
+        Path(input_fasta),
+        lifted,
+        status,
+        ins_seqs,
+        candidate_fa,
+        min_length,
+        extra_ins,
     )
-
-    sv_fa = outdir / "haplongliner_sv.fa"
-    _write_sv_sequences(Path(input_fasta), lifted, status, ins_seqs, sv_fa)
 
     orf_present, intact_names = _validate_orfs(candidate_fa)
     # candidates.blastn determines presence status
     presence_names = _validate_presence(candidate_fa, min_length)
     # also mark sequences with >90% ORF coverage as present
     presence_names.update(orf_present)
+
+    sv_fa = outdir / "haplongliner_sv.fa"
+    _write_sv_sequences(
+        Path(input_fasta),
+        lifted,
+        status,
+        ins_seqs,
+        sv_fa,
+        extra_ins,
+        presence_names,
+        intact_names,
+    )
 
     print("\n[STEP 6] Writing output table")
 
@@ -654,6 +728,20 @@ def run_module2(
             target_info = f"{scaf};{t_start};{t_end};{target_len};{t_strand};{sv_stat}"
             out.write(
                 f"{chrom}\t{start}\t{end}\t{name}\t{length}\t{strand}\t{final_stat}\t{target_info}\n"
+            )
+
+        for chrom, start, end, seq, name in extra_ins:
+            key = f"{name};{chrom};{start}"
+            if key in intact_names:
+                final_stat = "intact"
+            elif key in presence_names:
+                final_stat = "present"
+            else:
+                continue
+            target_len = end - start
+            target_info = f"{chrom};{start};{end};{target_len};.;INS"
+            out.write(
+                f"{chrom}\t{start}\t{end}\t{name}\t{target_len}\t.\t{final_stat}\t{target_info}\n"
             )
 
     print(f"Module 2 completed. Results in {out_table} and {sv_fa}")

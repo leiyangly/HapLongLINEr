@@ -13,3 +13,15 @@ def test_extract_sequences_names(tmp_path):
     _extract_sequences(fa, lifted, status, {}, out, 5)
     headers = [l.strip() for l in open(out) if l.startswith(">")]
     assert headers == [">L1a;chr1;10;20;+", ">L1b;chr1;30;40;-"]
+
+
+def test_extract_sequences_with_extras(tmp_path):
+    fa = tmp_path / "test.fa"
+    fa.write_text(">chr1\n" + "A" * 100 + "\n")
+    lifted: list = []
+    status = {}
+    extras = [("chr1", 50, 70, "T" * 20, "INS_chr1_50")]
+    out = tmp_path / "extra.fa"
+    _extract_sequences(fa, lifted, status, {}, out, 5, extras)
+    headers = [l.strip() for l in open(out) if l.startswith(">")]
+    assert headers == [">INS_chr1_50;chr1;50;70;."]
