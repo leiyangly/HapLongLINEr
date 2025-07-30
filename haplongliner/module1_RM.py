@@ -204,13 +204,12 @@ def run_module1(
 
     print()
 
-    print("[STEP 1] Parsing RepeatMasker output")
-    # 1. Parse RepeatMasker file to unified BED6
+    print("[STEP 1] Parsing input and extracting sequences")
+    # 1-3. Parse RepeatMasker file to unified BED6 and obtain candidate sequences
     parsed_bed = outdir / "parsed_repeatmasker.bed"
     parse_repeatmasker(repeatmasker_file, parsed_bed, log)
 
-    print("\n[STEP 2] Extracting full-length L1s")
-    # 2. Extract full-length L1s from parsed BED
+    # Extract full-length L1s from parsed BED
     candidate_bed = outdir / "candidate.bed"
     run_quiet(
         [
@@ -226,14 +225,14 @@ def run_module1(
         check=True,
     )
 
-    print("\n[STEP 3] Extracting full-length L1 sequences")
-    # 3. Extract the sequence of the full-length L1s using pyfaidx
+    # Extract the sequence of the full-length L1s using pyfaidx
     candidate_fa = outdir / "candidate.fa"
     fa = Fasta(str(input_fasta))
     _extract_fasta(fa, candidate_bed, candidate_fa)
 
-    print("\n[STEP 4] Extracting 2kb flanking regions")
-    # 4. Extract flanking 2kb regions (upstream and downstream)
+    print("\n[STEP 2] Performing liftover based on 2kb flanking sequences")
+    # 4-6. Extract flanking 2kb regions, obtain their sequences and map them to the reference genome
+    # Extract flanking 2kb regions (upstream and downstream)
     candidate_minus2kb_bed = outdir / "candidate_minus2kb.bed"
     candidate_plus2kb_bed = outdir / "candidate_plus2kb.bed"
     # Upstream
@@ -249,15 +248,13 @@ def run_module1(
         check=True,
     )
 
-    print("\n[STEP 5] Getting sequences for flanking regions")
-    # 5. Extract sequences for flanking regions
+    # Extract sequences for flanking regions
     candidate_minus2kb_fa = outdir / "candidate_minus2kb.fa"
     candidate_plus2kb_fa = outdir / "candidate_plus2kb.fa"
     _extract_fasta(fa, candidate_minus2kb_bed, candidate_minus2kb_fa)
     _extract_fasta(fa, candidate_plus2kb_bed, candidate_plus2kb_fa)
 
-    print("\n[STEP 6] Mapping flanks to reference genome")
-    # 6. Map flanking regions to reference genome with minimap2 (using local FASTA)
+    # Map flanking regions to reference genome with minimap2 (using local FASTA)
     candidate_minus2kb_paf = outdir / "candidate_minus2kb.paf"
     candidate_plus2kb_paf = outdir / "candidate_plus2kb.paf"
     run_quiet(
@@ -271,8 +268,9 @@ def run_module1(
         check=True,
     )
 
-    print("\n[STEP 7] Detecting ORFs")
-    # 7. Detect ORFs and choose the longest ORF1/ORF2 per locus
+    print("\n[STEP 3] Detecting intact ORFs")
+    # 7-8. Detect ORFs and identify intact ones
+    # Detect ORFs and choose the longest ORF1/ORF2 per locus
     orf_fa = outdir / "candidate_orf.fa"
     run_quiet(
         [
@@ -309,13 +307,13 @@ def run_module1(
     longest_orf_out = outdir / "candidate_orf.combine.blastp"
     find_longest_orf(blastp_out, longest_orf_out)
 
-    print("\n[STEP 8] Identifying intact ORFs")
-    # 8. Identify intact ORFs
+    # Identify intact ORFs
     intact_out = outdir / "candidate_orf.intact.blastp"
     find_intact_orf(longest_orf_out, intact_out)
 
-    print("\n[STEP 9] Integrating ORF status and liftover info")
-    # 9. Integrate ORF status and liftover information
+    print("\n[STEP 4] Preparing output files")
+    # 9-10. Integrate ORF status, liftover information and write candidate sequences
+    # Integrate ORF status and liftover information
     combined_out = outdir / "haplongliner_rm.bed"
     combine_table(
         candidate_plus2kb_paf,
@@ -326,7 +324,6 @@ def run_module1(
         min_length=min_length,
     )
 
-    print("\n[STEP 10] Writing candidate sequences")
     rm_fa = outdir / "haplongliner_rm.fa"
     _write_rm_sequences(Path(input_fasta), candidate_bed, rm_fa)
 
