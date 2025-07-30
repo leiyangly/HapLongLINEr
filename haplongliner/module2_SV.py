@@ -53,6 +53,10 @@ def _liftover_l1s(
     ref_bed: Path,
     min_length: int,
     master_files: Iterable[Path] | None = None,
+    *,
+    mapq: int = 0,
+    min_align_len: int = 0,
+    max_div: float = 2.0,
 ) -> List[Tuple[str, int, int, str, int, str, str, str, int, int]]:
     """Infer reference coordinates for each L1 using whole-genome alignments.
 
@@ -63,6 +67,9 @@ def _liftover_l1s(
     minus_info, t_start, t_end)`` where ``plus_info`` and ``minus_info`` are
     ``scaffold;start;end;strand`` strings describing the lifted coordinates on
     the target assembly.
+
+    ``mapq``, ``min_align_len`` and ``max_div`` are forwarded to ``liftover_paf``
+    and default to ``-q 0 -l 0 -d 2.0``.
     """
 
     if master_files is None:
@@ -83,7 +90,15 @@ def _liftover_l1s(
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
         # use permissive parameters so short alignments are retained
-        liftover_paf.liftover_paf(str(aln_paf), str(ref_bed), 0, 0, 2.0, False)
+        # (-q 0 -l 0 -d 2.0 by default)
+        liftover_paf.liftover_paf(
+            str(aln_paf),
+            str(ref_bed),
+            mapq,
+            min_align_len,
+            max_div,
+            False,
+        )
 
     lifted: List[Tuple[str, int, int, str, int, str, str, str, int, int]] = []
     for line in buf.getvalue().splitlines():
