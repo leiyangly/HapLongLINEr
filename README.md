@@ -6,8 +6,7 @@
 ## Overview
 
 - HapLongLINEr discovers and curates full-length (≥5 kb by default) young LINE-1 elements (L1HS, L1PA2, and potentially intact L1PA3) in haploid long-read assemblies.  
-- The pipeline supports both RepeatMasker-based and RepeatMasker-free approaches and provides a curated pangenome-level L1 sequence repository.
-- Each L1 identified is marked with its intact ORF status.
+- We will potentially extend this to other types of polymorphic transposable elements.
 
 
 ## Installation
@@ -51,7 +50,7 @@ pip install -e .
 Run `haplongliner`, `haplongliner rm`, `haplongliner sv` or `haplongliner db` with
 no arguments to see the available options for each command.
 
-### Module 1: RepeatMasker-based
+### Module 1: Based on RepeatMasker pre-masked genome assemblies
 
 Input:
 - Haploid assembly FASTA
@@ -81,7 +80,7 @@ Output:
 - haplongliner_rm.fa file containing all full length (>=5kb by default) L1HS, L1PA2, and intact L1PA3 sequences from the input assembly
 - Log file (when using `-g/--log`) that summarizes results of each step of the pipeline module
 
-### Module 2: RepeatMasker-free, SV-based
+### Module 2: Based structural variation calls, no RepeatMasker pre-masking of whole assembly needed
 
 Input:
 - Haploid assembly FASTA
