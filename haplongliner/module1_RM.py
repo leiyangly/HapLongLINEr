@@ -134,6 +134,27 @@ def _extract_fasta(fa: Fasta, bed: Path, out: Path) -> None:
             out_f.write(f">{chrom};{start_i};{end_i};{strand}\n{seq}\n")
 
 
+def _write_rm_sequences(fasta: Path, bed: Path, out_fa: Path) -> None:
+    """Write sequences from ``fasta`` for each BED entry in ``bed``."""
+
+    fa = Fasta(str(fasta))
+    with open(bed) as b, open(out_fa, "w") as out:
+        for line in b:
+            if not line.strip() or line.startswith("#"):
+                continue
+            fields = line.strip().split()
+            if len(fields) < 6:
+                continue
+            chrom, start, end, *_rest, strand = fields[:6]
+            start_i = int(start)
+            end_i = int(end)
+            seq = fa[chrom][start_i:end_i].seq.upper()
+            if strand == "-":
+                seq = _revcomp(seq)
+            header = f"{chrom};{start_i};{end_i};{end_i - start_i};{strand};ALN"
+            out.write(f">{header}\n{seq}\n")
+
+
 def run_module1(
     input_fasta,
     repeatmasker_file,
@@ -305,8 +326,12 @@ def run_module1(
         min_length=min_length,
     )
 
+    print("\n[STEP 10] Writing candidate sequences")
+    rm_fa = outdir / "haplongliner_rm.fa"
+    _write_rm_sequences(Path(input_fasta), candidate_bed, rm_fa)
+
     # Final output table
-    print(f"Module 1 completed. Results in {combined_out}")
+    print(f"Module 1 completed. Results in {combined_out} and {rm_fa}")
 
     # Remove large intermediate files to save space
     # for tmp in [

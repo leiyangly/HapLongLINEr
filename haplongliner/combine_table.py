@@ -91,8 +91,15 @@ def combine_table(
                     if int(end_ref) - int(start_ref) > 2 * min_length:
                         start_ref, end_ref = "NA", "NA"
 
+            ref_len = (
+                str(int(end_ref) - int(start_ref))
+                if start_ref != "NA" and end_ref != "NA"
+                else "NA"
+            )
+            target_info = f"{chr_ref};{start_ref};{end_ref};{ref_len};{out_strand};ALN"
+
             out.write(
-                f"{chrom}_{start}_{end}_{strand}_{dot}_{name}_{status}\t{chr_ref}_{start_ref}_{end_ref}_{out_strand}\n"
+                f"{chrom}\t{start}\t{end}\t{name}\t{dot}\t{strand}\t{status}\t{target_info}\n"
             )
 
 
