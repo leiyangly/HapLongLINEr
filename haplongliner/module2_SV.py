@@ -408,8 +408,11 @@ def _classify_sv(
             a_start = int(f[1])
             a_end = int(f[2])
             name = f[3]
-            d_start = int(f[7])
-            d_end = int(f[8])
+            # deletion BED columns appear after the lifted fields in the
+            # intersection result as: ``chrom`` ``start`` ``end``.  Skip the
+            # chromosome column and parse the start/end coordinates.
+            d_start = int(f[8])
+            d_end = int(f[9])
             overlap = max(0, min(a_end, d_end) - max(a_start, d_start))
             del_len = d_end - d_start
             cov = overlap / del_len if del_len else 0
