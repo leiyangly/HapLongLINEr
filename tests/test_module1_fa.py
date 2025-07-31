@@ -10,4 +10,4 @@ def test_write_rm_sequences(tmp_path):
     out = tmp_path / "rm.fa"
     _write_rm_sequences(fa, bed, out)
     headers = [l.strip() for l in open(out) if l.startswith(">")]
-    assert headers == [">chr1;10;20;10;+;RPM", ">chr1;30;40;10;-;RPM"]
+    assert headers == [">chr1,10,20,10,+,RPM", ">chr1,30,40,10,-,RPM"]
