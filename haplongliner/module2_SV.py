@@ -1,4 +1,5 @@
 import re
+import sys
 from pathlib import Path
 from typing import Dict, List, Tuple, Iterable, Set
 
@@ -167,6 +168,92 @@ def _write_bed(
             )
 
 
+def _read_lifted_bed(path: Path) -> Dict[str, List[Tuple[str, int, int, str, Set[str]]]]:
+    """Return mapping ``name -> list of lifted coordinates`` from liftover_paf output."""
+
+    lifted: Dict[str, List[Tuple[str, int, int, str, Set[str]]]] = {}
+    with open(path) as fh:
+        for line in fh:
+            if not line.strip() or line.startswith("#"):
+                continue
+            fields = line.rstrip().split("\t")
+            if len(fields) < 6:
+                continue
+            scaf, s_s, e_s, info, *_rest, strand = fields[:6]
+            try:
+                start = int(s_s)
+                end = int(e_s)
+            except ValueError:
+                continue
+            parts = info.split(",")
+            if len(parts) < 5:
+                continue
+            _qchrom, _qs, _qe, _qstrand, name, *tags = parts
+            lifted.setdefault(name, []).append((scaf, start, end, strand, set(tags)))
+    return lifted
+
+
+def _create_lifted_reorg(
+    lifted_bed: Path, ref_bed: Path, out_path: Path
+) -> List[Tuple[str, int, int, str, int, str, str, str, int, int]]:
+    """Write ``lifted_reorg.bed`` and return lifted entries for downstream steps."""
+
+    mapping = _read_lifted_bed(lifted_bed)
+    lifted: List[Tuple[str, int, int, str, int, str, str, str, int, int]] = []
+
+    with open(ref_bed) as inp, open(out_path, "w") as out:
+        for line in inp:
+            if not line.strip() or line.startswith("#"):
+                continue
+            f = line.rstrip().split("\t")
+            if len(f) < 6:
+                continue
+            chrom, start_s, end_s, name, length_s, strand = f[:6]
+            try:
+                start = int(start_s)
+                end = int(end_s)
+                length = int(length_s)
+            except ValueError:
+                continue
+
+            infos = mapping.get(name)
+            if not infos:
+                out.write(
+                    f"{chrom}\t{start}\t{end}\t{name}\t{length}\t{strand}\tna\n"
+                )
+                continue
+
+            info_strs: List[str] = []
+            for scaf, s, e, t_strand, tags in infos:
+                tag_str = ""
+                if "t5" in tags:
+                    tag_str += ",t5"
+                if "t3" in tags:
+                    tag_str += ",t3"
+                info = f"{scaf},{s},{e},{e - s},{t_strand}{tag_str}"
+                info_strs.append(info)
+                lifted.append(
+                    (
+                        chrom,
+                        start,
+                        end,
+                        name,
+                        length,
+                        strand,
+                        info,
+                        info,
+                        s,
+                        e,
+                    )
+                )
+
+            info_joined = ";".join(info_strs)
+            out.write(
+                f"{chrom}\t{start}\t{end}\t{name}\t{length}\t{strand}\t{info_joined}\n"
+            )
+
+    return lifted
+
 def _parse_sv(
     sv_path: Path, log_path: Path | None = None
 ) -> Tuple[List[Tuple[str, int, int]], List[Tuple[str, int, int, str]]]:
@@ -276,7 +363,7 @@ def _classify_sv(
 
     Returns a status dictionary and a mapping of insertion sequences by L1 name."""
 
-    lift_bed = outdir / "lifted.bed"
+    lift_bed = outdir / "lifted_full.bed"
     del_bed = outdir / "sv_del.bed"
     ins_bed = outdir / "sv_ins.bed"
 
@@ -645,7 +732,16 @@ def run_module2(
 
     print("\n[STEP 3] Lifting over candidate L1 coordinates")
 
-    lifted = _liftover_l1s(aln_paf, ref_bed, min_length)
+    script_path = Path(__file__).resolve().parents[1] / "scripts" / "liftover_paf.py"
+    lifted_bed = outdir / "lifted.bed"
+    with open(lifted_bed, "w") as out:
+        run_quiet(
+            [sys.executable, str(script_path), str(aln_paf), str(ref_bed)],
+            check=True,
+            stdout=out,
+        )
+
+    lifted = _create_lifted_reorg(lifted_bed, ref_bed, outdir / "lifted_reorg.bed")
 
     print("\n[STEP 4] Parsing structural variants")
 
