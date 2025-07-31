@@ -102,15 +102,13 @@ def download_if_needed(url, local_path):
     return str(local_path)
 
 
-
-
 def _fix_getorf_headers(fa_path: Path) -> None:
-    """Replace '_' before ORF indices with ';' in ``getorf`` FASTA headers."""
+    """Replace '_' before ORF indices with ',' in ``getorf`` FASTA headers."""
     tmp = fa_path.with_suffix(".tmp")
     with open(fa_path) as fin, open(tmp, "w") as out:
         for line in fin:
             if line.startswith(">"):
-                line = re.sub(r"^>([^\s]+)_([0-9]+)", r">\1;\2", line)
+                line = re.sub(r"^>([^\s]+)_([0-9]+)", r">\1,\2", line)
             out.write(line)
     os.replace(tmp, fa_path)
 
@@ -131,7 +129,7 @@ def _extract_fasta(fa: Fasta, bed: Path, out: Path) -> None:
             seq = fa[chrom][start_i:end_i].seq.upper()
             if strand == "-":
                 seq = _revcomp(seq)
-            out_f.write(f">{chrom};{start_i};{end_i};{strand}\n{seq}\n")
+            out_f.write(f">{chrom},{start_i},{end_i},{strand}\n{seq}\n")
 
 
 def _write_rm_sequences(fasta: Path, bed: Path, out_fa: Path) -> None:
@@ -151,7 +149,7 @@ def _write_rm_sequences(fasta: Path, bed: Path, out_fa: Path) -> None:
             seq = fa[chrom][start_i:end_i].seq.upper()
             if strand == "-":
                 seq = _revcomp(seq)
-            header = f"{chrom};{start_i};{end_i};{end_i - start_i};{strand};RPM"
+            header = f"{chrom},{start_i},{end_i},{end_i - start_i},{strand},RPM"
             out.write(f">{header}\n{seq}\n")
 
 

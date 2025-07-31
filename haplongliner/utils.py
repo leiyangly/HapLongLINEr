@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 from typing import Dict, List
 
+
 def check_dependencies():
     """Ensure required external tools are available."""
     tools = ["minimap2", "getorf", "blastp"]
@@ -57,18 +58,18 @@ def run_quiet(cmd, **kwargs):
 def shift_fasta_start(fa_path: Path, delta: int = -1) -> None:
     """Adjust start coordinate in FASTA headers by ``delta``.
 
-    Headers must follow ``chrom;start;end;...``. Lines that do not conform are
+    Headers must follow ``chrom,start,end,...``. Lines that do not conform are
     left unchanged.
     """
     tmp = fa_path.with_suffix(".tmp")
     with open(fa_path) as fin, open(tmp, "w") as out:
         for line in fin:
             if line.startswith(">"):
-                parts = line[1:].strip().split(";")
+                parts = line[1:].strip().split(",")
                 if len(parts) >= 2:
                     try:
                         parts[1] = str(int(parts[1]) + delta)
-                        line = ">" + ";".join(parts) + "\n"
+                        line = ">" + ",".join(parts) + "\n"
                     except ValueError:
                         pass
             out.write(line)
@@ -154,7 +155,7 @@ def read_paf(path: str | Path) -> Dict[str, List[str]]:
         for line in fh:
             if not line.strip():
                 continue
-            fields = line.rstrip().split('\t')
+            fields = line.rstrip().split("\t")
             if len(fields) < 4:
                 continue
             qname = fields[0]

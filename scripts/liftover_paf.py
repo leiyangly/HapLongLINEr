@@ -124,7 +124,12 @@ def read_bed(path: str | None, to_merge: bool) -> Dict[str, Interval]:
 
 
 def liftover_paf(
-    paf_path: str, bed_path: str, min_mapq: int, min_len: int, max_div: float, merge: bool
+    paf_path: str,
+    bed_path: str,
+    min_mapq: int,
+    min_len: int,
+    max_div: float,
+    merge: bool,
 ) -> None:
     bed = read_bed(bed_path, merge)
     fh = sys.stdin if paf_path == "-" else open(paf_path)
@@ -212,10 +217,10 @@ def liftover_paf(
                 y += length
                 if op == "M":
                     x += length
-            if x != t[8] or (
-                strand == "+" and y != t[3]
-            ) or (
-                strand == "-" and y != t[1] - t[2]
+            if (
+                x != t[8]
+                or (strand == "+" and y != t[3])
+                or (strand == "-" and y != t[1] - t[2])
             ):
                 raise RuntimeError("CIGAR is inconsistent with mapping coordinates")
 
@@ -225,17 +230,21 @@ def liftover_paf(
                 else:
                     r[idx][1] = coord + 1
             for i, (s, e, b_strand, b_name, b_score, *_) in enumerate(regs):
-                name = f"{t[0]};{s};{e};{b_strand};{b_name}"
+                name = f"{t[0]},{s},{e},{b_strand},{b_name}"
                 start = r[i][0]
                 end = r[i][1]
                 if start < 0:
-                    name += ";t5"
+                    name += ",t5"
                     start = t[7]
                 if end < 0:
-                    name += ";t3"
+                    name += ",t3"
                     end = t[8]
                 out_strand = t[4] if b_strand == "+" else ("+" if t[4] == "-" else "-")
-                print("\t".join([t[5], str(start), str(end), name, str(b_score), out_strand]))
+                print(
+                    "\t".join(
+                        [t[5], str(start), str(end), name, str(b_score), out_strand]
+                    )
+                )
 
 
 # ---------------------------------------------------------------------------

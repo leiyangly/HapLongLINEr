@@ -108,7 +108,7 @@ def _parse_coords(query: str) -> List[Coord]:
                 coords.append((chrom, int(start), int(end)))
         return coords
 
-    for token in query.split(','):
+    for token in query.split(","):
         m = re.match(r"^([^:]+):(\d+)-(\d+)$", token.strip())
         if not m:
             raise ValueError(f"Invalid coordinate: {token}")
@@ -125,11 +125,7 @@ def run_module3(query: str, output: str, extra_fasta: str | None = None) -> None
     sequences will be appended to the extracted FASTA.
     """
     coords = _parse_coords(query)
-    print(
-        "Module 3 running with:\n"
-        f"  Coordinates: {coords}\n"
-        f"  Output: {output}"
-    )
+    print("Module 3 running with:\n" f"  Coordinates: {coords}\n" f"  Output: {output}")
     if extra_fasta:
         verify_fasta_file(extra_fasta)
         print(f"  Extra FASTA: {extra_fasta}")
@@ -154,7 +150,11 @@ def run_module3(query: str, output: str, extra_fasta: str | None = None) -> None
 
     with open(output, "w") as out_f:
         for chrom, qstart, qend in coords:
-            hits = [e for e in by_chrom.get(chrom, []) if not (qend <= e[0] or qstart >= e[1])]
+            hits = [
+                e
+                for e in by_chrom.get(chrom, [])
+                if not (qend <= e[0] or qstart >= e[1])
+            ]
             if not hits:
                 print(
                     f"No L1 in hs1 at {chrom}:{qstart}-{qend}. Use -e/--extra to add sequences."
@@ -167,11 +167,10 @@ def run_module3(query: str, output: str, extra_fasta: str | None = None) -> None
                     continue
                 for rid, seq in records:
                     orient, cigar = _best_alignment(seq, ref_seq)
-                    header = f">{rid};{chrom}:{start}-{end};{orient};{cigar}"
+                    header = f">{rid},{chrom}:{start}-{end},{orient},{cigar}"
                     out_f.write(header + "\n" + seq + "\n")
 
         if extra_fasta:
             with open(extra_fasta) as fh:
                 for line in fh:
                     out_f.write(line)
-

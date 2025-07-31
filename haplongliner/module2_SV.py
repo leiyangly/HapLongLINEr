@@ -17,6 +17,7 @@ def _revcomp(seq: str) -> str:
     complement = str.maketrans("ACGTacgtNn", "TGCAtgcaNn")
     return seq.translate(complement)[::-1]
 
+
 from .module1_RM import download_if_needed
 from .find_longest_orf import find_longest_orf
 from .find_intact_orf import find_intact_orf
@@ -65,7 +66,7 @@ def _liftover_l1s(
     must contain the L1 coordinates on the reference assembly. The returned list
     contains tuples of ``(chrom, start, end, name, length, strand, plus_info,
     minus_info, t_start, t_end)`` where ``plus_info`` and ``minus_info`` are
-    ``scaffold;start;end;strand`` strings describing the lifted coordinates on
+    ``scaffold,start,end,strand`` strings describing the lifted coordinates on
     the target assembly.
 
     ``mapq``, ``min_align_len`` and ``max_div`` are forwarded to ``liftover_paf``
@@ -114,7 +115,7 @@ def _liftover_l1s(
         except ValueError:
             continue
         try:
-            _qchrom, q_start, q_end, _qstrand, q_name = name_field.split(";", 4)
+            _qchrom, q_start, q_end, _qstrand, q_name = name_field.split(",", 4)
         except ValueError:
             continue
 
@@ -125,7 +126,7 @@ def _liftover_l1s(
         if length < min_length:
             continue
 
-        plus_info = f"{t_chrom};{t_start};{t_end};{t_strand}"
+        plus_info = f"{t_chrom},{t_start},{t_end},{t_strand}"
         minus_info = plus_info
         lifted.append(
             (
@@ -346,11 +347,11 @@ def _extract_sequences(
 
     with open(out_fa, "w") as out:
         for _, _, _, name, _, _, plus_info, _, t_start, t_end in lifted:
-            scaf, _ps, _pe, t_strand = plus_info.split(";")
+            scaf, _ps, _pe, t_strand = plus_info.split(",")
             seq = fa[scaf][t_start:t_end].seq
             if t_strand == "-":
                 seq = _revcomp(seq)
-            header = f"{name};{scaf};{t_start};{t_end};{t_strand}"
+            header = f"{name},{scaf},{t_start},{t_end},{t_strand}"
             out.write(f">{header}\n{seq}\n")
 
         for name, seq in ins_seqs.items():
@@ -360,7 +361,7 @@ def _extract_sequences(
         if extra_ins:
             for chrom, start, end, seq, name in extra_ins:
                 if len(seq) >= min_length:
-                    header = f"{name};{chrom};{start};{end};."
+                    header = f"{name},{chrom},{start},{end},."
                     out.write(f">{header}\n{seq}\n")
 
 
@@ -397,7 +398,7 @@ def _write_sv_sequences(
             t_end,
         ) in lifted:
             base_stat = status.get(name, "present")
-            scaf, *_rest, t_strand = plus_info.split(";")
+            scaf, *_rest, t_strand = plus_info.split(",")
 
             if name in ins_seqs:
                 sv_stat = "INS"
@@ -406,7 +407,9 @@ def _write_sv_sequences(
             else:
                 sv_stat = "ALN"
 
-            target_info = f"{scaf};{t_start};{t_end};{t_end - t_start};{t_strand};{sv_stat}"
+            target_info = (
+                f"{scaf},{t_start},{t_end},{t_end - t_start},{t_strand},{sv_stat}"
+            )
 
             if sv_stat == "ALN":
                 seq = fa[scaf][t_start:t_end].seq
@@ -419,10 +422,10 @@ def _write_sv_sequences(
                     out.write(f">{target_info}\n{seq}\n")
 
         for chrom, start, end, seq, name in extras:
-            key = f"{name};{chrom};{start}"
+            key = f"{name},{chrom},{start}"
             if key not in present and key not in intact:
                 continue
-            target_info = f"{chrom};{start};{end};{end - start};.;INS"
+            target_info = f"{chrom},{start},{end},{end - start},.,INS"
             out.write(f">{target_info}\n{seq}\n")
 
 
@@ -495,7 +498,7 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
             if len(fields) < 30:
                 continue
             name = re.sub(r"_[0-9]+$", "", fields[0])
-            name = ";".join(name.split(";")[:3])
+            name = ",".join(name.split(",")[:3])
             try:
                 cov1 = int(fields[3]) / int(fields[13])
                 cov2 = int(fields[18]) / int(fields[28])
@@ -512,7 +515,7 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
             if len(fields) < 30:
                 continue
             name = re.sub(r"_[0-9]+$", "", fields[0])
-            name = ";".join(name.split(";")[:3])
+            name = ",".join(name.split(",")[:3])
             intact.add(name)
 
     return present, intact
@@ -550,7 +553,7 @@ def _validate_presence(candidate_fa: Path, min_length: int = 5000) -> Set[str]:
             if len(f) < 14:
                 continue
             name = re.sub(r"_[0-9]+$", "", f[0])
-            name = ";".join(name.split(";")[:3])
+            name = ",".join(name.split(",")[:3])
             try:
                 length = int(f[3])
             except ValueError:
@@ -701,7 +704,7 @@ def run_module2(
             t_end,
         ) in lifted:
             base_stat = status.get(name, "present")
-            scaf, *_rest, t_strand = plus_info.split(";")
+            scaf, *_rest, t_strand = plus_info.split(",")
             target_len = t_end - t_start
 
             # Presence is determined solely by candidates.blastn and
@@ -709,7 +712,7 @@ def run_module2(
             # candidates.intact.blastp is labeled "intact"; those only in
             # candidates.blastn are labeled "present". Everything else is
             # considered "absent".
-            key = f"{name};{scaf};{t_start}"
+            key = f"{name},{scaf},{t_start}"
 
             if key in intact_names:
                 final_stat = "intact"
@@ -725,13 +728,13 @@ def run_module2(
             else:
                 sv_stat = "ALN"
 
-            target_info = f"{scaf};{t_start};{t_end};{target_len};{t_strand};{sv_stat}"
+            target_info = f"{scaf},{t_start},{t_end},{target_len},{t_strand},{sv_stat}"
             out.write(
                 f"{chrom}\t{start}\t{end}\t{name}\t{length}\t{strand}\t{final_stat}\t{target_info}\n"
             )
 
         for chrom, start, end, seq, name in extra_ins:
-            key = f"{name};{chrom};{start}"
+            key = f"{name},{chrom},{start}"
             if key in intact_names:
                 final_stat = "intact"
             elif key in presence_names:
@@ -739,7 +742,7 @@ def run_module2(
             else:
                 continue
             target_len = end - start
-            target_info = f"{chrom};{start};{end};{target_len};.;INS"
+            target_info = f"{chrom},{start},{end},{target_len},.,INS"
             # mark non-reference insertions with a ';nr' suffix
             name_out = f"{name};nr"
             out.write(
