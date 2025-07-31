@@ -619,8 +619,8 @@ def run_module2(
         data_dir.mkdir(exist_ok=True)
         ref_local = data_dir / Path(ref_path).name
         ref_path = download_if_needed(ref_path, ref_local)
-    else:
-        verify_fasta_file(ref_path)
+
+    verify_fasta_file(ref_path)
 
     print("\n[STEP 2] Mapping assemblies with minimap2")
 
