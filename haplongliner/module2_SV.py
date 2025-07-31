@@ -19,6 +19,21 @@ def _revcomp(seq: str) -> str:
     return seq.translate(complement)[::-1]
 
 
+def _parse_target_info(info: str) -> Tuple[str, int, int, str]:
+    """Return ``(scaf, start, end, strand)`` from target info string."""
+    parts = info.split(",")
+    if len(parts) < 4:
+        raise ValueError(f"Malformed info field: {info}")
+    scaf = parts[0]
+    start = int(parts[1])
+    end = int(parts[2])
+    if len(parts) >= 5:
+        strand = parts[4]
+    else:
+        strand = parts[3]
+    return scaf, start, end, strand
+
+
 from .module1_RM import download_if_needed
 from .find_longest_orf import find_longest_orf
 from .find_intact_orf import find_intact_orf
@@ -335,11 +350,11 @@ def _collect_long_insertions(
         with open(inter_ins) as fh:
             for line in fh:
                 f = line.strip().split("\t")
-                if len(f) >= 12:
+                if len(f) >= 11:
                     try:
-                        chrom = f[8]
-                        start = int(f[9])
-                        end = int(f[10])
+                        chrom = f[7]
+                        start = int(f[8])
+                        end = int(f[9])
                     except ValueError:
                         continue
                     overlapped.add((chrom, start, end))
@@ -358,16 +373,14 @@ def _classify_sv(
     deletions: List[Tuple[str, int, int]],
     insertions: List[Tuple[str, int, int, str]],
     outdir: Path,
+    lifted_bed: Path,
 ) -> Tuple[Dict[str, str], Dict[str, str]]:
     """Write SV BED files and intersect with lifted coordinates.
 
     Returns a status dictionary and a mapping of insertion sequences by L1 name."""
 
-    lift_bed = outdir / "lifted_full.bed"
     del_bed = outdir / "sv_del.bed"
     ins_bed = outdir / "sv_ins.bed"
-
-    _write_bed(lifted, lift_bed)
 
     with open(del_bed, "w") as out:
         for chrom, start, end in deletions:
@@ -379,8 +392,8 @@ def _classify_sv(
 
     inter_del = outdir / "intersect_del.bed"
     inter_ins = outdir / "intersect_ins.bed"
-    _bedtools_intersect(lift_bed, del_bed, inter_del)
-    _bedtools_intersect(lift_bed, ins_bed, inter_ins)
+    _bedtools_intersect(lifted_bed, del_bed, inter_del)
+    _bedtools_intersect(lifted_bed, ins_bed, inter_ins)
 
     status: Dict[str, str] = {
         name: "present" for _, _, _, name, _, _, _, _, _, _ in lifted
@@ -389,15 +402,14 @@ def _classify_sv(
     with open(inter_del) as fh:
         for line in fh:
             f = line.strip().split("\t")
-            # expect 8 columns from the lifted BED entry and 3 from the
-            # deletion BED entry
-            if len(f) < 11:
+            # expect 7 columns from lifted_reorg.bed and 3 from the deletion BED entry
+            if len(f) < 10:
                 continue
             a_start = int(f[1])
             a_end = int(f[2])
             name = f[3]
-            d_start = int(f[9])
-            d_end = int(f[10])
+            d_start = int(f[7])
+            d_end = int(f[8])
             overlap = max(0, min(a_end, d_end) - max(a_start, d_start))
             del_len = d_end - d_start
             cov = overlap / del_len if del_len else 0
@@ -409,11 +421,10 @@ def _classify_sv(
     with open(inter_ins) as fh:
         for line in fh:
             f = line.strip().split("\t")
-            # expect 8 columns from the lifted BED entry and 4 from the
-            # insertion BED entry
-            if len(f) >= 12:
+            # expect 7 columns from lifted_reorg.bed and 4 from the insertion BED entry
+            if len(f) >= 11:
                 name = f[3]
-                seq = f[11]
+                seq = f[10]
                 ins_seqs[name] = seq
 
     return status, ins_seqs
@@ -434,7 +445,7 @@ def _extract_sequences(
 
     with open(out_fa, "w") as out:
         for _, _, _, name, _, _, plus_info, _, t_start, t_end in lifted:
-            scaf, _ps, _pe, t_strand = plus_info.split(",")
+            scaf, _ps, _pe, t_strand = _parse_target_info(plus_info)
             seq = fa[scaf][t_start:t_end].seq
             if t_strand == "-":
                 seq = _revcomp(seq)
@@ -485,7 +496,7 @@ def _write_sv_sequences(
             t_end,
         ) in lifted:
             base_stat = status.get(name, "present")
-            scaf, *_rest, t_strand = plus_info.split(",")
+            scaf, *_rest, t_strand = _parse_target_info(plus_info)
 
             if name in ins_seqs:
                 sv_stat = "INS"
@@ -741,7 +752,8 @@ def run_module2(
             stdout=out,
         )
 
-    lifted = _create_lifted_reorg(lifted_bed, ref_bed, outdir / "lifted_reorg.bed")
+    lifted_reorg = outdir / "lifted_reorg.bed"
+    lifted = _create_lifted_reorg(lifted_bed, ref_bed, lifted_reorg)
 
     print("\n[STEP 4] Parsing structural variants")
 
@@ -749,7 +761,7 @@ def run_module2(
 
     print("\n[STEP 5] Validating candidate L1s and their ORFs")
 
-    status, ins_seqs = _classify_sv(lifted, deletions, insertions, outdir)
+    status, ins_seqs = _classify_sv(lifted, deletions, insertions, outdir, lifted_reorg)
 
     inter_ins = outdir / "intersect_ins.bed"
     extra_ins = _collect_long_insertions(insertions, inter_ins, min_length)
