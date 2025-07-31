@@ -244,17 +244,34 @@ def liftover_paf(
 
 
 def main(argv: Iterable[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Simplistic liftOver for PAF alignments")
+    parser = argparse.ArgumentParser(
+        description=(
+            "Simplistic liftOver for PAF alignments. "
+            "By default this script uses permissive filtering (-q 0 -l 0 -d 2.0). "
+            "To emulate the more stringent paftools.js behaviour, use "
+            "'-q 5 -l 50000 -d 2.0'."
+        )
+    )
     parser.add_argument("aln_paf", help="PAF alignment file or '-' for stdin")
     parser.add_argument("query_bed", help="BED file on query sequences")
     parser.add_argument("-m", action="store_true", help="merge BED intervals")
-    parser.add_argument("-q", type=int, default=5, help="min mapping quality [5]")
-    parser.add_argument("-l", type=int, default=50000, help="min alignment length [50000]")
+    parser.add_argument(
+        "-q",
+        type=int,
+        default=0,
+        help="min mapping quality [0]",
+    )
+    parser.add_argument(
+        "-l",
+        type=int,
+        default=0,
+        help="min alignment length [0]",
+    )
     parser.add_argument(
         "-d",
         type=float,
         default=2.0,
-        help="max sequence divergence (>=1 to disable) [1]",
+        help="max sequence divergence (>=1 to disable) [2.0]",
     )
     args = parser.parse_args(argv)
 
