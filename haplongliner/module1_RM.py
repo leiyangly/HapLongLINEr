@@ -103,12 +103,24 @@ def download_if_needed(url, local_path):
 
 
 def _fix_getorf_headers(fa_path: Path) -> None:
-    """Replace '_' before ORF indices with ',' in ``getorf`` FASTA headers."""
+    """Rewrite ``getorf`` FASTA headers for easier downstream parsing.
+
+    ``getorf`` produces headers in the form ``>name_<idx> [<s> - <e>]``.  This
+    function converts them to ``>name,<idx>,<s>,<e>`` so the different fields can
+    be reliably retrieved by simply splitting on commas.  ``name`` itself may
+    contain underscores (e.g. scaffold identifiers), so only the separators
+    introduced by ``getorf`` are replaced.
+    """
+
     tmp = fa_path.with_suffix(".tmp")
+    pattern = re.compile(r"^>([^\s]+)_([0-9]+)\s+\[([0-9]+)\s*-\s*([0-9]+)\]")
     with open(fa_path) as fin, open(tmp, "w") as out:
         for line in fin:
             if line.startswith(">"):
-                line = re.sub(r"^>([^\s]+)_([0-9]+)", r">\1,\2", line)
+                m = pattern.match(line)
+                if m:
+                    name, idx, start, end = m.groups()
+                    line = f">{name},{idx},{start},{end}\n"
             out.write(line)
     os.replace(tmp, fa_path)
 
