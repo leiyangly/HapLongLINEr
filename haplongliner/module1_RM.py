@@ -8,7 +8,6 @@ import os
 
 from pyfaidx import Fasta
 
-from .process_orf import process_orf_fasta
 from .find_longest_orf import find_longest_orf
 from .find_intact_orf import find_intact_orf
 from .combine_table import combine_table
@@ -231,7 +230,7 @@ def run_module1(
     parse_repeatmasker(repeatmasker_file, parsed_bed, log)
 
     # Extract full-length L1s from parsed BED
-    candidate_bed = outdir / "candidate.bed"
+    candidate_bed = outdir / "cand.bed"
     run_quiet(
         [
             "python3",
@@ -247,15 +246,15 @@ def run_module1(
     )
 
     # Extract the sequence of the full-length L1s using pyfaidx
-    candidate_fa = outdir / "candidate.fa"
+    candidate_fa = outdir / "cand.fa"
     fa = Fasta(str(input_fasta))
     _extract_fasta(fa, candidate_bed, candidate_fa)
 
     print("\n[STEP 2] Performing liftover based on 2kb flanking sequences")
     # 4-6. Extract flanking 2kb regions, obtain their sequences and map them to the reference genome
     # Extract flanking 2kb regions (upstream and downstream)
-    candidate_minus2kb_bed = outdir / "candidate_minus2kb.bed"
-    candidate_plus2kb_bed = outdir / "candidate_plus2kb.bed"
+    candidate_minus2kb_bed = outdir / "cand_minus2kb.bed"
+    candidate_plus2kb_bed = outdir / "cand_plus2kb.bed"
     # Upstream
     run_quiet(
         f"""awk 'BEGIN{{OFS=\"\t\"}} {{$3=$2; $2=$2-2000; print $0}}' {candidate_bed} > {candidate_minus2kb_bed}""",
@@ -270,14 +269,14 @@ def run_module1(
     )
 
     # Extract sequences for flanking regions
-    candidate_minus2kb_fa = outdir / "candidate_minus2kb.fa"
-    candidate_plus2kb_fa = outdir / "candidate_plus2kb.fa"
+    candidate_minus2kb_fa = outdir / "cand_minus2kb.fa"
+    candidate_plus2kb_fa = outdir / "cand_plus2kb.fa"
     _extract_fasta(fa, candidate_minus2kb_bed, candidate_minus2kb_fa)
     _extract_fasta(fa, candidate_plus2kb_bed, candidate_plus2kb_fa)
 
     # Map flanking regions to reference genome with minimap2 (using local FASTA)
-    candidate_minus2kb_paf = outdir / "candidate_minus2kb.paf"
-    candidate_plus2kb_paf = outdir / "candidate_plus2kb.paf"
+    candidate_minus2kb_paf = outdir / "cand_minus2kb.paf"
+    candidate_plus2kb_paf = outdir / "cand_plus2kb.paf"
     run_quiet(
         f"minimap2 -x asm{asm} {reference_fasta} {candidate_minus2kb_fa} > {candidate_minus2kb_paf}",
         shell=True,
@@ -292,7 +291,7 @@ def run_module1(
     print("\n[STEP 3] Detecting intact ORFs")
     # 7-8. Detect ORFs and identify intact ones
     # Detect ORFs and choose the longest ORF1/ORF2 per locus
-    orf_fa = outdir / "candidate_orf.fa"
+    orf_fa = outdir / "cand_orf.fa"
     run_quiet(
         [
             "getorf",
@@ -306,9 +305,7 @@ def run_module1(
         check=True,
     )
     _fix_getorf_headers(orf_fa, candidate_fa)
-    orf_bed = outdir / "candidate_orf.bed"
-    process_orf_fasta(orf_fa, orf_bed)
-    blastp_out = outdir / "candidate_orf.blastp"
+    blastp_out = outdir / "cand_orf.blastp"
     db_prefix = Path("data") / "L1rpORF12p.fa"
     verify_blast_db(db_prefix)
     run_quiet(
@@ -326,12 +323,12 @@ def run_module1(
         check=True,
     )
     _fix_blast_query_names(blastp_out)
-    longest_orf_out = outdir / "candidate_orf.combine.blastp"
+    longest_orf_out = outdir / "cand_orf_combine.blastp"
     find_longest_orf(blastp_out, longest_orf_out)
     _fix_blast_query_names(longest_orf_out)
 
     # Identify intact ORFs
-    intact_out = outdir / "candidate_orf.intact.blastp"
+    intact_out = outdir / "cand_orf_intact.blastp"
     find_intact_orf(longest_orf_out, intact_out)
     _fix_blast_query_names(intact_out)
 
