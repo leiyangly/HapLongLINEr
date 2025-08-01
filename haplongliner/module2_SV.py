@@ -452,8 +452,9 @@ def _extract_sequences(
             seq = fa[scaf][t_start:t_end].seq
             if t_strand == "-":
                 seq = _revcomp(seq)
-            header = f"{name},{scaf},{t_start},{t_end},{t_strand}"
-            out.write(f">{header}\n{seq}\n")
+            if seq:
+                header = f"{name},{scaf},{t_start},{t_end},{t_strand}"
+                out.write(f">{header}\n{seq}\n")
 
         for name, seq in ins_seqs.items():
             if len(seq) >= min_length:
