@@ -17,6 +17,7 @@ from .utils import (
     run_quiet,
     verify_fasta_file,
     verify_repeatmasker_file,
+    _fix_blast_query_names,
 )
 
 
@@ -324,12 +325,15 @@ def run_module1(
         ],
         check=True,
     )
+    _fix_blast_query_names(blastp_out)
     longest_orf_out = outdir / "candidate_orf.combine.blastp"
     find_longest_orf(blastp_out, longest_orf_out)
+    _fix_blast_query_names(longest_orf_out)
 
     # Identify intact ORFs
     intact_out = outdir / "candidate_orf.intact.blastp"
     find_intact_orf(longest_orf_out, intact_out)
+    _fix_blast_query_names(intact_out)
 
     print("\n[STEP 4] Preparing output files")
     # 9-10. Integrate ORF status, liftover information and write candidate sequences
