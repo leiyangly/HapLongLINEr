@@ -15,5 +15,32 @@ def test_find_longest_orf_basic(tmp_path):
     out_lines = [l.strip() for l in open(output_file) if l.strip()]
     assert len(out_lines) == 1
     fields = out_lines[0].split()
-    assert fields[0].split(',')[5] == '6'
-    assert fields[15].split(',')[5] == '26'
+    # The query identifiers include ORF-specific fields at the end.  The index
+    # of the ORF is stored three positions from the end, regardless of whether
+    # a scaffold name is present.
+    assert fields[0].split(',')[-3] == '6'
+    assert fields[15].split(',')[-3] == '26'
+
+
+def test_find_longest_orf_groups_by_candidate(tmp_path):
+    """Multiple ORFs for the same candidate should be collapsed."""
+    inp = tmp_path / "input.blastp"
+    outp = tmp_path / "out.blastp"
+    inp.write_text(
+        "\n".join(
+            [
+                "scaf,1,100,+,1,5,50\tL1rpORF1p\t0\t50",
+                "scaf,1,100,+,2,10,60\tL1rpORF1p\t0\t100",
+                "scaf,1,100,+,3,20,80\tL1rpORF2p\t0\t150",
+            ]
+        )
+    )
+    find_longest_orf(inp, outp)
+    lines = [l.strip() for l in open(outp) if l.strip()]
+    assert len(lines) == 1
+    f = lines[0].split()
+    assert f[0].split(',')[-3] == '2'
+    assert f[1] == 'L1rpORF1p'
+    assert f[4].split(',')[-3] == '3'
+    assert f[5] == 'L1rpORF2p'
+
