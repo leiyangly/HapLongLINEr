@@ -1,3 +1,4 @@
+import os
 import re
 import sys
 from pathlib import Path
@@ -35,6 +36,30 @@ def _parse_target_info(info: str) -> Tuple[str, int, int, str]:
 
 
 from .module1_RM import download_if_needed, _fix_getorf_headers
+
+
+def _fix_blast_query_names(path: Path) -> None:
+    """Replace underscores with commas in BLAST output query names."""
+
+    pattern = re.compile(
+        r"^([^_]+)_([^_]+)_([0-9]+)_([0-9]+)_([+-])_([0-9]+)_([0-9]+)_([0-9]+)$"
+    )
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    with open(path) as inp, open(tmp, "w") as out:
+        for line in inp:
+            if not line.strip() or line.startswith("#"):
+                out.write(line)
+                continue
+            fields = line.rstrip().split()
+            if fields:
+                m = pattern.match(fields[0])
+                if m:
+                    fields[0] = ",".join(m.groups())
+                    out.write("\t".join(fields) + "\n")
+                    continue
+            out.write(line)
+    os.replace(tmp, path)
+
 from .find_longest_orf import find_longest_orf
 from .find_intact_orf import find_intact_orf
 
@@ -586,12 +611,15 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
         ],
         check=True,
     )
+    _fix_blast_query_names(blastp_out)
 
     combined = candidate_fa.with_suffix(".combine.blastp")
     find_longest_orf(blastp_out, combined)
+    _fix_blast_query_names(combined)
 
     intact_file = candidate_fa.with_suffix(".intact.blastp")
     find_intact_orf(combined, intact_file)
+    _fix_blast_query_names(intact_file)
 
     with open(combined) as fh:
         for line in fh:
