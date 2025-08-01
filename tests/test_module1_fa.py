@@ -21,3 +21,13 @@ def test_fix_getorf_headers(tmp_path):
     _fix_getorf_headers(fa)
     headers = [l.strip() for l in open(fa) if l.startswith(">")]
     assert headers == [">scaf_A_B,1,5,10", ">name,2,1,2"]
+
+
+def test_fix_getorf_headers_restore_commas(tmp_path):
+    orig = tmp_path / "cand.fa"
+    orig.write_text(">a,b,c,d,-\nAA\n")
+    orf = tmp_path / "orf.fa"
+    orf.write_text(">a_b_c_d_-_1 [1 - 2]\nAA\n")
+    _fix_getorf_headers(orf, orig)
+    headers = [l.strip() for l in open(orf) if l.startswith(">")]
+    assert headers == [">a,b,c,d,-,1,1,2"]
