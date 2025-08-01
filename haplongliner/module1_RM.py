@@ -102,15 +102,24 @@ def download_if_needed(url, local_path):
     return str(local_path)
 
 
-def _fix_getorf_headers(fa_path: Path) -> None:
+def _fix_getorf_headers(fa_path: Path, orig_fa: Path | None = None) -> None:
     """Rewrite ``getorf`` FASTA headers for easier downstream parsing.
 
-    ``getorf`` produces headers in the form ``>name_<idx> [<s> - <e>]``.  This
-    function converts them to ``>name,<idx>,<s>,<e>`` so the different fields can
-    be reliably retrieved by simply splitting on commas.  ``name`` itself may
-    contain underscores (e.g. scaffold identifiers), so only the separators
-    introduced by ``getorf`` are replaced.
+    ``getorf`` produces headers in the form ``>name_<idx> [<s> - <e>]`` and also
+    replaces commas in ``name`` with underscores.  This function converts the
+    headers to ``>name,<idx>,<s>,<e>`` so the different fields can be reliably
+    retrieved by simply splitting on commas.  If ``orig_fa`` is provided, the
+    original headers are used to restore commas that ``getorf`` replaced with
+    underscores.
     """
+
+    mapping: Dict[str, str] = {}
+    if orig_fa:
+        with open(orig_fa) as fh:
+            for line in fh:
+                if line.startswith(">"):
+                    name = line[1:].strip()
+                    mapping[name.replace(",", "_")] = name
 
     tmp = fa_path.with_suffix(".tmp")
     pattern = re.compile(r"^>([^\s]+)_([0-9]+)\s+\[([0-9]+)\s*-\s*([0-9]+)\]")
@@ -120,7 +129,8 @@ def _fix_getorf_headers(fa_path: Path) -> None:
                 m = pattern.match(line)
                 if m:
                     name, idx, start, end = m.groups()
-                    line = f">{name},{idx},{start},{end}\n"
+                    orig = mapping.get(name, name)
+                    line = f">{orig},{idx},{start},{end}\n"
             out.write(line)
     os.replace(tmp, fa_path)
 
@@ -294,7 +304,7 @@ def run_module1(
         ],
         check=True,
     )
-    _fix_getorf_headers(orf_fa)
+    _fix_getorf_headers(orf_fa, candidate_fa)
     orf_bed = outdir / "candidate_orf.bed"
     process_orf_fasta(orf_fa, orf_bed)
     blastp_out = outdir / "candidate_orf.blastp"

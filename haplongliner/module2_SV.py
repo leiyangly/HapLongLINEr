@@ -592,7 +592,7 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
         ],
         check=True,
     )
-    _fix_getorf_headers(orf_fa)
+    _fix_getorf_headers(orf_fa, candidate_fa)
 
     blastp_out = candidate_fa.with_suffix(".blastp")
     db_prefix = Path("data") / "L1rpORF12p.fa"
