@@ -558,7 +558,7 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
     if candidate_fa.stat().st_size == 0:
         return present, intact
 
-    orf_fa = candidate_fa.with_suffix(".orf.fa")
+    orf_fa = candidate_fa.with_name(candidate_fa.stem + "_.orf.fa")
     run_quiet(
         [
             "getorf",
@@ -573,7 +573,7 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
     )
     _fix_getorf_headers(orf_fa, candidate_fa)
 
-    blastp_out = candidate_fa.with_suffix(".blastp")
+    blastp_out = candidate_fa.with_name("cand_orf.blastp")
     db_prefix = Path("data") / "L1rpORF12p.fa"
     verify_blast_db(db_prefix)
     run_quiet(
@@ -592,11 +592,11 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
     )
     _fix_blast_query_names(blastp_out)
 
-    combined = candidate_fa.with_suffix(".combine.blastp")
+    combined = candidate_fa.with_name("cand_orf_combine.blastp")
     find_longest_orf(blastp_out, combined)
     _fix_blast_query_names(combined)
 
-    intact_file = candidate_fa.with_suffix(".intact.blastp")
+    intact_file = candidate_fa.with_name("cand_orf_intact.blastp")
     find_intact_orf(combined, intact_file)
     _fix_blast_query_names(intact_file)
 
@@ -775,7 +775,7 @@ def run_module2(
     inter_ins = outdir / "intersect_ins.bed"
     extra_ins = _collect_long_insertions(insertions, inter_ins, min_length)
 
-    candidate_fa = outdir / "candidates.fa"
+    candidate_fa = outdir / "cand.fa"
     _extract_sequences(
         Path(input_fasta),
         lifted,
@@ -787,7 +787,7 @@ def run_module2(
     )
 
     orf_present, intact_names = _validate_orfs(candidate_fa)
-    # candidates.blastn determines presence status
+    # cand.blastn determines presence status
     presence_names = _validate_presence(candidate_fa, min_length)
     # also mark sequences with >90% ORF coverage as present
     presence_names.update(orf_present)
@@ -824,10 +824,10 @@ def run_module2(
             scaf, *_rest, t_strand = plus_info.split(",")
             target_len = t_end - t_start
 
-            # Presence is determined solely by candidates.blastn and
-            # candidates.intact.blastp results. Any sequence found in
-            # candidates.intact.blastp is labeled "intact"; those only in
-            # candidates.blastn are labeled "present". Everything else is
+            # Presence is determined solely by cand.blastn and
+            # cand_orf_intact.blastp results. Any sequence found in
+            # cand_orf_intact.blastp is labeled "intact"; those only in
+            # cand.blastn are labeled "present". Everything else is
             # considered "absent".
             key = f"{name},{scaf},{t_start}"
 
