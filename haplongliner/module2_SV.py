@@ -628,48 +628,13 @@ def _validate_presence(candidate_fa: Path, min_length: int = 5000) -> Set[str]:
     if candidate_fa.stat().st_size == 0:
         return present
 
-    # remove FASTA headers that have no sequence lines before running BLASTN
-    cleaned_fa = candidate_fa
-    removed: List[str] = []
-    records: List[str] = []
-    header: str | None = None
-    seq_lines: List[str] = []
-    with open(candidate_fa) as fh:
-        for line in fh:
-            if line.startswith('>'):
-                if header is not None:
-                    if seq_lines:
-                        records.append(header)
-                        records.extend(seq_lines)
-                    else:
-                        removed.append(header[1:].strip())
-                header = line
-                seq_lines = []
-            else:
-                seq_lines.append(line)
-        if header is not None:
-            if seq_lines:
-                records.append(header)
-                records.extend(seq_lines)
-            else:
-                removed.append(header[1:].strip())
-
-    if removed:
-        cleaned_fa = candidate_fa.with_suffix('.clean.fa')
-        with open(cleaned_fa, 'w') as out:
-            out.writelines(records)
-        print(f"Warning: ignoring empty FASTA entries: {', '.join(removed)}")
-
-    if cleaned_fa.stat().st_size == 0:
-        return present
-
     blastn_out = candidate_fa.with_suffix(".blastn")
     ref_fa = Path("data") / "L1rp.fa"
     run_quiet(
         [
             "blastn",
             "-query",
-            str(cleaned_fa),
+            str(candidate_fa),
             "-subject",
             str(ref_fa),
             "-outfmt",
