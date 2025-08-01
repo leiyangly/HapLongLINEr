@@ -1,5 +1,5 @@
 from pathlib import Path
-from haplongliner.module1_RM import _write_rm_sequences
+from haplongliner.module1_RM import _write_rm_sequences, _fix_getorf_headers
 
 
 def test_write_rm_sequences(tmp_path):
@@ -11,3 +11,13 @@ def test_write_rm_sequences(tmp_path):
     _write_rm_sequences(fa, bed, out)
     headers = [l.strip() for l in open(out) if l.startswith(">")]
     assert headers == [">chr1,10,20,10,+,RPM", ">chr1,30,40,10,-,RPM"]
+
+
+def test_fix_getorf_headers(tmp_path):
+    fa = tmp_path / "orf.fa"
+    fa.write_text(
+        ">scaf_A_B_1 [5 - 10]\nAAAA\n>name_2 [1 - 2]\nTT\n"
+    )
+    _fix_getorf_headers(fa)
+    headers = [l.strip() for l in open(fa) if l.startswith(">")]
+    assert headers == [">scaf_A_B,1,5,10", ">name,2,1,2"]

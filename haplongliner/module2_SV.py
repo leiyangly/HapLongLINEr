@@ -34,7 +34,7 @@ def _parse_target_info(info: str) -> Tuple[str, int, int, str]:
     return scaf, start, end, strand
 
 
-from .module1_RM import download_if_needed
+from .module1_RM import download_if_needed, _fix_getorf_headers
 from .find_longest_orf import find_longest_orf
 from .find_intact_orf import find_intact_orf
 
@@ -567,6 +567,7 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
         ],
         check=True,
     )
+    _fix_getorf_headers(orf_fa)
 
     blastp_out = candidate_fa.with_suffix(".blastp")
     db_prefix = Path("data") / "L1rpORF12p.fa"
@@ -599,8 +600,7 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
             fields = line.strip().split()
             if len(fields) < 30:
                 continue
-            name = re.sub(r"_[0-9]+$", "", fields[0])
-            name = ",".join(name.split(",")[:3])
+            name = ",".join(fields[0].split(",")[:3])
             try:
                 cov1 = int(fields[3]) / int(fields[13])
                 cov2 = int(fields[18]) / int(fields[28])
@@ -616,8 +616,7 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
             fields = line.strip().split()
             if len(fields) < 30:
                 continue
-            name = re.sub(r"_[0-9]+$", "", fields[0])
-            name = ",".join(name.split(",")[:3])
+            name = ",".join(fields[0].split(",")[:3])
             intact.add(name)
 
     return present, intact
@@ -654,8 +653,7 @@ def _validate_presence(candidate_fa: Path, min_length: int = 5000) -> Set[str]:
             f = line.strip().split()
             if len(f) < 14:
                 continue
-            name = re.sub(r"_[0-9]+$", "", f[0])
-            name = ",".join(name.split(",")[:3])
+            name = ",".join(f[0].split(",")[:3])
             try:
                 length = int(f[3])
             except ValueError:
