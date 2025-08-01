@@ -17,3 +17,12 @@ def test_process_orf_fasta(tmp_path):
         "chr2_30_40\t2\t8\t+\t6\t-",
         "chr3_50_60\t3\t9\t-\t6\t+",
     ]
+
+
+def test_process_orf_fasta_invalid(tmp_path):
+    """Headers missing required fields should be ignored."""
+    fa = tmp_path / "bad_orf.fa"
+    fa.write_text(">bad_header\nAA\n")
+    bed = tmp_path / "out.bed"
+    process_orf_fasta(fa, bed)
+    assert bed.read_text() == ""
