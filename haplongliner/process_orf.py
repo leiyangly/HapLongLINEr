@@ -28,10 +28,13 @@ def process_orf_fasta(in_fasta, out_bed):
                 parts = base.split(",")
                 if len(parts) >= 5:
                     chrom, lstart, lend, _length, l1_strand = parts[:5]
-                else:
+                elif len(parts) >= 3:
                     # Fallback: derive values from the tail of the list
                     chrom, lstart, lend = parts[0], parts[1], parts[2]
                     l1_strand = parts[-1]
+                else:
+                    # Skip headers that do not contain enough fields
+                    continue
             else:
                 fields = line.split()
                 if len(fields) < 4:
