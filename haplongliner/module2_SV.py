@@ -826,12 +826,11 @@ def run_module2(
             # considered "absent".
             key = f"{name},{scaf},{t_start}"
 
+            final_stat = "absent"
+            if key in presence_names:
+                final_stat = "present"
             if key in intact_names:
                 final_stat = "intact"
-            elif key in presence_names:
-                final_stat = "present"
-            else:
-                final_stat = "absent"
 
             if name in ins_seqs:
                 sv_stat = "INS"
@@ -847,12 +846,13 @@ def run_module2(
 
         for chrom, start, end, seq, name in extra_ins:
             key = f"{name},{chrom},{start}"
+            if key not in presence_names and key not in intact_names:
+                continue
+
+            final_stat = "present"
             if key in intact_names:
                 final_stat = "intact"
-            elif key in presence_names:
-                final_stat = "present"
-            else:
-                continue
+
             target_len = end - start
             target_info = f"{chrom},{start},{end},{target_len},.,INS"
             # mark non-reference insertions with a ';nr' suffix
