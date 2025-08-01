@@ -36,52 +36,8 @@ def _parse_target_info(info: str) -> Tuple[str, int, int, str]:
 
 
 from .module1_RM import download_if_needed, _fix_getorf_headers
+from .utils import _fix_blast_query_names
 
-
-def _fix_blast_query_names(path: Path) -> None:
-    """Normalize BLAST query names to comma-separated format.
-
-    BLAST replaces commas in sequence identifiers with underscores.  Previous
-    versions of this function used a strict regular expression which failed for
-    scaffold names containing underscores (e.g. ``186_phaseblock_2``).  The
-    implementation now parses identifiers more permissively by splitting from the
-    right to recover the numeric fields and only converting the first underscore
-    between ``name`` and ``scaf`` to a comma.  Other underscores are preserved.
-    """
-
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    with open(path) as inp, open(tmp, "w") as out:
-        for line in inp:
-            if not line.strip() or line.startswith("#"):
-                out.write(line)
-                continue
-            fields = line.rstrip().split()
-            for i, f in enumerate(fields):
-                if "," in f or "_" not in f:
-                    continue
-                parts = f.split("_")
-                if len(parts) < 8:
-                    continue
-                prefix = "_".join(parts[:-6])
-                numeric = parts[-6:]
-                if not (
-                    numeric[0].isdigit()
-                    and numeric[1].isdigit()
-                    and numeric[3].isdigit()
-                    and numeric[4].isdigit()
-                    and numeric[5].isdigit()
-                    and numeric[2] in {"+", "-", "."}
-                ):
-                    continue
-                if "_" in prefix:
-                    name, scaf = prefix.split("_", 1)
-                else:
-                    name = prefix
-                    scaf = ""
-                fixed = [name, scaf] if scaf else [name]
-                fields[i] = ",".join(fixed + numeric)
-            out.write("\t".join(fields) + "\n")
-    os.replace(tmp, path)
 
 from .find_longest_orf import find_longest_orf
 from .find_intact_orf import find_intact_orf

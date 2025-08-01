@@ -6,6 +6,7 @@ from haplongliner.utils import (
     verify_fasta_file,
     verify_repeatmasker_file,
     verify_sv_file,
+    _fix_blast_query_names,
 )
 
 
@@ -51,3 +52,15 @@ def test_verify_sv_file_bad(tmp_path):
     bad.write_text('bad line')
     with pytest.raises(SystemExit):
         verify_sv_file(str(bad))
+
+
+def test_fix_blast_query_names(tmp_path):
+    path = tmp_path / "test.blast"
+    path.write_text(
+        "011138A1_186_phaseblock_2_1087928_1093929_+_6_876_1889\tsub\n"
+    )
+    _fix_blast_query_names(path)
+    fixed = path.read_text().strip()
+    assert fixed.startswith(
+        "011138A1,186_phaseblock_2,1087928,1093929,+,6,876,1889\tsub"
+    )
