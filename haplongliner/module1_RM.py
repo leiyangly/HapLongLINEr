@@ -5,12 +5,13 @@ import re
 import urllib.request
 import shutil
 import os
+import sys
 
 from pyfaidx import Fasta
 
 from .find_longest_orf import find_longest_orf
 from .find_intact_orf import find_intact_orf
-from .combine_table import combine_table
+from .combine_table import combine_table, _read_intact
 from .utils import (
     verify_blast_db,
     run_quiet,
@@ -175,6 +176,75 @@ def _write_rm_sequences(fasta: Path, bed: Path, out_fa: Path) -> None:
             out.write(f">{header}\n{seq}\n")
 
 
+def _combine_full_liftover(
+    lifted_bed: Path,
+    intact_file: Path,
+    cand_bed: Path,
+    out_file: Path,
+    *,
+    min_length: int = 5000,
+) -> None:
+    """Integrate ORF status and liftover information for full-mode liftover."""
+
+    lifted: dict[tuple[str, int, int, str], tuple[str, str, str, str]] = {}
+    with open(lifted_bed) as fh:
+        for line in fh:
+            if not line.strip() or line.startswith("#"):
+                continue
+            fields = line.strip().split()
+            if len(fields) < 6:
+                continue
+            chr_ref, start_ref, end_ref, name, _score, out_strand = fields[:6]
+            parts = name.split(",")
+            if len(parts) < 5:
+                continue
+            qchrom, qstart, qend, qstrand, _ = parts[:5]
+            try:
+                lifted[(qchrom, int(qstart), int(qend), qstrand)] = (
+                    chr_ref,
+                    start_ref,
+                    end_ref,
+                    out_strand,
+                )
+            except ValueError:
+                continue
+
+    intact = _read_intact(intact_file)
+
+    with open(cand_bed) as bed, open(out_file, "w") as out:
+        for line in bed:
+            if not line.strip() or line.startswith("#"):
+                continue
+            f = line.strip().split()
+            if len(f) < 6:
+                continue
+            chrom, start, end, name, length, strand = f[:6]
+            start_i = int(start)
+            end_i = int(end)
+            key = (chrom, start_i, end_i, strand)
+            ikey = f"{chrom}_{start_i}_{end_i}"
+            status = "intact" if ikey in intact else "present"
+
+            chr_ref, start_ref, end_ref, out_strand = lifted.get(
+                key, ("NA", "NA", "NA", "NA")
+            )
+
+            ref_len = "NA"
+            if start_ref != "NA" and end_ref != "NA":
+                try:
+                    rl = int(end_ref) - int(start_ref)
+                    if rl <= 2 * min_length:
+                        ref_len = str(rl)
+                    else:
+                        chr_ref, start_ref, end_ref = "NA", "NA", "NA"
+                except ValueError:
+                    chr_ref, start_ref, end_ref = "NA", "NA", "NA"
+
+            scaffold_info = f"{chrom},{start},{end},{length},{strand},RPM"
+            out.write(
+                f"{chr_ref}\t{start_ref}\t{end_ref}\t{name}\t{ref_len}\t{out_strand}\t{status}\t{scaffold_info}\n"
+            )
+
 def run_module1(
     input_fasta,
     repeatmasker_file,
@@ -183,6 +253,7 @@ def run_module1(
     log=None,
     min_length: int = 5000,
     asm: int = 10,
+    liftover: str = "full",
 ):
     """
     RepeatMasker-based L1 discovery pipeline.
@@ -192,6 +263,8 @@ def run_module1(
     provided, the ``HAPLOGLINER_LOG`` environment variable is checked.
     ``min_length`` controls the minimum L1 length to retain (default 5000 bp).
     ``asm`` sets the minimap2 assembly preset (5, 10, or 20; default 10).
+    ``liftover`` chooses between 'full' (whole-genome liftover) and 'flank'
+    (2kb flanking sequence liftover). Default is 'full'.
     """
     if log is None:
         log = os.getenv("HAPLOGLINER_LOG")
@@ -250,43 +323,74 @@ def run_module1(
     fa = Fasta(str(input_fasta))
     _extract_fasta(fa, candidate_bed, candidate_fa)
 
-    print("\n[STEP 2] Performing liftover based on 2kb flanking sequences")
-    # 4-6. Extract flanking 2kb regions, obtain their sequences and map them to the reference genome
-    # Extract flanking 2kb regions (upstream and downstream)
-    candidate_minus2kb_bed = outdir / "cand_minus2kb.bed"
-    candidate_plus2kb_bed = outdir / "cand_plus2kb.bed"
-    # Upstream
-    run_quiet(
-        f"""awk 'BEGIN{{OFS=\"\t\"}} {{$3=$2; $2=$2-2000; print $0}}' {candidate_bed} > {candidate_minus2kb_bed}""",
-        shell=True,
-        check=True,
-    )
-    # Downstream
-    run_quiet(
-        f"""awk 'BEGIN{{OFS=\"\t\"}} {{$2=$3; $3=$3+2000; print $0}}' {candidate_bed} > {candidate_plus2kb_bed}""",
-        shell=True,
-        check=True,
-    )
+    if liftover == "flank":
+        print("\n[STEP 2] Performing liftover based on 2kb flanking sequences")
+        # 4-6. Extract flanking 2kb regions, obtain their sequences and map them to the reference genome
+        # Extract flanking 2kb regions (upstream and downstream)
+        candidate_minus2kb_bed = outdir / "cand_minus2kb.bed"
+        candidate_plus2kb_bed = outdir / "cand_plus2kb.bed"
+        # Upstream
+        run_quiet(
+            f"""awk 'BEGIN{{OFS=\"\t\"}} {{$3=$2; $2=$2-2000; print $0}}' {candidate_bed} > {candidate_minus2kb_bed}""",
+            shell=True,
+            check=True,
+        )
+        # Downstream
+        run_quiet(
+            f"""awk 'BEGIN{{OFS=\"\t\"}} {{$2=$3; $3=$3+2000; print $0}}' {candidate_bed} > {candidate_plus2kb_bed}""",
+            shell=True,
+            check=True,
+        )
 
-    # Extract sequences for flanking regions
-    candidate_minus2kb_fa = outdir / "cand_minus2kb.fa"
-    candidate_plus2kb_fa = outdir / "cand_plus2kb.fa"
-    _extract_fasta(fa, candidate_minus2kb_bed, candidate_minus2kb_fa)
-    _extract_fasta(fa, candidate_plus2kb_bed, candidate_plus2kb_fa)
+        # Extract sequences for flanking regions
+        candidate_minus2kb_fa = outdir / "cand_minus2kb.fa"
+        candidate_plus2kb_fa = outdir / "cand_plus2kb.fa"
+        _extract_fasta(fa, candidate_minus2kb_bed, candidate_minus2kb_fa)
+        _extract_fasta(fa, candidate_plus2kb_bed, candidate_plus2kb_fa)
 
-    # Map flanking regions to reference genome with minimap2 (using local FASTA)
-    candidate_minus2kb_paf = outdir / "cand_minus2kb.paf"
-    candidate_plus2kb_paf = outdir / "cand_plus2kb.paf"
-    run_quiet(
-        f"minimap2 -x asm{asm} {reference_fasta} {candidate_minus2kb_fa} > {candidate_minus2kb_paf}",
-        shell=True,
-        check=True,
-    )
-    run_quiet(
-        f"minimap2 -x asm{asm} {reference_fasta} {candidate_plus2kb_fa} > {candidate_plus2kb_paf}",
-        shell=True,
-        check=True,
-    )
+        # Map flanking regions to reference genome with minimap2 (using local FASTA)
+        candidate_minus2kb_paf = outdir / "cand_minus2kb.paf"
+        candidate_plus2kb_paf = outdir / "cand_plus2kb.paf"
+        run_quiet(
+            f"minimap2 -x asm{asm} {reference_fasta} {candidate_minus2kb_fa} > {candidate_minus2kb_paf}",
+            shell=True,
+            check=True,
+        )
+        run_quiet(
+            f"minimap2 -x asm{asm} {reference_fasta} {candidate_plus2kb_fa} > {candidate_plus2kb_paf}",
+            shell=True,
+            check=True,
+        )
+    else:
+        print("\n[STEP 2] Performing liftover using whole-genome alignment")
+        aln_paf = outdir / "genome_alignment.paf"
+        with open(aln_paf, "w") as out:
+            run_quiet(
+                [
+                    "minimap2",
+                    "-x",
+                    f"asm{asm}",
+                    "-c",
+                    "--cs",
+                    str(reference_fasta),
+                    str(input_fasta),
+                ],
+                check=True,
+                stdout=out,
+            )
+        lifted_bed = outdir / "lifted.bed"
+        script_path = Path(__file__).resolve().parents[1] / "scripts" / "liftover_paf.py"
+        with open(lifted_bed, "w") as out:
+            run_quiet(
+                [
+                    sys.executable,
+                    str(script_path),
+                    str(aln_paf),
+                    str(candidate_bed),
+                ],
+                check=True,
+                stdout=out,
+            )
 
     print("\n[STEP 3] Detecting intact ORFs")
     # 7-8. Detect ORFs and identify intact ones
@@ -336,14 +440,23 @@ def run_module1(
     # 9-10. Integrate ORF status, liftover information and write candidate sequences
     # Integrate ORF status and liftover information
     combined_out = outdir / "haplongliner_rm.bed"
-    combine_table(
-        candidate_plus2kb_paf,
-        candidate_minus2kb_paf,
-        intact_out,
-        candidate_bed,
-        combined_out,
-        min_length=min_length,
-    )
+    if liftover == "flank":
+        combine_table(
+            candidate_plus2kb_paf,
+            candidate_minus2kb_paf,
+            intact_out,
+            candidate_bed,
+            combined_out,
+            min_length=min_length,
+        )
+    else:
+        _combine_full_liftover(
+            lifted_bed,
+            intact_out,
+            candidate_bed,
+            combined_out,
+            min_length=min_length,
+        )
 
     rm_fa = outdir / "haplongliner_rm.fa"
     _write_rm_sequences(Path(input_fasta), candidate_bed, rm_fa)
