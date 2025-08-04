@@ -112,6 +112,15 @@ def main():
         help="minimap2 asm preset (5, 10, or 20; default: 10)",
     )
 
+    parser_rm.add_argument(
+        "-t",
+        "--liftover",
+        dest="liftover",
+        choices=["full", "flank"],
+        default="full",
+        help="Liftover mode: 'full' (whole-genome, default) or 'flank' (2kb flanks)",
+    )
+
     ref_group = parser_rm.add_mutually_exclusive_group(required=True)
     ref_group.add_argument(
         "-r",
@@ -266,6 +275,7 @@ def main():
             log=args.log,
             min_length=args.length,
             asm=args.asm,
+            liftover=args.liftover,
         )
     elif args.command == "sv":
         # Determine reference path/URL for generating flanks when needed
