@@ -182,7 +182,7 @@ def _combine_full_liftover(
     cand_bed: Path,
     out_file: Path,
     *,
-    min_length: int = 5000,
+    min_length: int = 0,
 ) -> None:
     """Integrate ORF status and liftover information for full-mode liftover."""
 
@@ -251,9 +251,9 @@ def run_module1(
     reference_fasta,
     output_dir="module1_output",
     log=None,
-    min_length: int = 5000,
+    min_length: int = 0,
     asm: int = 10,
-    liftover: str = "full",
+    liftover: str = "fl",
     te: str = "L1,L1PA3",
 ):
     """
@@ -262,10 +262,10 @@ def run_module1(
     Handles RepeatMasker BED, BED.gz, .out, or .out.gz input.
     ``log`` specifies a file to log malformed RepeatMasker lines. If not
     provided, the ``HAPLOGLINER_LOG`` environment variable is checked.
-    ``min_length`` controls the minimum TE length to retain (default 5000 bp).
+    ``min_length`` controls the minimum TE length to retain (default 0 bp).
     ``asm`` sets the minimap2 assembly preset (5, 10, or 20; default 10).
-    ``liftover`` chooses between 'full' (whole-genome liftover) and 'flank'
-    (2kb flanking sequence liftover). Default is 'full'.
+    ``liftover`` chooses between 'fl' (whole-genome liftover) and '2kb'
+    (2kb flanking sequence liftover). Default is 'fl'.
     ``te`` is a comma-separated list of TE families to search for.  Shortcuts:
     ``L1``=L1HS/L1PA2, ``SVA``=SVA_E/SVA_F, ``ALU``=AluY, ``HERVK``=HERVK-int/LTR5_Hs.
     """
@@ -329,7 +329,7 @@ def run_module1(
     fa = Fasta(str(input_fasta))
     _extract_fasta(fa, candidate_bed, candidate_fa)
 
-    if liftover == "flank":
+    if liftover == "2kb":
         print("\n[STEP 2] Performing liftover based on 2kb flanking sequences")
         # 4-6. Extract flanking 2kb regions, obtain their sequences and map them to the reference genome
         # Extract flanking 2kb regions (upstream and downstream)
@@ -446,7 +446,7 @@ def run_module1(
     # 9-10. Integrate ORF status, liftover information and write candidate sequences
     # Integrate ORF status and liftover information
     combined_out = outdir / "haplongliner_rm.bed"
-    if liftover == "flank":
+    if liftover == "2kb":
         combine_table(
             candidate_plus2kb_paf,
             candidate_minus2kb_paf,

@@ -92,8 +92,8 @@ def main():
         "--length",
         dest="length",
         type=int,
-        default=5000,
-        help="Minimum TE length (default: 5000)",
+        default=0,
+        help="Minimum TE length (default: 0)",
     )
 
     parser_rm.add_argument(
@@ -128,9 +128,9 @@ def main():
         "-v",
         "--liftover",
         dest="liftover",
-        choices=["full", "flank"],
-        default="full",
-        help="Liftover mode: 'full' (whole-genome, default) or 'flank' (2kb flanks)",
+        choices=["fl", "2kb"],
+        default="fl",
+        help="Liftover mode: 'fl' (whole-genome, default) or '2kb' (2kb flanks)",
     )
 
     ref_group = parser_rm.add_mutually_exclusive_group(required=True)
