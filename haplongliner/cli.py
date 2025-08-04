@@ -35,7 +35,7 @@ def main():
         Usage:   haplongliner <command> <arguments>
         Version: {__version__}
 
-        Command: rm        RepeatMasker-based L1 discovery
+        Command: rm        RepeatMasker-based TE discovery
                  sv        SV-based L1 discovery
                  db        L1 sequence repository
         """
@@ -80,7 +80,7 @@ def main():
         usage=argparse.SUPPRESS,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Usage:   haplongliner rm [options]",
-        help="Module 1: RepeatMasker-based L1 discovery",
+        help="Module 1: RepeatMasker-based TE discovery",
     )
     parser_rm._positionals.title = ""
     parser_rm._optionals.title = "Options"
@@ -93,7 +93,19 @@ def main():
         dest="length",
         type=int,
         default=5000,
-        help="Minimum L1 length (default: 5000)",
+        help="Minimum TE length (default: 5000)",
+    )
+
+    parser_rm.add_argument(
+        "-t",
+        "--te",
+        dest="te",
+        default="L1,L1PA3",
+        help=(
+            "Comma-separated TE families to search. Shortcuts: "
+            "L1=L1HS,L1PA2; SVA=SVA_E,SVA_F; ALU=AluY; "
+            "HERVK=HERVK-int,LTR5_Hs (default: L1,L1PA3)"
+        ),
     )
 
     parser_rm.add_argument(
@@ -113,7 +125,7 @@ def main():
     )
 
     parser_rm.add_argument(
-        "-t",
+        "-v",
         "--liftover",
         dest="liftover",
         choices=["full", "flank"],
@@ -276,6 +288,7 @@ def main():
             min_length=args.length,
             asm=args.asm,
             liftover=args.liftover,
+            te=args.te,
         )
     elif args.command == "sv":
         # Determine reference path/URL for generating flanks when needed

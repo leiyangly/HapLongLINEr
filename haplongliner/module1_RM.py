@@ -254,17 +254,20 @@ def run_module1(
     min_length: int = 5000,
     asm: int = 10,
     liftover: str = "full",
+    te: str = "L1,L1PA3",
 ):
     """
-    RepeatMasker-based L1 discovery pipeline.
+    RepeatMasker-based TE discovery pipeline.
     Downloads remote reference if needed.
     Handles RepeatMasker BED, BED.gz, .out, or .out.gz input.
     ``log`` specifies a file to log malformed RepeatMasker lines. If not
     provided, the ``HAPLOGLINER_LOG`` environment variable is checked.
-    ``min_length`` controls the minimum L1 length to retain (default 5000 bp).
+    ``min_length`` controls the minimum TE length to retain (default 5000 bp).
     ``asm`` sets the minimap2 assembly preset (5, 10, or 20; default 10).
     ``liftover`` chooses between 'full' (whole-genome liftover) and 'flank'
     (2kb flanking sequence liftover). Default is 'full'.
+    ``te`` is a comma-separated list of TE families to search for.  Shortcuts:
+    ``L1``=L1HS/L1PA2, ``SVA``=SVA_E/SVA_F, ``ALU``=AluY, ``HERVK``=HERVK-int/LTR5_Hs.
     """
     if log is None:
         log = os.getenv("HAPLOGLINER_LOG")
@@ -292,6 +295,7 @@ def run_module1(
         f"  RepeatMasker: {repeatmasker_file}\n"
         f"  Reference: {reference_fasta}\n"
         f"  Output Dir: {outdir}\n"
+        f"  TE types: {te} (min length {min_length})\n"
         f"  ASM preset: asm{asm}"
     )
 
@@ -302,7 +306,7 @@ def run_module1(
     parsed_bed = outdir / "parsed_repeatmasker.bed"
     parse_repeatmasker(repeatmasker_file, parsed_bed, log)
 
-    # Extract full-length L1s from parsed BED
+    # Extract full-length TEs from parsed BED
     candidate_bed = outdir / "cand.bed"
     run_quiet(
         [
@@ -314,11 +318,13 @@ def run_module1(
             str(candidate_bed),
             "-l",
             str(min_length),
+            "-t",
+            te,
         ],
         check=True,
     )
 
-    # Extract the sequence of the full-length L1s using pyfaidx
+    # Extract the sequence of the full-length TEs using pyfaidx
     candidate_fa = outdir / "cand.fa"
     fa = Fasta(str(input_fasta))
     _extract_fasta(fa, candidate_bed, candidate_fa)
@@ -462,7 +468,10 @@ def run_module1(
     _write_rm_sequences(Path(input_fasta), candidate_bed, rm_fa)
 
     # Final output table
-    print(f"Module 1 completed. Results in {combined_out} and {rm_fa}")
+    print(
+        f"Module 1 completed. Detected {te} elements ≥{min_length} bp. "
+        f"Results in {combined_out} and {rm_fa}"
+    )
 
     # Remove large intermediate files to save space
     # for tmp in [

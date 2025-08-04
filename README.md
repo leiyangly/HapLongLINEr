@@ -5,8 +5,8 @@
 
 ## Overview
 
-- HapLongLINEr discovers and curates full-length (≥5 kb by default) young LINE-1 elements (L1HS, L1PA2, and potentially intact L1PA3) in haploid long-read assemblies.  
-- We will potentially extend this to other types of polymorphic transposable elements.
+- HapLongLINEr discovers and curates full-length (≥5 kb by default) young LINE-1 elements (L1HS, L1PA2, and potentially intact L1PA3) in haploid long-read assemblies.
+- Module 1 can also search for other transposable elements such as SVA, ALU, or HERVK, or any user-provided RepeatMasker names via the `--te` option.
 
 
 ## Installation
@@ -56,6 +56,7 @@ Input:
 - Haploid assembly FASTA
 - RepeatMasker BED or .out file (plain or gzipped)
 - Reference genome FASTA (local or remote, hs1/hg38)
+- Transposable element families to analyse (via `--te`, default `L1,L1PA3`)
 
 Command with test genome:
 ```bash
@@ -75,9 +76,12 @@ haplongliner rm \
   --out your_output_dir
 ```
 
+To search additional TE families, include the `--te` option. For example,
+`--te L1,SVA` searches for both L1 and SVA elements.
+
 Output:
-- haplongliner_rm.bed file with L1 info from your assembly and corresponding refence genome (hs1/hg38) coordinates and ORF status
-- haplongliner_rm.fa file containing all full length (>=5kb by default) L1HS, L1PA2, and intact L1PA3 sequences from the input assembly
+- haplongliner_rm.bed file with TE info from your assembly and corresponding reference genome (hs1/hg38) coordinates and ORF status
+- haplongliner_rm.fa file containing all full length (>=5kb by default) sequences for the selected TE families
 - Log file (when using `-g/--log`) that summarizes results of each step of the pipeline module
 
 ### Module 2: Based structural variation calls, no RepeatMasker pre-masking of whole assembly needed
