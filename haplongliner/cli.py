@@ -21,6 +21,7 @@ from .module1_RM import run_module1
 from .module2_SV import run_module2
 from .module3_DB import run_module3
 from .utils import check_dependencies
+from .extract_l1 import _expand_te_names
 
 __version__ = "0.1.0"
 
@@ -92,8 +93,8 @@ def main():
         "--length",
         dest="length",
         type=int,
-        default=0,
-        help="Minimum TE length (default: 0)",
+        default=None,
+        help="Minimum TE length (default: 5000 for L1-only, otherwise 0)",
     )
 
     parser_rm.add_argument(
@@ -128,20 +129,18 @@ def main():
         "-v",
         "--liftover",
         dest="liftover",
-        choices=["fl", "2kb"],
-        default="fl",
-        help="Liftover mode: 'fl' (whole-genome, default) or '2kb' (2kb flanks)",
+        choices=["full", "flank2kb"],
+        default="full",
+        help="Liftover mode: 'full' (whole-genome, default) or 'flank2kb' (2kb flanks)",
     )
 
-    ref_group = parser_rm.add_mutually_exclusive_group(required=True)
-    ref_group.add_argument(
+    parser_rm.add_argument(
         "-r",
         "--ref",
         dest="ref",
-        choices=["hs1", "hg38"],
-        help="Reference genome: 'hs1' or 'hg38' (downloaded to data/ if missing)"
+        default="hs1",
+        help="Reference genome: hs1 (default), hg38, or path to FASTA",
     )
-    ref_group.add_argument("-c", "--custom", help="Custom reference FASTA or gzipped FASTA (local path)")
 
     parser_rm.add_argument("-o", "--out", dest="output", required=True, help="Output directory for intermediate files")
     parser_rm.add_argument("-h", "--help", action="help", default=argparse.SUPPRESS,
@@ -178,9 +177,8 @@ def main():
         "-r",
         "--ref",
         dest="ref",
-        choices=["hs1", "hg38"],
-        required=True,
-        help="Reference genome for liftover flanks",
+        default="hs1",
+        help="Reference genome for liftover flanks: hs1 (default), hg38, or path to FASTA",
     )
     parser_sv.add_argument(
         "-l",
@@ -271,6 +269,13 @@ def main():
         sys.stdout = _Tee(sys.stdout, log_handle)
 
     if args.command == "rm":
+        if args.length is None:
+            te_list = [t for t in args.te.split(",") if t]
+            expanded_te = _expand_te_names(te_list)
+            if all(t.upper().startswith("L1") for t in expanded_te):
+                args.length = 5000
+            else:
+                args.length = 0
         check_dependencies()
         # Determine reference path/URL
         if args.ref == "hs1":
@@ -278,7 +283,7 @@ def main():
         elif args.ref == "hg38":
             reference = HG38_URL
         else:
-            reference = args.custom
+            reference = args.ref
         run_module1(
             args.input,
             args.mask,
@@ -294,8 +299,10 @@ def main():
         # Determine reference path/URL for generating flanks when needed
         if args.ref == "hs1":
             reference = HS1_URL
-        else:
+        elif args.ref == "hg38":
             reference = HG38_URL
+        else:
+            reference = args.ref
         check_dependencies()
         run_module2(
             args.input,

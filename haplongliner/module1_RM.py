@@ -254,7 +254,7 @@ def run_module1(
     log=None,
     min_length: int = 0,
     asm: int = 10,
-    liftover: str = "fl",
+    liftover: str = "full",
     te: str = "L1,L1PA3",
 ):
     """
@@ -265,8 +265,8 @@ def run_module1(
     provided, the ``HAPLOGLINER_LOG`` environment variable is checked.
     ``min_length`` controls the minimum TE length to retain (default 0 bp).
     ``asm`` sets the minimap2 assembly preset (5, 10, or 20; default 10).
-    ``liftover`` chooses between 'fl' (whole-genome liftover) and '2kb'
-    (2kb flanking sequence liftover). Default is 'fl'.
+    ``liftover`` chooses between 'full' (whole-genome liftover) and
+    'flank2kb' (2kb flanking sequence liftover). Default is 'full'.
     ``te`` is a comma-separated list of TE families to search for.  Shortcuts:
     ``L1``=L1HS/L1PA2, ``SVA``=SVA_E/SVA_F, ``ALU``=AluY, ``HERVK``=HERVK-int/LTR5_Hs.
     """
@@ -343,7 +343,7 @@ def run_module1(
     if perform_orf:
         _extract_fasta(fa, candidate_bed, candidate_fa)
 
-    if liftover == "2kb":
+    if liftover == "flank2kb":
         print("\n[STEP 2] Performing liftover based on 2kb flanking sequences")
         # 4-6. Extract flanking 2kb regions, obtain their sequences and map them to the reference genome
         # Extract flanking 2kb regions (upstream and downstream)
@@ -462,13 +462,12 @@ def run_module1(
             "(requires --length ≥5000 and --te including L1HS/L1PA2/L1PA3)"
         )
         intact_out = outdir / "cand_orf_intact.blastp"
-        intact_out.touch()
 
     print("\n[STEP 4] Preparing output files")
     # 9-10. Integrate ORF status, liftover information and write candidate sequences
     # Integrate ORF status and liftover information
     combined_out = outdir / "haplongliner_rm.bed"
-    if liftover == "2kb":
+    if liftover == "flank2kb":
         combine_table(
             candidate_plus2kb_paf,
             candidate_minus2kb_paf,
