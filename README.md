@@ -28,7 +28,7 @@ conda install haplongliner
 
 ### Using Git and Pip
 
-(Optional) Install dependencies if necessary:
+Install dependencies if necessary (optional step):
 ```bash
 conda install -c bioconda minimap2 bedtools emboss blast repeatmasker
 ```
