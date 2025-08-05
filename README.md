@@ -5,7 +5,7 @@
 ## Overview
 
 - HapLongLINEr primarily discovers and curates full-length (≥5 kb) young LINE-1 elements (L1HS and L1PA2) in haploid long-read assemblies.
-- The pipeline focuses on full-length L1s, but modules 1 and 2 can be expanded to support all transposable elements at any length.
+- The pipeline focuses on full-length L1s, but can be expanded to support all transposable elements at any length.
 - HapLoneLINEr can detect intact ORFs when ran on L1s with the length cutoff of >=5kb.
 - When only L1 families are selected, the minimum length defaults to 5 kb; otherwise it defaults to 0 bp.
 
