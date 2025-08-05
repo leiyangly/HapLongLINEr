@@ -159,19 +159,12 @@ def main():
     parser_sv._optionals.title = "Options"
     parser_sv.add_argument("-i", "--in", dest="input", required=True, help="Input haploid assembly FASTA")
     parser_sv.add_argument("-s", "--sv", required=True, help="Structural variant callset")
-    l1_group = parser_sv.add_mutually_exclusive_group(required=True)
-    l1_group.add_argument(
-        "-1",
-        "--l1ref",
-        dest="l1ref",
-        choices=["hprc"],
-        help="Use built-in HPRC L1 reference",
-    )
-    l1_group.add_argument(
-        "-2",
-        "--l1cus",
-        dest="l1cus",
-        help="Custom L1 BED file to generate flanks",
+    parser_sv.add_argument(
+        "-f",
+        "--teref",
+        dest="teref",
+        default="hprc",
+        help="TE reference: hprc, hs1, hg38, or path to BED (default: hprc)",
     )
     parser_sv.add_argument(
         "-r",
@@ -309,8 +302,7 @@ def main():
             args.sv,
             reference,
             args.output,
-            l1ref=args.l1ref,
-            l1cus=args.l1cus,
+            teref=args.teref,
             log=args.log,
             min_length=args.length,
             asm=args.asm,

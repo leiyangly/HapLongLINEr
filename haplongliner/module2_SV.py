@@ -1,6 +1,9 @@
 import os
 import re
 import sys
+import gzip
+import itertools
+import tempfile
 from pathlib import Path
 from typing import Dict, List, Tuple, Iterable, Set
 
@@ -67,6 +70,40 @@ def _load_master_coords(paths: Iterable[Path]) -> Dict[str, Tuple[str, int, int,
                 except ValueError:
                     continue
     return coords
+
+
+def _convert_rm_out_to_bed(out_path: Path, min_length: int) -> Path:
+    """Convert RepeatMasker .out[.gz] file to temporary BED6 with L1 entries."""
+
+    tmp = tempfile.NamedTemporaryFile("w", suffix=".bed", delete=False)
+    opener = gzip.open if str(out_path).endswith(".gz") else open
+
+    with opener(out_path, "rt") as fin, tmp:
+        first_lines = [fin.readline() for _ in range(4)]
+        if any("SW" in l and "perc" in l for l in first_lines):
+            iterator = fin
+        else:
+            iterator = itertools.chain(first_lines, fin)
+
+        for line in iterator:
+            if not line.strip() or line.startswith(("#", "track", "browser")):
+                continue
+            fields = re.split(r"\s+", line.strip())
+            if len(fields) < 14 or not fields[5].isdigit() or not fields[6].isdigit():
+                continue
+            if fields[10] != "LINE/L1":
+                continue
+            chrom = fields[4]
+            start = int(fields[5]) - 1
+            end = int(fields[6])
+            strand = "-" if fields[8] == "C" else "+"
+            length = end - start
+            if length < min_length:
+                continue
+            name = fields[9]
+            tmp.write(f"{chrom}\t{start}\t{end}\t{name}\t{length}\t{strand}\n")
+
+    return Path(tmp.name)
 
 
 def _liftover_l1s(
@@ -682,8 +719,7 @@ def run_module2(
     reference_fasta: str,
     output_dir: str,
     *,
-    l1ref: str | None = None,
-    l1cus: str | None = None,
+    teref: str = "hprc",
     log: str | None = None,
     min_length: int = 5000,
     asm: int = 10,
@@ -722,13 +758,23 @@ def run_module2(
 
     print("[STEP 1] Preparing reference data")
 
-    if l1cus:
-        verify_bed_file(l1cus)
-        ref_bed = Path(l1cus)
-    else:
-        if l1ref != "hprc":
-            raise ValueError("Unsupported L1 reference")
+    temp_ref: Path | None = None
+    if teref == "hprc":
         ref_bed = Path("data") / "HPRC_L1_hs1_v2_v2fl.bed"
+    elif teref in {"hs1", "hg38"}:
+        urls = {
+            "hs1": "https://hgdownload.soe.ucsc.edu/goldenPath/hs1/bigZips/hs1.repeatMasker.out.gz",
+            "hg38": "https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.out.gz",
+        }
+        data_dir = Path("data")
+        data_dir.mkdir(exist_ok=True)
+        local_out = data_dir / Path(urls[teref]).name
+        download_if_needed(urls[teref], local_out)
+        temp_ref = _convert_rm_out_to_bed(local_out, min_length)
+        ref_bed = temp_ref
+    else:
+        verify_bed_file(teref)
+        ref_bed = Path(teref)
 
     ref_path = reference_fasta
     if ref_path.startswith("http://") or ref_path.startswith("https://"):
@@ -881,3 +927,9 @@ def run_module2(
             )
 
     print(f"Module 2 completed. Results in {out_table} and {sv_fa}")
+
+    if temp_ref:
+        try:
+            os.remove(temp_ref)
+        except OSError:
+            pass
