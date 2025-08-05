@@ -12,6 +12,7 @@ from pyfaidx import Fasta
 from .find_longest_orf import find_longest_orf
 from .find_intact_orf import find_intact_orf
 from .combine_table import combine_table, _read_intact
+from .extract_l1 import _expand_te_names
 from .utils import (
     verify_blast_db,
     run_quiet,
@@ -289,6 +290,13 @@ def run_module1(
         ref_local = data_dir / Path(reference_fasta).name
         reference_fasta = download_if_needed(reference_fasta, ref_local)
 
+    te_list = [t for t in te.split(",") if t]
+    expanded_te = _expand_te_names(te_list)
+    perform_orf = (
+        min_length >= 5000
+        and bool(expanded_te & {"L1HS", "L1PA2", "L1PA3"})
+    )
+
     print(
         "Module 1 running with:\n"
         f"  Input: {input_fasta}\n"
@@ -298,6 +306,11 @@ def run_module1(
         f"  TE types: {te} (min length {min_length})\n"
         f"  ASM preset: asm{asm}"
     )
+    if not perform_orf:
+        print(
+            "[INFO] Skipping intact ORF detection and associated BLASTP/sequence extraction steps "
+            "(requires --length ≥5000 and --te including L1HS/L1PA2/L1PA3)"
+        )
 
     print()
 
@@ -324,10 +337,11 @@ def run_module1(
         check=True,
     )
 
-    # Extract the sequence of the full-length TEs using pyfaidx
-    candidate_fa = outdir / "cand.fa"
+    # Extract the sequence of the full-length TEs using pyfaidx when ORF detection is enabled
     fa = Fasta(str(input_fasta))
-    _extract_fasta(fa, candidate_bed, candidate_fa)
+    candidate_fa = outdir / "cand.fa"
+    if perform_orf:
+        _extract_fasta(fa, candidate_bed, candidate_fa)
 
     if liftover == "2kb":
         print("\n[STEP 2] Performing liftover based on 2kb flanking sequences")
@@ -398,49 +412,57 @@ def run_module1(
                 stdout=out,
             )
 
-    print("\n[STEP 3] Detecting intact ORFs")
-    # 7-8. Detect ORFs and identify intact ones
-    # Detect ORFs and choose the longest ORF1/ORF2 per locus
-    orf_fa = outdir / "cand_orf.fa"
-    run_quiet(
-        [
-            "getorf",
-            "-sequence",
-            str(candidate_fa),
-            "-find",
-            "1",
-            "-outseq",
-            str(orf_fa),
-        ],
-        check=True,
-    )
-    _fix_getorf_headers(orf_fa, candidate_fa)
-    blastp_out = outdir / "cand_orf.blastp"
-    db_prefix = Path("data") / "L1rpORF12p.fa"
-    verify_blast_db(db_prefix)
-    run_quiet(
-        [
-            "blastp",
-            "-db",
-            str(db_prefix),
-            "-query",
-            str(orf_fa),
-            "-outfmt",
-            "6 std qlen slen sacc",
-            "-out",
-            str(blastp_out),
-        ],
-        check=True,
-    )
-    _fix_blast_query_names(blastp_out)
-    longest_orf_out = outdir / "cand_orf_combine.blastp"
-    find_longest_orf(blastp_out, longest_orf_out)
-    _fix_blast_query_names(longest_orf_out)
+    if perform_orf:
+        print("\n[STEP 3] Detecting intact ORFs")
+        # 7-8. Detect ORFs and identify intact ones
+        # Detect ORFs and choose the longest ORF1/ORF2 per locus
+        orf_fa = outdir / "cand_orf.fa"
+        run_quiet(
+            [
+                "getorf",
+                "-sequence",
+                str(candidate_fa),
+                "-find",
+                "1",
+                "-outseq",
+                str(orf_fa),
+            ],
+            check=True,
+        )
+        _fix_getorf_headers(orf_fa, candidate_fa)
+        blastp_out = outdir / "cand_orf.blastp"
+        db_prefix = Path("data") / "L1rpORF12p.fa"
+        verify_blast_db(db_prefix)
+        run_quiet(
+            [
+                "blastp",
+                "-db",
+                str(db_prefix),
+                "-query",
+                str(orf_fa),
+                "-outfmt",
+                "6 std qlen slen sacc",
+                "-out",
+                str(blastp_out),
+            ],
+            check=True,
+        )
+        _fix_blast_query_names(blastp_out)
+        longest_orf_out = outdir / "cand_orf_combine.blastp"
+        find_longest_orf(blastp_out, longest_orf_out)
+        _fix_blast_query_names(longest_orf_out)
 
-    # Identify intact ORFs
-    intact_out = outdir / "cand_orf_intact.blastp"
-    find_intact_orf(longest_orf_out, intact_out)
-    _fix_blast_query_names(intact_out)
+        # Identify intact ORFs
+        intact_out = outdir / "cand_orf_intact.blastp"
+        find_intact_orf(longest_orf_out, intact_out)
+        _fix_blast_query_names(intact_out)
+    else:
+        print(
+            "\n[STEP 3] Skipping intact ORF detection and BLASTP steps "
+            "(requires --length ≥5000 and --te including L1HS/L1PA2/L1PA3)"
+        )
+        intact_out = outdir / "cand_orf_intact.blastp"
+        intact_out.touch()
 
     print("\n[STEP 4] Preparing output files")
     # 9-10. Integrate ORF status, liftover information and write candidate sequences
