@@ -7,6 +7,7 @@
 
 - HapLongLINEr discovers and curates full-length (≥5 kb by default) young LINE-1 elements (L1HS, L1PA2, and potentially intact L1PA3) in haploid long-read assemblies.
 - Module 1 can also search for other transposable elements such as SVA, ALU, or HERVK, or any user-provided RepeatMasker names via the `--te` option.
+- Intact ORF detection and the associated BLASTP and ORF sequence extraction steps run only when `--length` is at least 5000 and the `--te` option includes L1HS, L1PA2, or L1PA3; otherwise these steps are skipped.
 
 
 ## Installation
@@ -79,6 +80,8 @@ haplongliner rm \
 To search additional TE families, include the `--te` option. For example,
 `--te L1,SVA` searches for both L1 and SVA elements.
 
+Intact ORF detection is performed only when `--length` is at least 5000 and the `--te` list includes L1HS, L1PA2, or L1PA3; otherwise these ORF-related BLASTP and sequence extraction steps are skipped.
+
 Output:
 - haplongliner_rm.bed file with TE info from your assembly and corresponding reference genome (hs1/hg38) coordinates and ORF status
 - haplongliner_rm.fa file containing all full length (>=5kb by default) sequences for the selected TE families
@@ -111,6 +114,8 @@ haplongliner sv \
   --ref you_choose_hs1_or_hg38 \
   --out your_output_dir
 ```
+
+ORF validation is carried out only when `--length` is at least 5000; otherwise the BLASTP and ORF sequence extraction steps are skipped.
 
 Output:
 - haplongliner_sv.bed file summarizing L1 coordinates and ORF status. Names from insertion calls that do not overlap lifted L1s end with `;nr`.

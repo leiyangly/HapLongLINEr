@@ -705,6 +705,13 @@ def run_module2(
         f"  ASM preset: asm{asm}"
     )
 
+    perform_orf = min_length >= 5000
+    if not perform_orf:
+        print(
+            "[INFO] Skipping intact ORF detection and associated BLASTP steps "
+            "(requires --length ≥5000)"
+        )
+
     print()
 
     outdir = Path(output_dir)
@@ -768,7 +775,7 @@ def run_module2(
 
     deletions, insertions = _parse_sv(Path(sv_file), Path(log) if log else None)
 
-    print("\n[STEP 5] Validating candidate L1s and their ORFs")
+    print("\n[STEP 5] Validating candidate L1s")
 
     status, ins_seqs = _classify_sv(lifted, deletions, insertions, outdir, lifted_reorg)
 
@@ -786,7 +793,14 @@ def run_module2(
         extra_ins,
     )
 
-    orf_present, intact_names = _validate_orfs(candidate_fa)
+    if perform_orf:
+        orf_present, intact_names = _validate_orfs(candidate_fa)
+    else:
+        print(
+            "[INFO] Skipping intact ORF detection and BLASTP steps "
+            "(requires --length ≥5000)"
+        )
+        orf_present, intact_names = set(), set()
     # cand.blastn determines presence status
     presence_names = _validate_presence(candidate_fa, min_length)
     # also mark sequences with >90% ORF coverage as present
