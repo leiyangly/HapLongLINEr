@@ -13,7 +13,7 @@
 
 ### Install using git and pip
 
-Install dependencies if necessary (optional step):
+Install dependencies (optional):
 ```bash
 conda install -c bioconda minimap2 bedtools emboss blast repeatmasker
 ```
