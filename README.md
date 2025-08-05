@@ -11,7 +11,7 @@
 
 ## Installation
 
-### Using Git and Pip
+### Install using git and pip
 
 Install dependencies if necessary (optional step):
 ```bash
@@ -30,7 +30,7 @@ cd HapLongLINEr
 pip install -e .
 ```
 
-### Install as a Conda package (to be implemented)
+### Install as a conda package (to be implemented)
 
 Enable the required channels:
 ```bash
