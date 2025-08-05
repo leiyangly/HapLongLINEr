@@ -12,7 +12,7 @@
 
 ## Installation
 
-### Using Conda (to be implemented)
+### Install as a Conda package (to be implemented)
 
 Enable the required channels:
 ```bash
@@ -28,7 +28,7 @@ conda install haplongliner
 
 ### Using Git and Pip
 
-Install dependencies if necessary:
+(Optional) Install dependencies if necessary:
 ```bash
 conda install -c bioconda minimap2 bedtools emboss blast repeatmasker
 ```
