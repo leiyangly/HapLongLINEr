@@ -2,30 +2,14 @@
 
 **A modular pipeline for discovering and curating full-length young LINE-1 elements in haploid long-read human genome assemblies.**
 
-
 ## Overview
 
 - HapLongLINEr primarily discovers and curates full-length (≥5 kb) young LINE-1 elements (L1HS and L1PA2) in haploid long-read assemblies.
 - The pipeline focuses on full-length L1s, but modules 1 and 2 can be expanded to support all transposable elements at any length.
+- HapLoneLINEr can detect intact ORFs when ran on L1s with the length cutoff of >=5kb.
 - When only L1 families are selected, the minimum length defaults to 5 kb; otherwise it defaults to 0 bp.
-- Intact ORF detection and the associated BLASTP and ORF sequence extraction steps run only when `--length` is at least 5000 and the `--te` option includes L1HS, L1PA2, or L1PA3; otherwise these steps are skipped.
-
 
 ## Installation
-
-### Install as a Conda package (to be implemented)
-
-Enable the required channels:
-```bash
-conda config --add channels defaults
-conda config --add channels bioconda
-conda config --add channels conda-forge
-```
-
-Install HapLongLINEr:
-```bash
-conda install haplongliner
-```
 
 ### Using Git and Pip
 
@@ -46,6 +30,19 @@ cd HapLongLINEr
 pip install -e .
 ```
 
+### Install as a Conda package (to be implemented)
+
+Enable the required channels:
+```bash
+conda config --add channels defaults
+conda config --add channels bioconda
+conda config --add channels conda-forge
+```
+
+Install HapLongLINEr:
+```bash
+conda install haplongliner
+```
 
 ## Usage
 
