@@ -1,5 +1,6 @@
 import sys
 import re
+from pathlib import Path
 from typing import Dict, List
 
 from .utils import read_paf
@@ -12,6 +13,8 @@ def _read_minimap(file_path: str) -> Dict[str, List[str]]:
 
 def _read_intact(file_path: str) -> Dict[str, str]:
     result = {}
+    if not Path(file_path).exists():
+        return result
     with open(file_path) as fh:
         for line in fh:
             if not line.strip():
