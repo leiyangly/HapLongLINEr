@@ -233,12 +233,12 @@ def _combine_full_liftover(
             if start_ref != "NA" and end_ref != "NA":
                 try:
                     rl = int(end_ref) - int(start_ref)
-                    if rl <= 2 * min_length:
+                    if min_length == 0 or rl <= 2 * min_length:
                         ref_len = str(rl)
                     else:
-                        chr_ref, start_ref, end_ref = "NA", "NA", "NA"
+                        chr_ref, start_ref, end_ref, ref_len = "NA", "NA", "NA", "NA"
                 except ValueError:
-                    chr_ref, start_ref, end_ref = "NA", "NA", "NA"
+                    chr_ref, start_ref, end_ref, ref_len = "NA", "NA", "NA", "NA"
 
             scaffold_info = f"{chrom},{start},{end},{length},{strand},RPM"
             out.write(
