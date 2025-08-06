@@ -1,7 +1,7 @@
 import gzip
 from pathlib import Path
 
-from haplongliner.module2_SV import _parse_sv
+from haplongliner.sv_module import _parse_sv
 
 
 def test_parse_sv_handles_gz(tmp_path):

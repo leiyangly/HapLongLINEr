@@ -1,5 +1,5 @@
 from pathlib import Path
-from haplongliner.module2_SV import _extract_sequences
+from haplongliner.sv_module import _extract_sequences
 
 
 def test_extract_sequences_names(tmp_path):

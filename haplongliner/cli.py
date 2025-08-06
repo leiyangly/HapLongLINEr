@@ -17,8 +17,8 @@ class _Tee:
         for s in self.streams:
             s.flush()
 
-from .module1_RM import run_module1
-from .module2_SV import run_module2
+from .rm_module import run_rm_module
+from .sv_module import run_sv_module
 from .module3_DB import run_module3
 from .utils import check_dependencies
 from .extract_l1 import _expand_te_names
@@ -36,8 +36,8 @@ def main():
         Usage:   haplongliner <command> <arguments>
         Version: {__version__}
 
-        Command: rm        RepeatMasker-based TE discovery
-                 sv        SV-based L1 discovery
+        Command: rm        RM module (RepeatMasker-based TE discovery)
+                 sv        SV module (SV-based L1 discovery)
                  db        L1 sequence repository
         """
     )
@@ -74,14 +74,14 @@ def main():
 
     subparsers = parser.add_subparsers(dest="command")
 
-    # Module 1: RepeatMasker-based
+    # RM module: RepeatMasker-based
     parser_rm = subparsers.add_parser(
         "rm",
         add_help=False,
         usage=argparse.SUPPRESS,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Usage:   haplongliner rm [options]",
-        help="Module 1: RepeatMasker-based TE discovery",
+        help="RM module: RepeatMasker-based TE discovery",
     )
     parser_rm._positionals.title = ""
     parser_rm._optionals.title = "Options"
@@ -126,12 +126,12 @@ def main():
     )
 
     parser_rm.add_argument(
-        "-v",
-        "--liftover",
-        dest="liftover",
-        choices=["full", "flank2kb"],
-        default="full",
-        help="Liftover mode: 'full' (whole-genome, default) or 'flank2kb' (2kb flanks)",
+        "-y",
+        "--legacy",
+        dest="legacy",
+        choices=["yes", "no"],
+        default="no",
+        help="Use legacy 2kb flank liftover ('yes') or full-genome liftover ('no', default)",
     )
 
     parser_rm.add_argument(
@@ -146,14 +146,14 @@ def main():
     parser_rm.add_argument("-h", "--help", action="help", default=argparse.SUPPRESS,
                            help="Show this help message and exit.")
 
-    # Module 2: SV-based
+    # SV module
     parser_sv = subparsers.add_parser(
         "sv",
         add_help=False,
         usage=argparse.SUPPRESS,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Usage:   haplongliner sv [options]",
-        help="Module 2: SV-based L1 discovery",
+        help="SV module: SV-based L1 discovery",
     )
     parser_sv._positionals.title = ""
     parser_sv._optionals.title = "Options"
@@ -178,8 +178,8 @@ def main():
         "--length",
         dest="length",
         type=int,
-        default=5000,
-        help="Minimum TE length (default: 5000)",
+        default=None,
+        help="Minimum TE length (default: 5000 for L1-only, otherwise 0)",
     )
     parser_sv.add_argument(
         "-t",
@@ -187,9 +187,9 @@ def main():
         dest="te",
         default="L1,L1PA3",
         help=(
-            "Comma-separated list of TE families. Shortcuts: "
+            "Comma-separated TE families to search. Shortcuts: "
             "L1=L1HS,L1PA2; SVA=SVA_E,SVA_F; ALU=AluY; "
-            "HERVK=HERVK-int,LTR5_Hs"
+            "HERVK=HERVK-int,LTR5_Hs (default: L1,L1PA3)"
         ),
     )
     parser_sv.add_argument(
@@ -217,14 +217,14 @@ def main():
     parser_sv.add_argument("-h", "--help", action="help", default=argparse.SUPPRESS,
                            help="Show this help message and exit.")
 
-    # Module 3: Database
+    # Database module
     parser_db = subparsers.add_parser(
         "db",
         add_help=False,
         usage=argparse.SUPPRESS,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Usage:   haplongliner db [options]",
-        help="Module 3: Retrieve L1 sequences by coordinate (hs1 only)",
+        help="Database module: Retrieve L1 sequences by coordinate (hs1 only)",
     )
     parser_db._positionals.title = ""
     parser_db._optionals.title = "Options"
@@ -288,7 +288,8 @@ def main():
             reference = HG38_URL
         else:
             reference = args.ref
-        run_module1(
+        liftover_mode = "flank2kb" if args.legacy == "yes" else "full"
+        run_rm_module(
             args.input,
             args.mask,
             reference,
@@ -296,10 +297,17 @@ def main():
             log=args.log,
             min_length=args.length,
             asm=args.asm,
-            liftover=args.liftover,
+            liftover=liftover_mode,
             te=args.te,
         )
     elif args.command == "sv":
+        if args.length is None:
+            te_list = [t for t in args.te.split(",") if t]
+            expanded_te = _expand_te_names(te_list)
+            if all(t.upper().startswith("L1") for t in expanded_te):
+                args.length = 5000
+            else:
+                args.length = 0
         # Determine reference path/URL for generating flanks when needed
         if args.ref == "hs1":
             reference = HS1_URL
@@ -308,7 +316,7 @@ def main():
         else:
             reference = args.ref
         check_dependencies()
-        run_module2(
+        run_sv_module(
             args.input,
             args.sv,
             reference,

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from haplongliner.module2_SV import _liftover_l1s, _read_paf
+from haplongliner.sv_module import _liftover_l1s, _read_paf
 
 
 def write_paf(path: Path, lines: list[str]) -> None:
