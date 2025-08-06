@@ -246,6 +246,52 @@ def _read_lifted_bed(path: Path) -> Dict[str, List[Tuple[str, int, int, str, Set
     return lifted
 
 
+def _filter_reference_bed(
+    raw_ref: Path, min_length: int, te: str, teref: str
+) -> Path:
+    """Filter reference BED records by TE family and length.
+
+    When ``teref`` is ``"hprc"`` the BED lacks TE family names in column 4.
+    In that case assume all entries are L1 elements and only apply the
+    length filter.
+    """
+
+    tmp = tempfile.NamedTemporaryFile("w", suffix=".bed", delete=False)
+    if teref == "hprc":
+        with open(raw_ref) as inp, open(tmp.name, "w") as out:
+            for line in inp:
+                if not line.strip() or line.startswith("#"):
+                    continue
+                fields = line.rstrip().split("\t")
+                if len(fields) < 3:
+                    continue
+                try:
+                    start = int(fields[1])
+                    end = int(fields[2])
+                except ValueError:
+                    continue
+                if (end - start) >= min_length:
+                    out.write(line if line.endswith("\n") else line + "\n")
+    else:
+        run_quiet(
+            [
+                sys.executable,
+                "-m",
+                "haplongliner.extract_l1",
+                str(raw_ref),
+                "-o",
+                tmp.name,
+                "-l",
+                str(min_length),
+                "-t",
+                te,
+            ],
+            check=True,
+        )
+    tmp.close()
+    return Path(tmp.name)
+
+
 def _create_lifted_reorg(
     lifted_bed: Path, ref_bed: Path, out_path: Path
 ) -> List[Tuple[str, int, int, str, int, str, str, str, int, int]]:
@@ -782,25 +828,7 @@ def run_module2(
             temp_files.append(raw_ref)
         else:
             raw_ref = Path(teref)
-
-    tmp = tempfile.NamedTemporaryFile("w", suffix=".bed", delete=False)
-    run_quiet(
-        [
-            sys.executable,
-            "-m",
-            "haplongliner.extract_l1",
-            str(raw_ref),
-            "-o",
-            tmp.name,
-            "-l",
-            str(min_length),
-            "-t",
-            te,
-        ],
-        check=True,
-    )
-    tmp.close()
-    ref_bed = Path(tmp.name)
+    ref_bed = _filter_reference_bed(raw_ref, min_length, te, teref)
     temp_files.append(ref_bed)
 
     ref_path = reference_fasta
