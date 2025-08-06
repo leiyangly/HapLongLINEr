@@ -282,6 +282,15 @@ def main(argv: Iterable[str] | None = None) -> int:
         default=2.0,
         help="max sequence divergence (>=1 to disable) [2.0]",
     )
+
+    if argv is None:
+        argv = sys.argv[1:]
+    else:
+        argv = list(argv)
+    if len(argv) == 0:
+        parser.print_help(sys.stderr)
+        return 1
+
     args = parser.parse_args(argv)
 
     try:
