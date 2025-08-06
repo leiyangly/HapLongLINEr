@@ -246,11 +246,11 @@ def _combine_full_liftover(
                 f"{chr_ref}\t{start_ref}\t{end_ref}\t{name}\t{ref_len}\t{out_strand}\t{status}\t{scaffold_info}\n"
             )
 
-def run_rm_module(
+def run_rm_mode(
     input_fasta,
     repeatmasker_file,
     reference_fasta,
-    output_dir="rm_module_output",
+    output_dir="rm_mode_output",
     log=None,
     min_length: int = 0,
     asm: int = 10,
@@ -298,7 +298,7 @@ def run_rm_module(
     )
 
     print(
-        "RM module running with:\n"
+        "RM mode running with:\n"
         f"  Input: {input_fasta}\n"
         f"  RepeatMasker: {repeatmasker_file}\n"
         f"  Reference: {reference_fasta}\n"
@@ -490,7 +490,7 @@ def run_rm_module(
 
     # Final output table
     print(
-        f"RM module completed. Detected {te} elements ≥{min_length} bp. "
+        f"RM mode completed. Detected {te} elements ≥{min_length} bp. "
         f"Results in {combined_out} and {rm_fa}"
     )
 

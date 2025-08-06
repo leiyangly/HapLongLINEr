@@ -1,5 +1,5 @@
 from pathlib import Path
-from haplongliner.rm_module import _write_rm_sequences, _fix_getorf_headers
+from haplongliner.rm_mode import _write_rm_sequences, _fix_getorf_headers
 
 
 def test_write_rm_sequences(tmp_path):

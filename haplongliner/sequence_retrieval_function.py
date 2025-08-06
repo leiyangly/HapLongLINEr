@@ -117,7 +117,7 @@ def _parse_coords(query: str) -> List[Coord]:
     return coords
 
 
-def run_module3(query: str, output: str, extra_fasta: str | None = None) -> None:
+def run_sequence_retrieval_function(query: str, output: str, extra_fasta: str | None = None) -> None:
     """Extract sequences for L1 insertions at ``query``.
 
     ``query`` may be a BED file or ``chr:start-end`` string. ``output`` is the
@@ -125,7 +125,7 @@ def run_module3(query: str, output: str, extra_fasta: str | None = None) -> None
     sequences will be appended to the extracted FASTA.
     """
     coords = _parse_coords(query)
-    print("Module 3 running with:\n" f"  Coordinates: {coords}\n" f"  Output: {output}")
+    print("Sequence retrieval function running with:\n" f"  Coordinates: {coords}\n" f"  Output: {output}")
     if extra_fasta:
         verify_fasta_file(extra_fasta)
         print(f"  Extra FASTA: {extra_fasta}")
