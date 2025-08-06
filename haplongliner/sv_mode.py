@@ -16,6 +16,7 @@ from .utils import (
     read_paf,
     _fix_blast_query_names,
 )
+from .liftover_paf import liftover_paf
 from pyfaidx import Fasta
 
 
@@ -132,21 +133,15 @@ def _liftover_l1s(
 
     ref_coords = _load_master_coords(master_files)
 
-    # run liftover_paf.py and capture the output
-    import importlib.util
+    # run liftover_paf and capture the output
     import io
     import contextlib
-
-    script_path = Path(__file__).resolve().parents[1] / "scripts" / "liftover_paf.py"
-    spec = importlib.util.spec_from_file_location("liftover_paf", script_path)
-    liftover_paf = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(liftover_paf)
 
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
         # use permissive parameters so short alignments are retained
         # (-q 0 -l 0 -d 2.0 by default)
-        liftover_paf.liftover_paf(
+        liftover_paf(
             str(aln_paf),
             str(ref_bed),
             mapq,
@@ -860,14 +855,11 @@ def run_sv_mode(
 
     print("\n[STEP 3] Lifting over candidate TE coordinates")
 
-    script_path = Path(__file__).resolve().parents[1] / "scripts" / "liftover_paf.py"
     lifted_bed = outdir / "lifted.bed"
-    with open(lifted_bed, "w") as out:
-        run_quiet(
-            [sys.executable, str(script_path), str(aln_paf), str(ref_bed)],
-            check=True,
-            stdout=out,
-        )
+    import contextlib
+
+    with open(lifted_bed, "w") as out, contextlib.redirect_stdout(out):
+        liftover_paf(str(aln_paf), str(ref_bed), 0, 0, 2.0, False)
 
     lifted_reorg = outdir / "lifted_reorg.bed"
     lifted = _create_lifted_reorg(lifted_bed, ref_bed, lifted_reorg)

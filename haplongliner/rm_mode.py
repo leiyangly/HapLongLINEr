@@ -5,7 +5,6 @@ import re
 import urllib.request
 import shutil
 import os
-import sys
 
 from pyfaidx import Fasta
 
@@ -20,6 +19,7 @@ from .utils import (
     verify_repeatmasker_file,
     _fix_blast_query_names,
 )
+from .liftover_paf import liftover_paf
 
 
 def _revcomp(seq: str) -> str:
@@ -399,18 +399,9 @@ def run_rm_mode(
                 stdout=out,
             )
         lifted_bed = outdir / "lifted.bed"
-        script_path = Path(__file__).resolve().parents[1] / "scripts" / "liftover_paf.py"
-        with open(lifted_bed, "w") as out:
-            run_quiet(
-                [
-                    sys.executable,
-                    str(script_path),
-                    str(aln_paf),
-                    str(candidate_bed),
-                ],
-                check=True,
-                stdout=out,
-            )
+        import contextlib
+        with open(lifted_bed, "w") as out, contextlib.redirect_stdout(out):
+            liftover_paf(str(aln_paf), str(candidate_bed), 0, 0, 2.0, False)
 
     if perform_orf:
         print("\n[STEP 3] Detecting intact ORFs")
