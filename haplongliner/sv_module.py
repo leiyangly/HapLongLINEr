@@ -39,7 +39,7 @@ def _parse_target_info(info: str) -> Tuple[str, int, int, str]:
     return scaf, start, end, strand
 
 
-from .module1_RM import download_if_needed, _fix_getorf_headers, parse_repeatmasker
+from .rm_module import download_if_needed, _fix_getorf_headers, parse_repeatmasker
 from .extract_l1 import _expand_te_names
 
 
@@ -756,7 +756,7 @@ def _validate_presence(candidate_fa: Path, min_length: int = 5000) -> Set[str]:
     return present
 
 
-def run_module2(
+def run_sv_module(
     input_fasta: str,
     sv_file: str,
     reference_fasta: str,
@@ -765,7 +765,7 @@ def run_module2(
     teref: str = "hprc",
     te: str = "L1,L1PA3",
     log: str | None = None,
-    min_length: int = 5000,
+    min_length: int = 0,
     asm: int = 10,
 ) -> None:
     """RepeatMasker-free TE discovery using structural variants.
@@ -773,7 +773,7 @@ def run_module2(
     ``log`` specifies a file to record malformed SV lines if provided.
     ``reference_fasta`` can be a local path or URL (downloaded if needed).
     ``te`` is a comma-separated list of TE families to search for.  Shortcuts
-    follow :func:`haplongliner.extract_l1._expand_te_names` as in module 1.
+    follow :func:`haplongliner.extract_l1._expand_te_names` as in the RM module.
     ``asm`` sets the minimap2 assembly preset (5, 10, or 20; default 10).
     """
 
@@ -782,7 +782,7 @@ def run_module2(
     perform_orf = min_length >= 5000 and bool(expanded_te & {"L1HS", "L1PA2", "L1PA3"})
 
     print(
-        "Module 2 running with:\n"
+        "SV module running with:\n"
         f"  Input: {input_fasta}\n"
         f"  SV: {sv_file}\n"
         f"  Reference: {reference_fasta}\n"
@@ -982,7 +982,7 @@ def run_module2(
                 f"{chrom}\t{start}\t{end}\t{name_out}\t{target_len}\t.\t{final_stat}\t{target_info}\n"
             )
 
-    print(f"Module 2 completed. Results in {out_table} and {sv_fa}")
+    print(f"SV module completed. Results in {out_table} and {sv_fa}")
 
     for tf in temp_files:
         try:

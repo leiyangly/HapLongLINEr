@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Extract flanking +/-2kb sequences for L1s listed in HPRC_L1_hs_v2_v2fl.bed.
 
-This script mimics the flank extraction behaviour of Module 1 but operates on
+This script mimics the flank extraction behaviour of the RM module but operates on
 ``data/HPRC_L1_hs_v2_v2fl.bed``. It requires a reference FASTA from which the
 flanking sequences will be retrieved.
 """

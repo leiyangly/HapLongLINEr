@@ -1,4 +1,4 @@
-from haplongliner.module1_RM import _combine_full_liftover
+from haplongliner.rm_module import _combine_full_liftover
 
 
 def test_combine_full_liftover(tmp_path):

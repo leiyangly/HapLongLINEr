@@ -1,4 +1,4 @@
-from haplongliner.module2_SV import _filter_reference_bed
+from haplongliner.sv_module import _filter_reference_bed
 
 
 def test_filter_reference_hprc(tmp_path):
