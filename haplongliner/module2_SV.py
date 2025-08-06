@@ -11,9 +11,10 @@ from .utils import (
     run_quiet,
     verify_fasta_file,
     verify_sv_file,
-    verify_bed_file,
+    verify_repeatmasker_file,
     verify_blast_db,
     read_paf,
+    _fix_blast_query_names,
 )
 from pyfaidx import Fasta
 
@@ -38,8 +39,8 @@ def _parse_target_info(info: str) -> Tuple[str, int, int, str]:
     return scaf, start, end, strand
 
 
-from .module1_RM import download_if_needed, _fix_getorf_headers
-from .utils import _fix_blast_query_names
+from .module1_RM import download_if_needed, _fix_getorf_headers, parse_repeatmasker
+from .extract_l1 import _expand_te_names
 
 
 from .find_longest_orf import find_longest_orf
@@ -72,8 +73,8 @@ def _load_master_coords(paths: Iterable[Path]) -> Dict[str, Tuple[str, int, int,
     return coords
 
 
-def _convert_rm_out_to_bed(out_path: Path, min_length: int) -> Path:
-    """Convert RepeatMasker .out[.gz] file to temporary BED6 with L1 entries."""
+def _convert_rm_out_to_bed(out_path: Path) -> Path:
+    """Convert RepeatMasker .out[.gz] file to temporary BED6 entries."""
 
     tmp = tempfile.NamedTemporaryFile("w", suffix=".bed", delete=False)
     opener = gzip.open if str(out_path).endswith(".gz") else open
@@ -91,16 +92,12 @@ def _convert_rm_out_to_bed(out_path: Path, min_length: int) -> Path:
             fields = re.split(r"\s+", line.strip())
             if len(fields) < 14 or not fields[5].isdigit() or not fields[6].isdigit():
                 continue
-            if fields[10] != "LINE/L1":
-                continue
             chrom = fields[4]
             start = int(fields[5]) - 1
             end = int(fields[6])
             strand = "-" if fields[8] == "C" else "+"
-            length = end - start
-            if length < min_length:
-                continue
             name = fields[9]
+            length = end - start
             tmp.write(f"{chrom}\t{start}\t{end}\t{name}\t{length}\t{strand}\n")
 
     return Path(tmp.name)
@@ -380,7 +377,7 @@ def _collect_long_insertions(
     inter_ins: Path,
     min_length: int,
 ) -> List[Tuple[str, int, int, str, str]]:
-    """Return insertion entries not overlapping lifted L1s with length >= ``min_length``.
+    """Return insertion entries not overlapping lifted TEs with length >= ``min_length``.
 
     The returned list contains tuples of ``(chrom, start, end, seq, name)`` where
     ``name`` is generated from the coordinates (``INS_<chrom>_<start>``).
@@ -418,7 +415,7 @@ def _classify_sv(
 ) -> Tuple[Dict[str, str], Dict[str, str]]:
     """Write SV BED files and intersect with lifted coordinates.
 
-    Returns a status dictionary and a mapping of insertion sequences by L1 name."""
+    Returns a status dictionary and a mapping of insertion sequences by TE name."""
 
     del_bed = outdir / "sv_del.bed"
     ins_bed = outdir / "sv_ins.bed"
@@ -483,7 +480,7 @@ def _extract_sequences(
     min_length: int,
     extra_ins: List[Tuple[str, int, int, str, str]] | None = None,
 ) -> None:
-    """Extract candidate L1 sequences from the target assembly."""
+    """Extract candidate TE sequences from the target assembly."""
 
     fa = Fasta(str(fasta))
 
@@ -720,16 +717,23 @@ def run_module2(
     output_dir: str,
     *,
     teref: str = "hprc",
+    te: str = "L1,L1PA3",
     log: str | None = None,
     min_length: int = 5000,
     asm: int = 10,
 ) -> None:
-    """RepeatMasker-free L1 discovery using structural variants.
+    """RepeatMasker-free TE discovery using structural variants.
 
     ``log`` specifies a file to record malformed SV lines if provided.
     ``reference_fasta`` can be a local path or URL (downloaded if needed).
+    ``te`` is a comma-separated list of TE families to search for.  Shortcuts
+    follow :func:`haplongliner.extract_l1._expand_te_names` as in module 1.
     ``asm`` sets the minimap2 assembly preset (5, 10, or 20; default 10).
     """
+
+    te_list = [t for t in te.split(",") if t]
+    expanded_te = _expand_te_names(te_list)
+    perform_orf = min_length >= 5000 and bool(expanded_te & {"L1HS", "L1PA2", "L1PA3"})
 
     print(
         "Module 2 running with:\n"
@@ -737,15 +741,14 @@ def run_module2(
         f"  SV: {sv_file}\n"
         f"  Reference: {reference_fasta}\n"
         f"  Output Dir: {output_dir}\n"
-        f"  Min Length: {min_length}\n"
+        f"  TE types: {te} (min length {min_length})\n"
         f"  ASM preset: asm{asm}"
     )
 
-    perform_orf = min_length >= 5000
     if not perform_orf:
         print(
             "[INFO] Skipping intact ORF detection and associated BLASTP steps "
-            "(requires --length ≥5000)"
+            "(requires --length ≥5000 and --te including L1HS/L1PA2/L1PA3)"
         )
 
     print()
@@ -758,9 +761,9 @@ def run_module2(
 
     print("[STEP 1] Preparing reference data")
 
-    temp_ref: Path | None = None
+    temp_files: List[Path] = []
     if teref == "hprc":
-        ref_bed = Path("data") / "HPRC_L1_hs1_v2_v2fl.bed"
+        raw_ref = Path("data") / "HPRC_L1_hs1_v2_v2fl.bed"
     elif teref in {"hs1", "hg38"}:
         urls = {
             "hs1": "https://hgdownload.soe.ucsc.edu/goldenPath/hs1/bigZips/hs1.repeatMasker.out.gz",
@@ -770,11 +773,35 @@ def run_module2(
         data_dir.mkdir(exist_ok=True)
         local_out = data_dir / Path(urls[teref]).name
         download_if_needed(urls[teref], local_out)
-        temp_ref = _convert_rm_out_to_bed(local_out, min_length)
-        ref_bed = temp_ref
+        raw_ref = _convert_rm_out_to_bed(local_out)
+        temp_files.append(raw_ref)
     else:
-        verify_bed_file(teref)
-        ref_bed = Path(teref)
+        verify_repeatmasker_file(teref)
+        if str(teref).endswith(('.out', '.out.gz')):
+            raw_ref = _convert_rm_out_to_bed(Path(teref))
+            temp_files.append(raw_ref)
+        else:
+            raw_ref = Path(teref)
+
+    tmp = tempfile.NamedTemporaryFile("w", suffix=".bed", delete=False)
+    run_quiet(
+        [
+            sys.executable,
+            "-m",
+            "haplongliner.extract_l1",
+            str(raw_ref),
+            "-o",
+            tmp.name,
+            "-l",
+            str(min_length),
+            "-t",
+            te,
+        ],
+        check=True,
+    )
+    tmp.close()
+    ref_bed = Path(tmp.name)
+    temp_files.append(ref_bed)
 
     ref_path = reference_fasta
     if ref_path.startswith("http://") or ref_path.startswith("https://"):
@@ -803,7 +830,7 @@ def run_module2(
             stdout=out,
         )
 
-    print("\n[STEP 3] Lifting over candidate L1 coordinates")
+    print("\n[STEP 3] Lifting over candidate TE coordinates")
 
     script_path = Path(__file__).resolve().parents[1] / "scripts" / "liftover_paf.py"
     lifted_bed = outdir / "lifted.bed"
@@ -821,7 +848,7 @@ def run_module2(
 
     deletions, insertions = _parse_sv(Path(sv_file), Path(log) if log else None)
 
-    print("\n[STEP 5] Validating candidate L1s")
+    print("\n[STEP 5] Validating candidate TEs")
 
     status, ins_seqs = _classify_sv(lifted, deletions, insertions, outdir, lifted_reorg)
 
@@ -844,12 +871,13 @@ def run_module2(
     else:
         print(
             "[INFO] Skipping intact ORF detection and BLASTP steps "
-            "(requires --length ≥5000)"
+            "(requires --length ≥5000 and --te including L1HS/L1PA2/L1PA3)"
         )
         orf_present, intact_names = set(), set()
-    # cand.blastn determines presence status
-    presence_names = _validate_presence(candidate_fa, min_length)
-    # also mark sequences with >90% ORF coverage as present
+    if expanded_te & {"L1HS", "L1PA2", "L1PA3"}:
+        presence_names = _validate_presence(candidate_fa, min_length)
+    else:
+        presence_names = set()
     presence_names.update(orf_present)
 
     sv_fa = outdir / "haplongliner_sv.fa"
@@ -928,8 +956,8 @@ def run_module2(
 
     print(f"Module 2 completed. Results in {out_table} and {sv_fa}")
 
-    if temp_ref:
+    for tf in temp_files:
         try:
-            os.remove(temp_ref)
+            os.remove(tf)
         except OSError:
             pass

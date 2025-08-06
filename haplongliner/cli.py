@@ -179,7 +179,18 @@ def main():
         dest="length",
         type=int,
         default=5000,
-        help="Minimum L1 length (default: 5000)",
+        help="Minimum TE length (default: 5000)",
+    )
+    parser_sv.add_argument(
+        "-t",
+        "--te",
+        dest="te",
+        default="L1,L1PA3",
+        help=(
+            "Comma-separated list of TE families. Shortcuts: "
+            "L1=L1HS,L1PA2; SVA=SVA_E,SVA_F; ALU=AluY; "
+            "HERVK=HERVK-int,LTR5_Hs"
+        ),
     )
     parser_sv.add_argument(
         "-g",
@@ -303,6 +314,7 @@ def main():
             reference,
             args.output,
             teref=args.teref,
+            te=args.te,
             log=args.log,
             min_length=args.length,
             asm=args.asm,
