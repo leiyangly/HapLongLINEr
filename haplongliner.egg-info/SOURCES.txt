@@ -8,11 +8,11 @@ haplongliner/combine_table.py
 haplongliner/extract_l1.py
 haplongliner/find_intact_orf.py
 haplongliner/find_longest_orf.py
-haplongliner/module3_DB.py
+haplongliner/sequence_retrieval_function.py
 haplongliner/process_orf.py
-haplongliner/rm_module.py
+haplongliner/rm_mode.py
 haplongliner/store_l1_diffs.py
-haplongliner/sv_module.py
+haplongliner/sv_mode.py
 haplongliner/utils.py
 haplongliner.egg-info/PKG-INFO
 haplongliner.egg-info/SOURCES.txt
@@ -24,7 +24,7 @@ tests/test_combine_full_liftover.py
 tests/test_find_longest_orf.py
 tests/test_liftover.py
 tests/test_liftover_paf_strand.py
-tests/test_module3.py
+tests/test_sequence_retrieval_function.py
 tests/test_process_orf.py
 tests/test_rm_fa.py
 tests/test_sv.py

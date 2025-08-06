@@ -1,5 +1,5 @@
 from pathlib import Path
-from haplongliner.sv_module import _write_sv_sequences
+from haplongliner.sv_mode import _write_sv_sequences
 
 
 def test_write_sv_sequences(tmp_path):

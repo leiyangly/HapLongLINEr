@@ -1,4 +1,4 @@
-from haplongliner.module3_DB import _parse_coords
+from haplongliner.sequence_retrieval_function import _parse_coords
 import pytest
 
 

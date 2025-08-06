@@ -39,7 +39,7 @@ def _parse_target_info(info: str) -> Tuple[str, int, int, str]:
     return scaf, start, end, strand
 
 
-from .rm_module import download_if_needed, _fix_getorf_headers, parse_repeatmasker
+from .rm_mode import download_if_needed, _fix_getorf_headers, parse_repeatmasker
 from .extract_l1 import _expand_te_names
 
 
@@ -756,7 +756,7 @@ def _validate_presence(candidate_fa: Path, min_length: int = 5000) -> Set[str]:
     return present
 
 
-def run_sv_module(
+def run_sv_mode(
     input_fasta: str,
     sv_file: str,
     reference_fasta: str,
@@ -773,7 +773,7 @@ def run_sv_module(
     ``log`` specifies a file to record malformed SV lines if provided.
     ``reference_fasta`` can be a local path or URL (downloaded if needed).
     ``te`` is a comma-separated list of TE families to search for.  Shortcuts
-    follow :func:`haplongliner.extract_l1._expand_te_names` as in the RM module.
+    follow :func:`haplongliner.extract_l1._expand_te_names` as in the RM mode.
     ``asm`` sets the minimap2 assembly preset (5, 10, or 20; default 10).
     """
 
@@ -782,7 +782,7 @@ def run_sv_module(
     perform_orf = min_length >= 5000 and bool(expanded_te & {"L1HS", "L1PA2", "L1PA3"})
 
     print(
-        "SV module running with:\n"
+        "SV mode running with:\n"
         f"  Input: {input_fasta}\n"
         f"  SV: {sv_file}\n"
         f"  Reference: {reference_fasta}\n"
@@ -982,7 +982,7 @@ def run_sv_module(
                 f"{chrom}\t{start}\t{end}\t{name_out}\t{target_len}\t.\t{final_stat}\t{target_info}\n"
             )
 
-    print(f"SV module completed. Results in {out_table} and {sv_fa}")
+    print(f"SV mode completed. Results in {out_table} and {sv_fa}")
 
     for tf in temp_files:
         try:

@@ -1,5 +1,5 @@
 from pathlib import Path
-from haplongliner.sv_module import _collect_long_insertions
+from haplongliner.sv_mode import _collect_long_insertions
 
 
 def test_collect_long_insertions(tmp_path):
