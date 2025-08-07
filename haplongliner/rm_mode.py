@@ -280,17 +280,11 @@ def run_rm_mode(
     # Validate input files
     verify_fasta_file(input_fasta)
     verify_repeatmasker_file(repeatmasker_file)
-    if not reference_fasta.startswith("http://") and not reference_fasta.startswith(
+    ref_is_url = reference_fasta.startswith("http://") or reference_fasta.startswith(
         "https://"
-    ):
+    )
+    if not ref_is_url:
         verify_fasta_file(reference_fasta)
-
-    # If reference_fasta is a URL, download it to the data folder
-    if reference_fasta.startswith("http://") or reference_fasta.startswith("https://"):
-        data_dir = Path("data")
-        data_dir.mkdir(exist_ok=True)
-        ref_local = data_dir / Path(reference_fasta).name
-        reference_fasta = download_if_needed(reference_fasta, ref_local)
 
     te_list = [t for t in te.split(",") if t]
     expanded_te = _expand_te_names(te_list)
@@ -299,15 +293,23 @@ def run_rm_mode(
         and bool(expanded_te & {"L1HS", "L1PA2", "L1PA3"})
     )
 
-    print(
-        "[INFO] RM mode running with:\n"
-        f"  Input: {input_fasta}\n"
-        f"  RepeatMasker: {repeatmasker_file}\n"
-        f"  Reference: {reference_fasta}\n"
-        f"  Output Dir: {outdir}\n"
-        f"  TE types: {te} (min length {min_length})\n"
-        f"  ASM preset: asm{asm}"
-    )
+    info_lines = [
+        "[INFO] RM mode running with:",
+        f"[INFO]   Input: {input_fasta}",
+        f"[INFO]   RepeatMasker: {repeatmasker_file}",
+        f"[INFO]   Reference: {reference_fasta}",
+        f"[INFO]   Output Dir: {outdir}",
+        f"[INFO]   TE types: {te} (min length {min_length})",
+        f"[INFO]   ASM preset: asm{asm}",
+    ]
+    print("\n".join(info_lines))
+
+    if ref_is_url:
+        data_dir = Path("data")
+        data_dir.mkdir(exist_ok=True)
+        ref_local = data_dir / Path(reference_fasta).name
+        reference_fasta = download_if_needed(reference_fasta, ref_local)
+        verify_fasta_file(reference_fasta)
     if not perform_orf:
         print(
             "[INFO] Skipping intact ORF detection and associated BLASTP/sequence extraction steps "
