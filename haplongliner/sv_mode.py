@@ -823,8 +823,13 @@ def run_sv_mode(
             temp_files.append(raw_ref)
         else:
             raw_ref = Path(teref)
-    ref_bed = _filter_reference_bed(raw_ref, min_length, te, teref)
-    temp_files.append(ref_bed)
+    if teref == "hprc":
+        # The bundled HPRC reference is already restricted to L1 elements; retain
+        # all entries as-is and skip the length/TE-family filtering step.
+        ref_bed = raw_ref
+    else:
+        ref_bed = _filter_reference_bed(raw_ref, min_length, te, teref)
+        temp_files.append(ref_bed)
 
     ref_path = reference_fasta
     if ref_path.startswith("http://") or ref_path.startswith("https://"):
