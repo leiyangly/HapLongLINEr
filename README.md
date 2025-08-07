@@ -49,6 +49,14 @@ conda install haplongliner
 Run `haplongliner`, `haplongliner rm` (RM mode), `haplongliner sv` (SV mode) or
 `haplongliner seq` with no arguments to see the available options for each command.
 
+The PAF liftover helper is available as a separate console script:
+
+```bash
+liftover_paf --help
+# or
+python -m haplongliner.liftover_paf --help
+```
+
 ### RM mode: Based on RepeatMasker pre-masked genome assemblies
 
 Input:

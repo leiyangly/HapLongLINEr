@@ -2,7 +2,6 @@ LICENSE
 README.md
 pyproject.toml
 setup.py
-liftover_paf.py
 haplongliner/__init__.py
 haplongliner/cli.py
 haplongliner/combine_table.py
@@ -10,9 +9,9 @@ haplongliner/extract_l1.py
 haplongliner/find_intact_orf.py
 haplongliner/find_longest_orf.py
 haplongliner/liftover_paf.py
-haplongliner/sequence_retrieval_function.py
 haplongliner/process_orf.py
 haplongliner/rm_mode.py
+haplongliner/sequence_retrieval_function.py
 haplongliner/store_l1_diffs.py
 haplongliner/sv_mode.py
 haplongliner/utils.py
@@ -26,9 +25,9 @@ tests/test_combine_full_liftover.py
 tests/test_find_longest_orf.py
 tests/test_liftover.py
 tests/test_liftover_paf_strand.py
-tests/test_sequence_retrieval_function.py
 tests/test_process_orf.py
 tests/test_rm_fa.py
+tests/test_sequence_retrieval_function.py
 tests/test_sv.py
 tests/test_sv_collect.py
 tests/test_sv_extract.py

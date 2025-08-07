@@ -10,7 +10,8 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "haplongliner=haplongliner.cli:main"
+            "haplongliner=haplongliner.cli:main",
+            "liftover_paf=haplongliner.liftover_paf:main",
         ]
     },
 )
