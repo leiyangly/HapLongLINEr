@@ -87,7 +87,7 @@ def parse_repeatmasker(input_path, output_path, log_path=None):
     if log_path and skipped:
         with open(log_path, "w") as logf:
             logf.write("\n".join(skipped) + "\n")
-    print(f"Skipped {len(skipped)} malformed lines")
+    print(f"[INFO] Skipped {len(skipped)} malformed lines")
 
 
 def download_if_needed(url, local_path):
@@ -300,7 +300,7 @@ def run_rm_mode(
     )
 
     print(
-        "RM mode running with:\n"
+        "[INFO] RM mode running with:\n"
         f"  Input: {input_fasta}\n"
         f"  RepeatMasker: {repeatmasker_file}\n"
         f"  Reference: {reference_fasta}\n"
@@ -530,7 +530,7 @@ def run_rm_mode(
 
     # Final output table
     print(
-        f"RM mode completed. Detected {te} elements ≥{min_length} bp. "
+        f"[INFO] RM mode completed. Detected {te} elements ≥{min_length} bp. "
         f"Results in {combined_out} and {rm_fa}"
     )
 

@@ -779,7 +779,7 @@ def run_sv_mode(
     perform_orf = min_length >= 5000 and bool(expanded_te & {"L1HS", "L1PA2", "L1PA3"})
 
     print(
-        "SV mode running with:\n"
+        "[INFO] SV mode running with:\n"
         f"  Input: {input_fasta}\n"
         f"  SV: {sv_file}\n"
         f"  Reference: {reference_fasta}\n"
@@ -1031,7 +1031,7 @@ def run_sv_mode(
         f"[SUM] Final table has {total_final} entries across {status_count} status categories and {te_type_count} TE types"
     )
 
-    print(f"SV mode completed. Results in {out_table} and {sv_fa}")
+    print(f"[INFO] SV mode completed. Results in {out_table} and {sv_fa}")
 
     for tf in temp_files:
         try:
