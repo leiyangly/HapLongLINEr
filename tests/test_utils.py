@@ -7,6 +7,7 @@ from haplongliner.utils import (
     verify_repeatmasker_file,
     verify_sv_file,
     _fix_blast_query_names,
+    sort_bed,
 )
 
 
@@ -64,3 +65,17 @@ def test_fix_blast_query_names(tmp_path):
     assert fixed.startswith(
         "011138A1,186_phaseblock_2,1087928,1093929,+,6,876,1889\tsub"
     )
+
+
+def test_sort_bed(tmp_path):
+    path = tmp_path / "unsorted.bed"
+    path.write_text(
+        "chr2\t50\t60\nchr1\t30\t40\nchr1\t10\t20\n"
+    )
+    sort_bed(path)
+    assert path.read_text().splitlines() == [
+        "chr1\t10\t20",
+        "chr1\t30\t40",
+        "chr2\t50\t60",
+    ]
+

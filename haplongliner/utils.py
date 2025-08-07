@@ -99,6 +99,21 @@ def _fix_blast_query_names(path: Path) -> None:
     os.replace(tmp, path)
 
 
+def sort_bed(path: Path) -> None:
+    """Sort a BED-like file in-place by chromosome and start coordinate."""
+
+    with open(path) as fh:
+        lines = [l for l in fh if l.strip()]
+    header = [l for l in lines if l.startswith("#")]
+    data = [l for l in lines if not l.startswith("#")]
+    data_sorted = sorted(data, key=lambda l: (l.split()[0], int(l.split()[1])))
+    with open(path, "w") as out:
+        for line in header:
+            out.write(line)
+        for line in data_sorted:
+            out.write(line)
+
+
 def shift_fasta_start(fa_path: Path, delta: int = -1) -> None:
     """Adjust start coordinate in FASTA headers by ``delta``.
 

@@ -16,6 +16,7 @@ from .utils import (
     verify_blast_db,
     read_paf,
     _fix_blast_query_names,
+    sort_bed,
 )
 from .liftover_paf import liftover_paf
 from pyfaidx import Fasta
@@ -1005,6 +1006,8 @@ def run_sv_mode(
             out.write(
                 f"{chrom}\t{start}\t{end}\t{name_out}\t{target_len}\t.\t{final_stat}\t{target_info}\n"
             )
+
+    sort_bed(out_table)
     # Summary for Step 6
     total_final = 0
     final_status_counts: Counter[str] = Counter()

@@ -19,6 +19,7 @@ from .utils import (
     verify_fasta_file,
     verify_repeatmasker_file,
     _fix_blast_query_names,
+    sort_bed,
 )
 from .liftover_paf import liftover_paf
 
@@ -501,6 +502,8 @@ def run_rm_mode(
             combined_out,
             min_length=min_length,
         )
+
+    sort_bed(combined_out)
 
     rm_fa = outdir / "haplongliner_rm.fa"
     _write_rm_sequences(Path(input_fasta), candidate_bed, rm_fa)
