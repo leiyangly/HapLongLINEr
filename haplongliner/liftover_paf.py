@@ -12,6 +12,8 @@ import argparse
 import sys
 from typing import Dict, Iterable, List, Tuple
 
+from tqdm import tqdm
+
 
 # ---------------------------------------------------------------------------
 # interval utilities (port of Interval.* helpers in paftools.js)
@@ -140,7 +142,21 @@ def liftover_paf(
     re_tag = _re.compile(r"^(\S\S):([AZif]):(\S+)$")
 
     with fh:
-        for line in fh:
+        line_iter = fh
+        progress = None
+        if paf_path != "-":
+            is_tty = getattr(sys.stderr, "isatty", lambda: False)()
+            if is_tty:
+                total = sum(1 for _ in open(paf_path))
+                progress = tqdm(
+                    fh,
+                    total=total,
+                    unit="aln",
+                    desc="Liftover",
+                    file=sys.stderr,
+                )
+                line_iter = progress
+        for line in line_iter:
             if not line.strip():
                 continue
             t = line.rstrip().split("\t")
@@ -245,6 +261,8 @@ def liftover_paf(
                         [t[5], str(start), str(end), name, str(b_score), out_strand]
                     )
                 )
+        if progress is not None:
+            progress.close()
 
 
 # ---------------------------------------------------------------------------
