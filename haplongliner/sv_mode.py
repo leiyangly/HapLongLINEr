@@ -778,15 +778,16 @@ def run_sv_mode(
     expanded_te = _expand_te_names(te_list)
     perform_orf = min_length >= 5000 and bool(expanded_te & {"L1HS", "L1PA2", "L1PA3"})
 
-    print(
-        "[INFO] SV mode running with:\n"
-        f"  Input: {input_fasta}\n"
-        f"  SV: {sv_file}\n"
-        f"  Reference: {reference_fasta}\n"
-        f"  Output Dir: {output_dir}\n"
-        f"  TE types: {te} (min length {min_length})\n"
-        f"  ASM preset: asm{asm}"
-    )
+    info_lines = [
+        "[INFO] SV mode running with:",
+        f"[INFO]   Input: {input_fasta}",
+        f"[INFO]   SV: {sv_file}",
+        f"[INFO]   Reference: {reference_fasta}",
+        f"[INFO]   Output Dir: {output_dir}",
+        f"[INFO]   TE types: {te} (min length {min_length})",
+        f"[INFO]   ASM preset: asm{asm}",
+    ]
+    print("\n".join(info_lines))
 
     if not perform_orf:
         print(
