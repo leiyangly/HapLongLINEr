@@ -8,7 +8,6 @@
 !/LICENSE
 !/setup.py
 !/pyproject.toml
-!/liftover_paf.py
 !/data/L1rp*
 !/data/HPRC_L1_hs_v2_v2fl.bed
 !/data/HPRC_L1_hs1_master_v2.bed
