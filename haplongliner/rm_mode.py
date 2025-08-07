@@ -359,8 +359,10 @@ def run_rm_mode(
             te = line.split()[3]
             te_counts[te] += 1
     num_candidates = sum(te_counts.values())
-    te_summary = ", ".join(f"{k}:{v}" for k, v in te_counts.items()) if te_counts else "none"
-    print(f"[SUM] Parsed {total_entries} entries; {num_candidates} candidates after filtering ({te_summary})")
+    te_type_count = len(te_counts)
+    print(
+        f"[SUM] Parsed {total_entries} entries; {num_candidates} candidates after filtering across {te_type_count} TE types"
+    )
 
     if liftover == "flank2kb":
         print("\n[STEP 2] Performing liftover based on 2kb flanking sequences")
@@ -518,9 +520,9 @@ def run_rm_mode(
             final_te_counts[fields[3]] += 1
             if len(fields) > 6 and fields[6] == "intact":
                 intact_final += 1
-    te_summary = ", ".join(f"{k}:{v}" for k, v in final_te_counts.items()) if final_te_counts else "none"
+    te_type_count = len(final_te_counts)
     print(
-        f"[SUM] Final table contains {total_final} entries; {intact_final} intact ({te_summary})"
+        f"[SUM] Final table contains {total_final} entries; {intact_final} intact across {te_type_count} TE types"
     )
 
     # Final output table
