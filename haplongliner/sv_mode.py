@@ -852,8 +852,11 @@ def run_sv_mode(
             fields = line.strip().split()
             if len(fields) > 3:
                 ref_te_counts[fields[3]] += 1
-    te_summary = ", ".join(f"{k}:{v}" for k, v in ref_te_counts.items()) if ref_te_counts else "none"
-    print(f"[SUM] Prepared reference with {ref_total} entries ({te_summary})")
+    te_type_count = len(ref_te_counts)
+    msg = f"[SUM] Prepared reference with {ref_total} entries"
+    if te_type_count:
+        msg += f" across {te_type_count} TE types"
+    print(msg)
 
     print("\n[STEP 2] Mapping assemblies with minimap2")
 
@@ -938,9 +941,9 @@ def run_sv_mode(
 
     # Summary for Step 5
     status_counts = Counter(status.values())
-    status_summary = ", ".join(f"{k}:{v}" for k, v in status_counts.items()) if status_counts else "none"
+    num_statuses = len(status_counts)
     print(
-        f"[SUM] Classified {len(status)} lifted TEs ({status_summary}); "
+        f"[SUM] Classified {len(status)} lifted TEs across {num_statuses} status categories; "
         f"intact: {len(intact_names)}; extra insertions: {len(extra_ins)}"
     )
 
@@ -1019,10 +1022,10 @@ def run_sv_mode(
                 final_te_counts[fields[3]] += 1
             if len(fields) > 6:
                 final_status_counts[fields[6]] += 1
-    status_summary = ", ".join(f"{k}:{v}" for k, v in final_status_counts.items()) if final_status_counts else "none"
-    te_summary = ", ".join(f"{k}:{v}" for k, v in final_te_counts.items()) if final_te_counts else "none"
+    status_count = len(final_status_counts)
+    te_type_count = len(final_te_counts)
     print(
-        f"[SUM] Final table has {total_final} entries; statuses: {status_summary}; TE counts: {te_summary}"
+        f"[SUM] Final table has {total_final} entries across {status_count} status categories and {te_type_count} TE types"
     )
 
     print(f"SV mode completed. Results in {out_table} and {sv_fa}")
