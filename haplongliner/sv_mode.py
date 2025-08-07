@@ -6,6 +6,7 @@ import itertools
 import tempfile
 from pathlib import Path
 from typing import Dict, List, Tuple, Iterable, Set
+from collections import Counter
 
 from .utils import (
     run_quiet,
@@ -840,6 +841,20 @@ def run_sv_mode(
 
     verify_fasta_file(ref_path)
 
+    # Summary for Step 1
+    ref_total = 0
+    ref_te_counts: Counter[str] = Counter()
+    with open(ref_bed) as fh:
+        for line in fh:
+            if not line.strip():
+                continue
+            ref_total += 1
+            fields = line.strip().split()
+            if len(fields) > 3:
+                ref_te_counts[fields[3]] += 1
+    te_summary = ", ".join(f"{k}:{v}" for k, v in ref_te_counts.items()) if ref_te_counts else "none"
+    print(f"[SUM] Prepared reference with {ref_total} entries ({te_summary})")
+
     print("\n[STEP 2] Mapping assemblies with minimap2")
 
     aln_paf = outdir / "genome_alignment.paf"
@@ -857,7 +872,9 @@ def run_sv_mode(
             check=True,
             stdout=out,
         )
-
+    with open(aln_paf) as fh:
+        alignments = sum(1 for _ in fh if _.strip())
+    print(f"[SUM] Generated {alignments} alignment records")
     print("\n[STEP 3] Lifting over candidate TE coordinates")
 
     lifted_bed = outdir / "lifted.bed"
@@ -868,10 +885,12 @@ def run_sv_mode(
 
     lifted_reorg = outdir / "lifted_reorg.bed"
     lifted = _create_lifted_reorg(lifted_bed, ref_bed, lifted_reorg)
+    print(f"[SUM] Lifted {len(lifted)} TE candidates")
 
     print("\n[STEP 4] Parsing structural variants")
 
     deletions, insertions = _parse_sv(Path(sv_file), Path(log) if log else None)
+    print(f"[SUM] Parsed {len(deletions)} deletions and {len(insertions)} insertions")
 
     print("\n[STEP 5] Validating candidate TEs")
 
@@ -915,6 +934,14 @@ def run_sv_mode(
         extra_ins,
         presence_names,
         intact_names,
+    )
+
+    # Summary for Step 5
+    status_counts = Counter(status.values())
+    status_summary = ", ".join(f"{k}:{v}" for k, v in status_counts.items()) if status_counts else "none"
+    print(
+        f"[SUM] Classified {len(status)} lifted TEs ({status_summary}); "
+        f"intact: {len(intact_names)}; extra insertions: {len(extra_ins)}"
     )
 
     print("\n[STEP 6] Writing output table")
@@ -978,6 +1005,25 @@ def run_sv_mode(
             out.write(
                 f"{chrom}\t{start}\t{end}\t{name_out}\t{target_len}\t.\t{final_stat}\t{target_info}\n"
             )
+    # Summary for Step 6
+    total_final = 0
+    final_status_counts: Counter[str] = Counter()
+    final_te_counts: Counter[str] = Counter()
+    with open(out_table) as fh:
+        for line in fh:
+            if not line.strip():
+                continue
+            total_final += 1
+            fields = line.strip().split()
+            if len(fields) > 3:
+                final_te_counts[fields[3]] += 1
+            if len(fields) > 6:
+                final_status_counts[fields[6]] += 1
+    status_summary = ", ".join(f"{k}:{v}" for k, v in final_status_counts.items()) if final_status_counts else "none"
+    te_summary = ", ".join(f"{k}:{v}" for k, v in final_te_counts.items()) if final_te_counts else "none"
+    print(
+        f"[SUM] Final table has {total_final} entries; statuses: {status_summary}; TE counts: {te_summary}"
+    )
 
     print(f"SV mode completed. Results in {out_table} and {sv_fa}")
 

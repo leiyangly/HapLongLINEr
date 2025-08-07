@@ -7,6 +7,7 @@ import shutil
 import os
 
 from pyfaidx import Fasta
+from collections import Counter
 
 from .find_longest_orf import find_longest_orf
 from .find_intact_orf import find_intact_orf
@@ -343,6 +344,24 @@ def run_rm_mode(
     if perform_orf:
         _extract_fasta(fa, candidate_bed, candidate_fa)
 
+    # Summary for Step 1
+    total_entries = 0
+    te_counts: Counter[str] = Counter()
+    with open(parsed_bed) as fh:
+        for line in fh:
+            if not line.strip():
+                continue
+            total_entries += 1
+    with open(candidate_bed) as fh:
+        for line in fh:
+            if not line.strip():
+                continue
+            te = line.split()[3]
+            te_counts[te] += 1
+    num_candidates = sum(te_counts.values())
+    te_summary = ", ".join(f"{k}:{v}" for k, v in te_counts.items()) if te_counts else "none"
+    print(f"[SUM] Parsed {total_entries} entries; {num_candidates} candidates after filtering ({te_summary})")
+
     if liftover == "flank2kb":
         print("\n[STEP 2] Performing liftover based on 2kb flanking sequences")
         # 4-6. Extract flanking 2kb regions, obtain their sequences and map them to the reference genome
@@ -381,6 +400,7 @@ def run_rm_mode(
             shell=True,
             check=True,
         )
+        print(f"[SUM] Generated flanking mappings for {num_candidates} candidates")
     else:
         print("\n[STEP 2] Performing liftover using whole-genome alignment")
         aln_paf = outdir / "genome_alignment.paf"
@@ -402,6 +422,8 @@ def run_rm_mode(
         import contextlib
         with open(lifted_bed, "w") as out, contextlib.redirect_stdout(out):
             liftover_paf(str(aln_paf), str(candidate_bed), 0, 0, 2.0, False)
+        lifted_count = sum(1 for line in open(lifted_bed) if line.strip())
+        print(f"[SUM] Lifted coordinates for {lifted_count} candidates")
 
     if perform_orf:
         print("\n[STEP 3] Detecting intact ORFs")
@@ -454,6 +476,10 @@ def run_rm_mode(
         )
         intact_out = outdir / "cand_orf_intact.blastp"
 
+    # Summary for Step 3
+    intact_records = _read_intact(intact_out)
+    print(f"[SUM] {len(intact_records)}/{num_candidates} candidates with intact ORFs")
+
     print("\n[STEP 4] Preparing output files")
     # 9-10. Integrate ORF status, liftover information and write candidate sequences
     # Integrate ORF status and liftover information
@@ -478,6 +504,24 @@ def run_rm_mode(
 
     rm_fa = outdir / "haplongliner_rm.fa"
     _write_rm_sequences(Path(input_fasta), candidate_bed, rm_fa)
+
+    # Summary for Step 4
+    total_final = 0
+    intact_final = 0
+    final_te_counts: Counter[str] = Counter()
+    with open(combined_out) as fh:
+        for line in fh:
+            if not line.strip():
+                continue
+            total_final += 1
+            fields = line.strip().split()
+            final_te_counts[fields[3]] += 1
+            if len(fields) > 6 and fields[6] == "intact":
+                intact_final += 1
+    te_summary = ", ".join(f"{k}:{v}" for k, v in final_te_counts.items()) if final_te_counts else "none"
+    print(
+        f"[SUM] Final table contains {total_final} entries; {intact_final} intact ({te_summary})"
+    )
 
     # Final output table
     print(
