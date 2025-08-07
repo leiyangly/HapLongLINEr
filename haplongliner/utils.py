@@ -106,7 +106,17 @@ def sort_bed(path: Path) -> None:
         lines = [l for l in fh if l.strip()]
     header = [l for l in lines if l.startswith("#")]
     data = [l for l in lines if not l.startswith("#")]
-    data_sorted = sorted(data, key=lambda l: (l.split()[0], int(l.split()[1])))
+
+    def _bed_key(line: str):
+        fields = line.split()
+        chrom = fields[0] if fields else ""
+        try:
+            start = int(fields[1])
+        except (IndexError, ValueError):
+            start = float("inf")
+        return chrom, start
+
+    data_sorted = sorted(data, key=_bed_key)
     with open(path, "w") as out:
         for line in header:
             out.write(line)
