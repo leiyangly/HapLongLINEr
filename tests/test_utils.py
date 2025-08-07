@@ -79,3 +79,13 @@ def test_sort_bed(tmp_path):
         "chr2\t50\t60",
     ]
 
+
+def test_sort_bed_with_na_start(tmp_path):
+    path = tmp_path / "unsorted_na.bed"
+    path.write_text("chr1\tNA\t20\nchr1\t10\t20\n")
+    sort_bed(path)
+    assert path.read_text().splitlines() == [
+        "chr1\t10\t20",
+        "chr1\tNA\t20",
+    ]
+
