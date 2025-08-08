@@ -538,14 +538,12 @@ def _extract_sequences(
                 out.write(f">{header}\n{seq}\n")
 
         for name, seq in ins_seqs.items():
-            if len(seq) >= min_length:
-                out.write(f">{name}_ins\n{seq}\n")
+            out.write(f">{name}_ins\n{seq}\n")
 
         if extra_ins:
             for chrom, start, end, seq, name in extra_ins:
-                if len(seq) >= min_length:
-                    header = f"{name},{chrom},{start},{end},."
-                    out.write(f">{header}\n{seq}\n")
+                header = f"{name},{chrom},{start},{end},."
+                out.write(f">{header}\n{seq}\n")
 
 
 def _write_sv_sequences(
@@ -902,7 +900,7 @@ def run_sv_mode(
     status, ins_seqs = _classify_sv(lifted, deletions, insertions, outdir, lifted_reorg)
 
     inter_ins = outdir / "intersect_ins.bed"
-    extra_ins = _collect_long_insertions(insertions, inter_ins, min_length)
+    extra_ins = _collect_long_insertions(insertions, inter_ins, 0)
 
     candidate_fa = outdir / "cand.fa"
     _extract_sequences(
