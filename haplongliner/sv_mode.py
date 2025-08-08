@@ -704,9 +704,37 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
     return present, intact
 
 
+def _remove_empty_sequences(fasta_path: Path) -> None:
+    """Remove records without sequence data from ``fasta_path`` in-place."""
+    tmp_path = fasta_path.with_suffix(".tmp")
+    with open(fasta_path) as src, open(tmp_path, "w") as dst:
+        header = None
+        seq_lines: List[str] = []
+
+        def flush() -> None:
+            if header and seq_lines:
+                dst.write(header)
+                if not header.endswith("\n"):
+                    dst.write("\n")
+                dst.writelines(seq_lines)
+
+        for line in src:
+            if line.startswith(">"):
+                flush()
+                header = line
+                seq_lines = []
+            else:
+                if line.strip():
+                    seq_lines.append(line)
+        flush()
+
+    tmp_path.replace(fasta_path)
+
+
 def _validate_presence(candidate_fa: Path, min_length: int = 5000) -> Set[str]:
     """Return names of sequences aligning at least ``min_length`` bp to L1rp."""
     present: Set[str] = set()
+    _remove_empty_sequences(candidate_fa)
     if candidate_fa.stat().st_size == 0:
         return present
 
