@@ -8,15 +8,12 @@ from typing import Dict, List
 def check_dependencies():
     """Ensure required external tools are available.
 
-    ``blastn`` is used during structural-variant processing to validate
-    candidate LINE-1 sequences, but it was previously omitted from the
-    dependency check.  This meant users would only encounter a cryptic
-    subprocess failure later in the pipeline if ``blastn`` was missing from
-    the ``PATH``.  Including it here allows us to fail fast with a clear
-    message describing the missing requirement.
+    ``RepeatMasker`` is used during structural-variant processing to classify
+    candidate LINE-1 sequences.  Including it in the dependency check allows
+    us to fail fast with a clear message if it is missing from the ``PATH``.
     """
 
-    tools = ["minimap2", "getorf", "blastp", "blastn"]
+    tools = ["minimap2", "getorf", "blastp", "RepeatMasker"]
     missing = [tool for tool in tools if shutil.which(tool) is None]
     if missing:
         sys.exit(

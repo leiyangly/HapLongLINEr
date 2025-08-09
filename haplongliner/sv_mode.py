@@ -732,49 +732,28 @@ def _remove_empty_sequences(fasta_path: Path) -> None:
 
 
 def _validate_presence(candidate_fa: Path, min_length: int = 5000) -> Set[str]:
-    """Return names of sequences aligning at least ``min_length`` bp to L1rp."""
+    """Return names of sequences classified as L1 with coverage ≥ ``min_length`` bp."""
     present: Set[str] = set()
     _remove_empty_sequences(candidate_fa)
     if candidate_fa.stat().st_size == 0:
         return present
 
-    blastn_out = candidate_fa.with_suffix(".blastn")
-    ref_fa = Path("data") / "L1rp.fa"
     run_quiet(
         [
-            "blastn",
-            "-query",
+            "RepeatMasker",
+            "-e",
+            "rmblast",
             str(candidate_fa),
-            "-subject",
-            str(ref_fa),
-            "-outfmt",
-            "6 std qlen slen",
-            "-out",
-            str(blastn_out),
         ],
         check=True,
     )
 
-    longest: Dict[str, int] = {}
-    with open(blastn_out) as fh:
-        for line in fh:
-            if not line.strip():
-                continue
-            f = line.strip().split()
-            if len(f) < 14:
-                continue
-            name = ",".join(f[0].split(",")[:3])
-            try:
-                length = int(f[3])
-            except ValueError:
-                continue
-            prev = longest.get(name, 0)
-            if length > prev:
-                longest[name] = length
-
-    for name, aln_len in longest.items():
-        if aln_len >= min_length:
-            present.add(name)
+    rm_out = candidate_fa.with_suffix(candidate_fa.suffix + ".out")
+    ref_fa = Path("data") / "L1rp.fa"
+    with open(ref_fa) as fh:
+        l1_len = sum(len(line.strip()) for line in fh if not line.startswith(">"))
+    cov_thresh = min_length / l1_len if l1_len else 1.0
+    present = _parse_repeatmasker(rm_out, l1_len, cov_thresh)
 
     return present
 
@@ -995,10 +974,10 @@ def run_sv_mode(
             scaf, *_rest, t_strand = plus_info.split(",")
             target_len = t_end - t_start
 
-            # Presence is determined solely by cand.blastn and
+            # Presence is determined solely by cand.fa.out and
             # cand_orf_intact.blastp results. Any sequence found in
             # cand_orf_intact.blastp is labeled "intact"; those only in
-            # cand.blastn are labeled "present". Everything else is
+            # cand.fa.out are labeled "present". Everything else is
             # considered "absent".
             key = f"{name},{scaf},{t_start}"
 
