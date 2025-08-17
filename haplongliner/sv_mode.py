@@ -17,6 +17,7 @@ from .utils import (
     read_paf,
     _fix_blast_query_names,
     sort_bed,
+    append_fasta,
 )
 from .liftover_paf import liftover_paf
 from pyfaidx import Fasta
@@ -699,6 +700,8 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
                 continue
             name = ",".join(fields[0].split(",")[:3])
             intact.add(name)
+
+    append_fasta(orf_fa, candidate_fa)
 
     return present, intact
 
