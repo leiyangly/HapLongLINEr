@@ -537,11 +537,13 @@ def _extract_sequences(
                 if t_strand == "-":
                     seq = _revcomp(seq)
             if seq:
+                seq = seq.upper()
                 header = f"{name},{scaf},{t_start},{t_end},{t_strand}"
                 out.write(f">{header}\n{seq}\n")
 
         if extra_ins:
             for chrom, start, end, seq, name in extra_ins:
+                seq = seq.upper()
                 header = f"{name},{chrom},{start},{end},."
                 out.write(f">{header}\n{seq}\n")
 
