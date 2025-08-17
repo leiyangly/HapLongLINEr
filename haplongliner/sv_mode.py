@@ -530,15 +530,14 @@ def _extract_sequences(
     with open(out_fa, "w") as out:
         for _, _, _, name, _, _, plus_info, _, t_start, t_end in lifted:
             scaf, _ps, _pe, t_strand = _parse_target_info(plus_info)
-            seq = fa[scaf][t_start:t_end].seq
-            if t_strand == "-":
-                seq = _revcomp(seq)
+            seq = ins_seqs.get(name)
+            if seq is None:
+                seq = fa[scaf][t_start:t_end].seq
+                if t_strand == "-":
+                    seq = _revcomp(seq)
             if seq:
                 header = f"{name},{scaf},{t_start},{t_end},{t_strand}"
                 out.write(f">{header}\n{seq}\n")
-
-        for name, seq in ins_seqs.items():
-            out.write(f">{name}_ins\n{seq}\n")
 
         if extra_ins:
             for chrom, start, end, seq, name in extra_ins:
@@ -633,7 +632,7 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
     if candidate_fa.stat().st_size == 0:
         return present, intact
 
-    orf_fa = candidate_fa.with_name(candidate_fa.stem + "_.orf.fa")
+    orf_fa = candidate_fa.with_name(candidate_fa.stem + "_orf.fa")
     run_quiet(
         [
             "getorf",
