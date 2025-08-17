@@ -750,6 +750,7 @@ def _validate_presence(candidate_fa: Path, min_length: int = 5000) -> Set[str]:
             str(candidate_fa),
         ],
         check=True,
+        cwd=candidate_fa.parent,
     )
 
     rm_out = candidate_fa.with_suffix(candidate_fa.suffix + ".out")
