@@ -31,11 +31,13 @@ def test_extract_sequences_with_extras(tmp_path):
 def test_extract_sequences_insertions_unfiltered(tmp_path):
     fa = tmp_path / "test.fa"
     fa.write_text(">chr1\n" + "A" * 100 + "\n")
-    lifted: list = []
-    status = {}
+    lifted = [
+        ("chr1", 10, 20, "L1a", 10, "+", "chr1,10,20,+", "chr1,10,20,+", 10, 20)
+    ]
+    status = {"L1a": "present"}
     ins = {"L1a": "T" * 10}
     extras = [("chr1", 80, 82, "G" * 2, "INS_chr1_80")]
     out = tmp_path / "ins.fa"
     _extract_sequences(fa, lifted, status, ins, out, 50, extras)
     lines = [l.strip() for l in open(out)]
-    assert lines == [">L1a_ins", "T" * 10, ">INS_chr1_80,chr1,80,82,.", "G" * 2]
+    assert lines == [">L1a,chr1,10,20,+", "T" * 10, ">INS_chr1_80,chr1,80,82,.", "G" * 2]
