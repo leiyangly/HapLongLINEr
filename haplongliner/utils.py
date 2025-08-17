@@ -105,6 +105,27 @@ def _fix_blast_query_names(path: Path) -> None:
     os.replace(tmp, path)
 
 
+def append_fasta(dst: Path, src: Path) -> None:
+    """Append FASTA records from ``src`` to ``dst``.
+
+    Ensures that the destination ends with a newline before appending and
+    silently skips missing or empty sources.
+    """
+
+    src_path = Path(src)
+    if not src_path.exists() or src_path.stat().st_size == 0:
+        return
+
+    dst_path = Path(dst)
+    with open(dst_path, "ab+") as out, open(src_path, "rb") as inp:
+        out.seek(0, os.SEEK_END)
+        if out.tell() > 0:
+            out.seek(-1, os.SEEK_END)
+            if out.read(1) != b"\n":
+                out.write(b"\n")
+        out.write(inp.read())
+
+
 def sort_bed(path: Path) -> None:
     """Sort a BED-like file in-place by chromosome and start coordinate."""
 

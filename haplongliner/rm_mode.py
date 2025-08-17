@@ -20,6 +20,7 @@ from .utils import (
     verify_repeatmasker_file,
     _fix_blast_query_names,
     sort_bed,
+    append_fasta,
 )
 from .liftover_paf import liftover_paf
 
@@ -474,6 +475,7 @@ def run_rm_mode(
         intact_out = outdir / "cand_orf_intact.blastp"
         find_intact_orf(longest_orf_out, intact_out)
         _fix_blast_query_names(intact_out)
+        append_fasta(orf_fa, candidate_fa)
     else:
         print(
             "\n[STEP 3] Skipping intact ORF detection and BLASTP steps "

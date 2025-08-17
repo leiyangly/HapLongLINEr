@@ -8,6 +8,7 @@ from haplongliner.utils import (
     verify_sv_file,
     _fix_blast_query_names,
     sort_bed,
+    append_fasta,
 )
 
 
@@ -87,5 +88,19 @@ def test_sort_bed_with_na_start(tmp_path):
     assert path.read_text().splitlines() == [
         "chr1\t10\t20",
         "chr1\tNA\t20",
+    ]
+
+
+def test_append_fasta(tmp_path):
+    dst = tmp_path / "orf.fa"
+    dst.write_text(">a,1,2,+,1,1,2\nAA\n")
+    src = tmp_path / "cand.fa"
+    src.write_text(">a,1,2,+\nAAAA\n")
+    append_fasta(dst, src)
+    assert dst.read_text().splitlines() == [
+        ">a,1,2,+,1,1,2",
+        "AA",
+        ">a,1,2,+",
+        "AAAA",
     ]
 
