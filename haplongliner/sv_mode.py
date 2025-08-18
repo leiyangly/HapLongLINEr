@@ -17,6 +17,7 @@ from .utils import (
     read_paf,
     _fix_blast_query_names,
     sort_bed,
+    append_fasta,
 )
 from .liftover_paf import liftover_paf
 from pyfaidx import Fasta
@@ -708,6 +709,50 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
     return present, intact
 
 
+def _append_liftover_orfs(orf_fa: Path, sv_fa: Path) -> None:
+    """Append ORFs from liftover-derived sequences in ``sv_fa`` to ``orf_fa``.
+
+    ``sv_fa`` contains sequences from the target assembly with headers formatted
+    as ``chrom,start,end,length,strand,stat`` where ``stat`` is ``INS`` for
+    insertion calls.  This function extracts ORFs from ``sv_fa`` using EMBOSS
+    ``getorf`` and appends ORFs for records whose ``stat`` is not ``INS`` to the
+    existing ``orf_fa`` file.
+    """
+
+    if not sv_fa.exists() or sv_fa.stat().st_size == 0:
+        return
+
+    liftover_orf = sv_fa.with_name("sv_orf.fa")
+    run_quiet(
+        [
+            "getorf",
+            "-sequence",
+            str(sv_fa),
+            "-find",
+            "1",
+            "-outseq",
+            str(liftover_orf),
+        ],
+        check=True,
+    )
+    _fix_getorf_headers(liftover_orf, sv_fa)
+
+    filtered = liftover_orf.with_suffix(".filtered")
+    with open(liftover_orf) as src, open(filtered, "w") as dst:
+        write = False
+        for line in src:
+            if line.startswith(">"):
+                fields = line[1:].strip().split(",")
+                write = len(fields) >= 6 and fields[5] != "INS"
+                if write:
+                    dst.write(line)
+            else:
+                if write:
+                    dst.write(line)
+
+    append_fasta(orf_fa, filtered)
+
+
 def _remove_empty_sequences(fasta_path: Path) -> None:
     """Remove records without sequence data from ``fasta_path`` in-place."""
     tmp_path = fasta_path.with_suffix(".tmp")
@@ -950,6 +995,9 @@ def run_sv_mode(
         presence_names,
         intact_names,
     )
+
+    if perform_orf:
+        _append_liftover_orfs(candidate_fa.with_name("cand_orf.fa"), sv_fa)
 
     # Summary for Step 5
     status_counts = Counter(status.values())
