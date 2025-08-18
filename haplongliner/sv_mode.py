@@ -17,7 +17,6 @@ from .utils import (
     read_paf,
     _fix_blast_query_names,
     sort_bed,
-    append_fasta,
 )
 from .liftover_paf import liftover_paf
 from pyfaidx import Fasta
@@ -649,8 +648,6 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
         check=True,
     )
     _fix_getorf_headers(orf_fa, candidate_fa)
-
-    append_fasta(orf_fa, candidate_fa)
 
     _remove_empty_sequences(orf_fa)
     if orf_fa.stat().st_size == 0:
