@@ -652,6 +652,10 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
 
     append_fasta(orf_fa, candidate_fa)
 
+    _remove_empty_sequences(orf_fa)
+    if orf_fa.stat().st_size == 0:
+        return present, intact
+
     blastp_out = candidate_fa.with_name("cand_orf.blastp")
     db_prefix = Path("data") / "L1rpORF12p.fa"
     verify_blast_db(db_prefix)
