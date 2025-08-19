@@ -635,7 +635,8 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
     if candidate_fa.stat().st_size == 0:
         return present, intact
 
-    orf_fa = candidate_fa.with_name(candidate_fa.stem + "_orf.fa")
+    # Generate ORFs in a file named ``cand_orf.fa`` to mirror RM mode
+    orf_fa = candidate_fa.with_name("cand_orf.fa")
     run_quiet(
         [
             "getorf",
