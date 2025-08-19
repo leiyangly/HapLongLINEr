@@ -14,6 +14,7 @@ from .utils import (
     verify_sv_file,
     verify_repeatmasker_file,
     verify_blast_db,
+    read_nonempty_fasta,
     read_paf,
     _fix_blast_query_names,
     sort_bed,
@@ -647,9 +648,8 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
         check=True,
     )
     _fix_getorf_headers(orf_fa, candidate_fa)
-
-    _remove_empty_sequences(orf_fa)
-    if orf_fa.stat().st_size == 0:
+    filtered_fasta = read_nonempty_fasta(orf_fa)
+    if not filtered_fasta:
         return present, intact
 
     blastp_out = candidate_fa.with_name("cand_orf.blastp")
@@ -661,12 +661,14 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
             "-db",
             str(db_prefix),
             "-query",
-            str(orf_fa),
+            "-",
             "-outfmt",
             "6 std qlen slen sacc",
             "-out",
             str(blastp_out),
         ],
+        input=filtered_fasta,
+        text=True,
         check=True,
     )
     _fix_blast_query_names(blastp_out)

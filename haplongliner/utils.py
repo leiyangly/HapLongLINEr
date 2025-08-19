@@ -4,6 +4,8 @@ import sys
 from pathlib import Path
 from typing import Dict, List
 
+from Bio import SeqIO
+
 
 def check_dependencies():
     """Ensure required external tools are available.
@@ -124,6 +126,16 @@ def append_fasta(dst: Path, src: Path) -> None:
             if out.read(1) != b"\n":
                 out.write(b"\n")
         out.write(inp.read())
+
+
+def read_nonempty_fasta(path: Path) -> str:
+    """Return FASTA text with only records containing sequence data."""
+
+    records = []
+    for record in SeqIO.parse(path, "fasta"):
+        if record.seq:
+            records.append(f">{record.description}\n{record.seq}\n")
+    return "".join(records)
 
 
 def sort_bed(path: Path) -> None:

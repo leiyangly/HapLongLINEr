@@ -19,6 +19,7 @@ from .utils import (
     verify_fasta_file,
     verify_repeatmasker_file,
     _fix_blast_query_names,
+    read_nonempty_fasta,
     sort_bed,
     append_fasta,
 )
@@ -452,21 +453,27 @@ def run_rm_mode(
         blastp_out = outdir / "cand_orf.blastp"
         db_prefix = Path("data") / "L1rpORF12p.fa"
         verify_blast_db(db_prefix)
-        run_quiet(
-            [
-                "blastp",
-                "-db",
-                str(db_prefix),
-                "-query",
-                str(orf_fa),
-                "-outfmt",
-                "6 std qlen slen sacc",
-                "-out",
-                str(blastp_out),
-            ],
-            check=True,
-        )
-        _fix_blast_query_names(blastp_out)
+        filtered_fasta = read_nonempty_fasta(orf_fa)
+        if filtered_fasta:
+            run_quiet(
+                [
+                    "blastp",
+                    "-db",
+                    str(db_prefix),
+                    "-query",
+                    "-",
+                    "-outfmt",
+                    "6 std qlen slen sacc",
+                    "-out",
+                    str(blastp_out),
+                ],
+                input=filtered_fasta,
+                text=True,
+                check=True,
+            )
+            _fix_blast_query_names(blastp_out)
+        else:
+            blastp_out.touch()
         longest_orf_out = outdir / "cand_orf_combine.blastp"
         find_longest_orf(blastp_out, longest_orf_out)
         _fix_blast_query_names(longest_orf_out)

@@ -7,7 +7,7 @@ def test_validate_orfs_outputs_only_orfs(monkeypatch, tmp_path):
     cand = tmp_path / "cand.fa"
     cand.write_text(">L1,chr1,0,24,+\n" "ATGGCCATTGTAATGGGCCGCTGAA\n")
 
-    def fake_run_quiet(cmd, check=True, cwd=None):
+    def fake_run_quiet(cmd, check=True, cwd=None, **kwargs):
         # Simulate getorf and blastp calls by creating expected output files
         if cmd[0] == "getorf":
             out = Path(cmd[-1])
@@ -40,7 +40,7 @@ def test_append_liftover_orfs(monkeypatch, tmp_path):
         ">chr1,50,70,20,+,INS\nATGGCC\n"
     )
 
-    def fake_run_quiet(cmd, check=True, cwd=None):
+    def fake_run_quiet(cmd, check=True, cwd=None, **kwargs):
         out = Path(cmd[-1])
         if cmd[0] == "getorf":
             if out.name == "cand_orf.fa":
