@@ -518,34 +518,31 @@ def _classify_sv(
 def _extract_sequences(
     fasta: Path,
     lifted: List[Tuple[str, int, int, str, int, str, str, str, int, int]],
-    status: Dict[str, str],
-    ins_seqs: Dict[str, str],
     out_fa: Path,
+    insertions: List[Tuple[str, int, int, str]],
     min_length: int,
-    extra_ins: List[Tuple[str, int, int, str, str]] | None = None,
 ) -> None:
-    """Extract candidate TE sequences from the target assembly."""
+    """Extract candidate TE and insertion sequences from the target assembly."""
 
     fa = Fasta(str(fasta))
 
     with open(out_fa, "w") as out:
         for _, _, _, name, _, _, plus_info, _, t_start, t_end in lifted:
             scaf, _ps, _pe, t_strand = _parse_target_info(plus_info)
-            seq = ins_seqs.get(name)
-            if seq is None:
-                seq = fa[scaf][t_start:t_end].seq
-                if t_strand == "-":
-                    seq = _revcomp(seq)
-            if seq:
-                seq = seq.upper()
-                header = f"{name},{scaf},{t_start},{t_end},{t_strand}"
-                out.write(f">{header}\n{seq}\n")
+            seq = fa[scaf][t_start:t_end].seq
+            if t_strand == "-":
+                seq = _revcomp(seq)
+            seq = seq.upper()
+            header = f"{name},{scaf},{t_start},{t_end},{t_strand}"
+            out.write(f">{header}\n{seq}\n")
 
-        if extra_ins:
-            for chrom, start, end, seq, name in extra_ins:
-                seq = seq.upper()
-                header = f"{name},{chrom},{start},{end},."
-                out.write(f">{header}\n{seq}\n")
+        for chrom, start, end, seq in insertions:
+            if len(seq) < min_length:
+                continue
+            seq = seq.upper()
+            name = f"INS_{chrom}_{start}"
+            header = f"{name},{chrom},{start},{end},."
+            out.write(f">{header}\n{seq}\n")
 
 
 def _write_sv_sequences(
@@ -958,17 +955,15 @@ def run_sv_mode(
     status, ins_seqs = _classify_sv(lifted, deletions, insertions, outdir, lifted_reorg)
 
     inter_ins = outdir / "intersect_ins.bed"
-    extra_ins = _collect_long_insertions(insertions, inter_ins, 0)
+    extra_ins = _collect_long_insertions(insertions, inter_ins, min_length)
 
     candidate_fa = outdir / "cand.fa"
     _extract_sequences(
         Path(input_fasta),
         lifted,
-        status,
-        ins_seqs,
         candidate_fa,
+        insertions,
         min_length,
-        extra_ins,
     )
 
     if perform_orf:
