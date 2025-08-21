@@ -137,7 +137,6 @@ def read_nonempty_fasta(path: Path) -> str:
             records.append(f">{record.description}\n{record.seq}\n")
     return "".join(records)
 
-
 def sort_bed(path: Path) -> None:
     """Sort a BED-like file in-place by chromosome and start coordinate."""
 

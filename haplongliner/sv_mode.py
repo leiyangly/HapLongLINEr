@@ -634,6 +634,7 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
         return present, intact
 
     # Generate ORFs in a file named ``cand_orf.fa`` to mirror RM mode
+    print("[INFO] Retaining ORFs ≥270 aa (≥80% of L1 ORF1)")
     orf_fa = candidate_fa.with_name("cand_orf.fa")
     run_quiet(
         [
@@ -642,6 +643,8 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
             str(candidate_fa),
             "-find",
             "1",
+            "-minsize",
+            "810",
             "-outseq",
             str(orf_fa),
         ],
@@ -730,6 +733,8 @@ def _append_liftover_orfs(orf_fa: Path, sv_fa: Path) -> None:
             str(sv_fa),
             "-find",
             "1",
+            "-minsize",
+            "810",
             "-outseq",
             str(liftover_orf),
         ],
@@ -749,7 +754,6 @@ def _append_liftover_orfs(orf_fa: Path, sv_fa: Path) -> None:
             else:
                 if write:
                     dst.write(line)
-
     append_fasta(orf_fa, filtered)
 
 

@@ -434,6 +434,7 @@ def run_rm_mode(
 
     if perform_orf:
         print("\n[STEP 3] Detecting intact ORFs")
+        print("[INFO] Retaining ORFs ≥270 aa (≥80% of L1 ORF1)")
         # 7-8. Detect ORFs and identify intact ones
         # Detect ORFs and choose the longest ORF1/ORF2 per locus
         orf_fa = outdir / "cand_orf.fa"
@@ -444,6 +445,8 @@ def run_rm_mode(
                 str(candidate_fa),
                 "-find",
                 "1",
+                "-minsize",
+                "810",
                 "-outseq",
                 str(orf_fa),
             ],
