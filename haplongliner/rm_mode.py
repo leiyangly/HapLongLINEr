@@ -22,6 +22,7 @@ from .utils import (
     read_nonempty_fasta,
     sort_bed,
     append_fasta,
+    filter_protein_fasta,
 )
 from .liftover_paf import liftover_paf
 
@@ -434,6 +435,7 @@ def run_rm_mode(
 
     if perform_orf:
         print("\n[STEP 3] Detecting intact ORFs")
+        print("[INFO] Retaining ORFs ≥270 aa (≥80% of L1 ORF1)")
         # 7-8. Detect ORFs and identify intact ones
         # Detect ORFs and choose the longest ORF1/ORF2 per locus
         orf_fa = outdir / "cand_orf.fa"
@@ -450,6 +452,7 @@ def run_rm_mode(
             check=True,
         )
         _fix_getorf_headers(orf_fa, candidate_fa)
+        filter_protein_fasta(orf_fa, 270)
         blastp_out = outdir / "cand_orf.blastp"
         db_prefix = Path("data") / "L1rpORF12p.fa"
         verify_blast_db(db_prefix)
