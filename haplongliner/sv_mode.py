@@ -553,11 +553,17 @@ def _write_sv_sequences(
     status: Dict[str, str],
     ins_seqs: Dict[str, str],
     out_fa: Path,
+    min_length: int,
     extra_ins: List[Tuple[str, int, int, str, str]] | None = None,
     present: Set[str] | None = None,
     intact: Set[str] | None = None,
 ) -> None:
-    """Write sequences from the target assembly for ALN and INS entries."""
+    """Write sequences from the target assembly for ALN and INS entries.
+
+    Only insertion sequences with length >= ``min_length`` are written to
+    ``out_fa`` to avoid creating excessively large FASTA files for numerous
+    short insertions.
+    """
 
     fa = Fasta(str(fasta))
     if present is None:
@@ -600,7 +606,7 @@ def _write_sv_sequences(
                 out.write(f">{target_info}\n{seq}\n")
             elif sv_stat == "INS":
                 seq = ins_seqs.get(name, "")
-                if seq:
+                if len(seq) >= min_length:
                     out.write(f">{target_info}\n{seq}\n")
 
         for chrom, start, end, seq, name in extras:
@@ -992,6 +998,7 @@ def run_sv_mode(
         status,
         ins_seqs,
         sv_fa,
+        min_length,
         extra_ins,
         presence_names,
         intact_names,
