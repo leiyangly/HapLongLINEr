@@ -421,8 +421,9 @@ def _collect_long_insertions(
     insertions: List[Tuple[str, int, int, str]],
     inter_ins: Path,
     min_length: int,
+    max_length: int,
 ) -> List[Tuple[str, int, int, str, str]]:
-    """Return insertion entries not overlapping lifted TEs with length >= ``min_length``.
+    """Return insertion entries not overlapping lifted TEs within length bounds.
 
     The returned list contains tuples of ``(chrom, start, end, seq, name)`` where
     ``name`` is generated from the coordinates (``INS_<chrom>_<start>``).
@@ -444,7 +445,10 @@ def _collect_long_insertions(
 
     extras: List[Tuple[str, int, int, str, str]] = []
     for chrom, start, end, seq in insertions:
-        if len(seq) >= min_length and (chrom, start, end) not in overlapped:
+        if (
+            min_length <= len(seq) <= max_length
+            and (chrom, start, end) not in overlapped
+        ):
             name = f"INS_{chrom}_{start}"
             extras.append((chrom, start, end, seq, name))
 
@@ -522,6 +526,7 @@ def _extract_sequences(
     out_fa: Path,
     insertions: List[Tuple[str, int, int, str]],
     min_length: int,
+    max_length: int,
 ) -> None:
     """Extract candidate TE and insertion sequences from the target assembly."""
 
@@ -538,7 +543,7 @@ def _extract_sequences(
             out.write(f">{header}\n{seq}\n")
 
         for chrom, start, end, seq in insertions:
-            if len(seq) < min_length:
+            if len(seq) < min_length or len(seq) > max_length:
                 continue
             seq = seq.upper()
             name = f"INS_{chrom}_{start}"
@@ -553,15 +558,16 @@ def _write_sv_sequences(
     ins_seqs: Dict[str, str],
     out_fa: Path,
     min_length: int,
+    max_length: int,
     extra_ins: List[Tuple[str, int, int, str, str]] | None = None,
     present: Set[str] | None = None,
     intact: Set[str] | None = None,
 ) -> None:
     """Write sequences from the target assembly for ALN and INS entries.
 
-    Only insertion sequences with length >= ``min_length`` are written to
-    ``out_fa`` to avoid creating excessively large FASTA files for numerous
-    short insertions.
+    Only insertion sequences with length between ``min_length`` and
+    ``max_length`` are written to ``out_fa`` to avoid creating excessively
+    large FASTA files for numerous short or very long insertions.
     """
 
     fa = Fasta(str(fasta))
@@ -605,7 +611,7 @@ def _write_sv_sequences(
                 out.write(f">{target_info}\n{seq}\n")
             elif sv_stat == "INS":
                 seq = ins_seqs.get(name, "")
-                if len(seq) >= min_length:
+                if min_length <= len(seq) <= max_length:
                     out.write(f">{target_info}\n{seq}\n")
 
         for chrom, start, end, seq, name in extras:
@@ -829,6 +835,7 @@ def run_sv_mode(
     log: str | None = None,
     min_length: int = 0,
     asm: int = 10,
+    xlength: int | None = None,
 ) -> None:
     """RepeatMasker-free TE discovery using structural variants.
 
@@ -842,6 +849,8 @@ def run_sv_mode(
     te_list = [t for t in te.split(",") if t]
     expanded_te = _expand_te_names(te_list)
     perform_orf = min_length >= 5000 and bool(expanded_te & {"L1HS", "L1PA2", "L1PA3"})
+    if xlength is None:
+        xlength = max(20000, 3 * min_length)
 
     info_lines = [
         "[INFO] SV mode running with:",
@@ -851,6 +860,7 @@ def run_sv_mode(
         f"[INFO]   Output Dir: {output_dir}",
         f"[INFO]   TE types: {te} (min length {min_length})",
         f"[INFO]   ASM preset: asm{asm}",
+        f"[INFO]   Max insertion length: {xlength}",
     ]
     print("\n".join(info_lines))
 
@@ -967,15 +977,17 @@ def run_sv_mode(
     status, ins_seqs = _classify_sv(lifted, deletions, insertions, outdir, lifted_reorg)
 
     inter_ins = outdir / "intersect_ins.bed"
-    extra_ins = _collect_long_insertions(insertions, inter_ins, min_length)
+    extra_ins = _collect_long_insertions(insertions, inter_ins, min_length, xlength)
 
     candidate_fa = outdir / "cand.fa"
+    print(f"[INFO] Ignoring insertion sequences >{xlength} bp for cand.fa")
     _extract_sequences(
         Path(input_fasta),
         lifted,
         candidate_fa,
         insertions,
         min_length,
+        xlength,
     )
 
     if perform_orf:
@@ -1000,6 +1012,7 @@ def run_sv_mode(
         ins_seqs,
         sv_fa,
         min_length,
+        xlength,
         extra_ins,
         presence_names,
         intact_names,
