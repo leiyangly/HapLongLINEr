@@ -138,17 +138,6 @@ def read_nonempty_fasta(path: Path) -> str:
     return "".join(records)
 
 
-def filter_protein_fasta(path: Path, min_aa: int) -> None:
-    """Remove records shorter than ``min_aa`` amino acids from ``path``."""
-
-    tmp_path = path.with_suffix(path.suffix + ".tmp")
-    with open(path) as src, open(tmp_path, "w") as dst:
-        for record in SeqIO.parse(src, "fasta"):
-            if len(record.seq) >= min_aa:
-                SeqIO.write(record, dst, "fasta")
-    os.replace(tmp_path, path)
-
-
 def sort_bed(path: Path) -> None:
     """Sort a BED-like file in-place by chromosome and start coordinate."""
 

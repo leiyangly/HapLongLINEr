@@ -19,7 +19,6 @@ from .utils import (
     _fix_blast_query_names,
     sort_bed,
     append_fasta,
-    filter_protein_fasta,
 )
 from .liftover_paf import liftover_paf
 from pyfaidx import Fasta
@@ -635,7 +634,7 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
         return present, intact
 
     # Generate ORFs in a file named ``cand_orf.fa`` to mirror RM mode
-    print("[INFO] Retaining ORFs ≥270 aa (≥80% of L1 ORF1)")
+    print("[INFO] Using getorf -minsize 810 to retain ORFs ≥270 aa (≥80% of L1 ORF1)")
     orf_fa = candidate_fa.with_name("cand_orf.fa")
     run_quiet(
         [
@@ -646,11 +645,12 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
             "1",
             "-outseq",
             str(orf_fa),
+            "-minsize",
+            "810",
         ],
         check=True,
     )
     _fix_getorf_headers(orf_fa, candidate_fa)
-    filter_protein_fasta(orf_fa, 270)
     filtered_fasta = read_nonempty_fasta(orf_fa)
     if not filtered_fasta:
         return present, intact
@@ -735,6 +735,8 @@ def _append_liftover_orfs(orf_fa: Path, sv_fa: Path) -> None:
             "1",
             "-outseq",
             str(liftover_orf),
+            "-minsize",
+            "810",
         ],
         check=True,
     )
@@ -752,7 +754,6 @@ def _append_liftover_orfs(orf_fa: Path, sv_fa: Path) -> None:
             else:
                 if write:
                     dst.write(line)
-    filter_protein_fasta(filtered, 270)
     append_fasta(orf_fa, filtered)
 
 
