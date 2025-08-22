@@ -184,6 +184,13 @@ def main():
         help="Minimum TE length (default: 5000 for L1-only, otherwise 0)",
     )
     parser_sv.add_argument(
+        "-x",
+        "--xlength",
+        dest="xlength",
+        type=int,
+        help="Maximum insertion length for cand.fa (default: max(20000, 3x --length))",
+    )
+    parser_sv.add_argument(
         "-t",
         "--te",
         dest="te",
@@ -361,6 +368,7 @@ def main():
             log=args.log,
             min_length=args.length,
             asm=args.asm,
+            xlength=args.xlength,
         )
     elif args.command == "seq":
         run_sequence_retrieval_function(args.query, args.output, extra_fasta=args.extra)
