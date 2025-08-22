@@ -9,10 +9,10 @@ def test_validate_orfs_outputs_only_orfs(monkeypatch, tmp_path):
 
     def fake_run_quiet(cmd, check=True, cwd=None, **kwargs):
         if cmd[0] == "getorf":
-            out = Path(cmd[-1])
-            out.write_text(">L1_chr1_0_24_+_1 [1 - 24]\nMAIVMGR*\n")
+            out = Path(cmd[cmd.index("-outseq") + 1])
+            out.write_text("")
         elif cmd[0] == "blastp":
-            out = Path(cmd[-1])
+            out = Path(cmd[cmd.index("-out") + 1])
             out.write_text("")
 
     monkeypatch.setattr("haplongliner.sv_mode.run_quiet", fake_run_quiet)
@@ -39,10 +39,10 @@ def test_append_liftover_orfs(monkeypatch, tmp_path):
     )
 
     def fake_run_quiet(cmd, check=True, cwd=None, **kwargs):
-        out = Path(cmd[-1])
         if cmd[0] == "getorf":
+            out = Path(cmd[cmd.index("-outseq") + 1])
             if out.name == "cand_orf.fa":
-                out.write_text(">INS_chr1_50_chr1_50_70_._1 [1 - 6]\nMM\n")
+                out.write_text("")
             else:
                 prot = "M" * 270
                 out.write_text(
@@ -50,6 +50,7 @@ def test_append_liftover_orfs(monkeypatch, tmp_path):
                     f">chr1_50_830_780_+_INS_1 [1 - 780]\n{prot}\n"
                 )
         elif cmd[0] == "blastp":
+            out = Path(cmd[cmd.index("-out") + 1])
             out.write_text("")
 
     monkeypatch.setattr("haplongliner.sv_mode.run_quiet", fake_run_quiet)
