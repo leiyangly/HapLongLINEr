@@ -4,6 +4,7 @@ import sys
 import gzip
 import itertools
 import tempfile
+import subprocess
 from pathlib import Path
 from typing import Dict, List, Tuple, Iterable, Set
 from collections import Counter
@@ -807,16 +808,22 @@ def _validate_presence(candidate_fa: Path, min_length: int = 5000) -> Set[str]:
     if candidate_fa.stat().st_size == 0:
         return present
 
-    run_quiet(
-        [
-            "RepeatMasker",
-            "-e",
-            "rmblast",
-            str(candidate_fa),
-        ],
-        check=True,
-        cwd=candidate_fa.parent,
-    )
+    try:
+        run_quiet(
+            [
+                "RepeatMasker",
+                "-e",
+                "rmblast",
+                str(candidate_fa),
+            ],
+            cwd=candidate_fa.parent,
+        )
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError(
+            "RepeatMasker failed while validating candidate sequences. "
+            "Ensure RepeatMasker and the rmblast engine are installed and "
+            "configured correctly."
+        ) from exc
 
     rm_out = candidate_fa.with_suffix(candidate_fa.suffix + ".out")
     ref_fa = Path("data") / "L1rp.fa"
