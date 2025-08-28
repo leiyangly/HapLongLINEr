@@ -523,7 +523,8 @@ def _classify_sv(
 def _extract_sequences(
     fasta: Path,
     lifted: List[Tuple[str, int, int, str, int, str, str, str, int, int]],
-    out_fa: Path,
+    out_lift: Path,
+    out_ins: Path,
     insertions: List[Tuple[str, int, int, str]],
     min_length: int,
     max_length: int,
@@ -532,7 +533,7 @@ def _extract_sequences(
 
     fa = Fasta(str(fasta))
 
-    with open(out_fa, "w") as out:
+    with open(out_lift, "w") as lift:
         for _, _, _, name, _, _, plus_info, _, t_start, t_end in lifted:
             scaf, _ps, _pe, t_strand = _parse_target_info(plus_info)
             seq = fa[scaf][t_start:t_end].seq
@@ -540,15 +541,16 @@ def _extract_sequences(
                 seq = _revcomp(seq)
             seq = seq.upper()
             header = f"{name},{scaf},{t_start},{t_end},{t_strand}"
-            out.write(f">{header}\n{seq}\n")
+            lift.write(f">{header}\n{seq}\n")
 
+    with open(out_ins, "w") as ins:
         for chrom, start, end, seq in insertions:
             if len(seq) < min_length or len(seq) > max_length:
                 continue
             seq = seq.upper()
             name = f"INS_{chrom}_{start}"
             header = f"{name},{chrom},{start},{end},."
-            out.write(f">{header}\n{seq}\n")
+            ins.write(f">{header}\n{seq}\n")
 
 
 def _write_sv_sequences(
@@ -985,16 +987,22 @@ def run_sv_mode(
     inter_ins = outdir / "intersect_ins.bed"
     extra_ins = _collect_long_insertions(insertions, inter_ins, min_length, xlength)
 
-    candidate_fa = outdir / "cand.fa"
-    print(f"[INFO] Ignoring insertion sequences >{xlength} bp for cand.fa")
+    candidate_lift_fa = outdir / "cand_lift.fa"
+    candidate_ins_fa = outdir / "cand_ins.fa"
+    print(f"[INFO] Ignoring insertion sequences >{xlength} bp for cand_ins.fa")
     _extract_sequences(
         Path(input_fasta),
         lifted,
-        candidate_fa,
+        candidate_lift_fa,
+        candidate_ins_fa,
         insertions,
         min_length,
         xlength,
     )
+    candidate_fa = outdir / "cand.fa"
+    candidate_fa.write_text("")
+    append_fasta(candidate_fa, candidate_lift_fa)
+    append_fasta(candidate_fa, candidate_ins_fa)
 
     if perform_orf:
         orf_present, intact_names = _validate_orfs(candidate_fa)

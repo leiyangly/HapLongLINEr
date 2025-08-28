@@ -188,7 +188,7 @@ def main():
         "--xlength",
         dest="xlength",
         type=int,
-        help="Maximum insertion length for cand.fa (default: max(20000, 3x --length))",
+        help="Maximum insertion length for cand_ins.fa (default: max(20000, 3x --length))",
     )
     parser_sv.add_argument(
         "-t",
