@@ -836,6 +836,7 @@ def run_sv_mode(
     min_length: int = 0,
     asm: int = 10,
     xlength: int | None = None,
+    exist: str = "no",
 ) -> None:
     """RepeatMasker-free TE discovery using structural variants.
 
@@ -844,6 +845,8 @@ def run_sv_mode(
     ``te`` is a comma-separated list of TE families to search for.  Shortcuts
     follow :func:`haplongliner.extract_l1._expand_te_names` as in the RM mode.
     ``asm`` sets the minimap2 assembly preset (5, 10, or 20; default 10).
+    ``exist`` determines whether to reuse an existing ``genome_alignment.paf``
+    ("yes") or regenerate it ("no", default).
     """
 
     te_list = [t for t in te.split(",") if t]
@@ -938,20 +941,23 @@ def run_sv_mode(
     print("\n[STEP 2] Mapping assemblies with minimap2")
 
     aln_paf = outdir / "genome_alignment.paf"
-    with open(aln_paf, "w") as out:
-        run_quiet(
-            [
-                "minimap2",
-                "-x",
-                f"asm{asm}",
-                "-c",
-                "--cs",
-                str(input_fasta),
-                str(ref_path),
-            ],
-            check=True,
-            stdout=out,
-        )
+    if exist == "yes" and aln_paf.exists():
+        print("[INFO] Using existing genome_alignment.paf")
+    else:
+        with open(aln_paf, "w") as out:
+            run_quiet(
+                [
+                    "minimap2",
+                    "-x",
+                    f"asm{asm}",
+                    "-c",
+                    "--cs",
+                    str(input_fasta),
+                    str(ref_path),
+                ],
+                check=True,
+                stdout=out,
+            )
     with open(aln_paf) as fh:
         alignments = sum(1 for _ in fh if _.strip())
     print(f"[SUM] Generated {alignments} alignment records")
