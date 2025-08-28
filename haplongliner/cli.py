@@ -217,6 +217,17 @@ def main():
         help="minimap2 asm preset (5, 10, or 20; default: 10)",
     )
     parser_sv.add_argument(
+        "-e",
+        "--exist",
+        dest="exist",
+        choices=["yes", "no"],
+        default="no",
+        help=(
+            "If 'yes', reuse genome_alignment.paf if present instead of remapping "
+            "with minimap2 (default: 'no')"
+        ),
+    )
+    parser_sv.add_argument(
         "-o",
         "--out",
         dest="output",
@@ -369,6 +380,7 @@ def main():
             min_length=args.length,
             asm=args.asm,
             xlength=args.xlength,
+            exist=args.exist,
         )
     elif args.command == "seq":
         run_sequence_retrieval_function(args.query, args.output, extra_fasta=args.extra)
