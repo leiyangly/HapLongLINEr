@@ -221,7 +221,7 @@ def _write_bed(
 
 
 def _read_lifted_bed(path: Path) -> Dict[str, List[Tuple[str, int, int, str, Set[str]]]]:
-    """Return mapping ``name -> list of lifted coordinates`` from liftover_paf output."""
+    """Return mapping ``id -> list of lifted coordinates`` from liftover_paf output."""
 
     lifted: Dict[str, List[Tuple[str, int, int, str, Set[str]]]] = {}
     with open(path) as fh:
@@ -240,8 +240,9 @@ def _read_lifted_bed(path: Path) -> Dict[str, List[Tuple[str, int, int, str, Set
             parts = info.split(",")
             if len(parts) < 5:
                 continue
-            _qchrom, _qs, _qe, _qstrand, name, *tags = parts
-            lifted.setdefault(name, []).append((scaf, start, end, strand, set(tags)))
+            qchrom, qs, qe, _qstrand, _name, *tags = parts
+            key = f"{qchrom}:{qs}-{qe}"
+            lifted.setdefault(key, []).append((scaf, start, end, strand, set(tags)))
     return lifted
 
 
@@ -306,7 +307,7 @@ def _create_lifted_reorg(
             f = line.rstrip().split("\t")
             if len(f) < 6:
                 continue
-            chrom, start_s, end_s, name, length_s, strand = f[:6]
+            chrom, start_s, end_s, _name, length_s, strand = f[:6]
             try:
                 start = int(start_s)
                 end = int(end_s)
@@ -314,10 +315,11 @@ def _create_lifted_reorg(
             except ValueError:
                 continue
 
-            infos = mapping.get(name)
+            key = f"{chrom}:{start}-{end}"
+            infos = mapping.get(key)
             if not infos:
                 out.write(
-                    f"{chrom}\t{start}\t{end}\t{name}\t{length}\t{strand}\tna\n"
+                    f"{chrom}\t{start}\t{end}\t{key}\t{length}\t{strand}\tna\n"
                 )
                 continue
 
@@ -335,7 +337,7 @@ def _create_lifted_reorg(
                         chrom,
                         start,
                         end,
-                        name,
+                        key,
                         length,
                         strand,
                         info,
@@ -347,7 +349,7 @@ def _create_lifted_reorg(
 
             info_joined = ";".join(info_strs)
             out.write(
-                f"{chrom}\t{start}\t{end}\t{name}\t{length}\t{strand}\t{info_joined}\n"
+                f"{chrom}\t{start}\t{end}\t{key}\t{length}\t{strand}\t{info_joined}\n"
             )
 
     return lifted
