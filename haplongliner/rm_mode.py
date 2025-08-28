@@ -345,9 +345,15 @@ def run_rm_mode(
 
     # Extract the sequence of the full-length TEs using pyfaidx when ORF detection is enabled
     fa = Fasta(str(input_fasta))
+    candidate_lift_fa = outdir / "cand_lift.fa"
+    candidate_ins_fa = outdir / "cand_ins.fa"
     candidate_fa = outdir / "cand.fa"
     if perform_orf:
-        _extract_fasta(fa, candidate_bed, candidate_fa)
+        _extract_fasta(fa, candidate_bed, candidate_lift_fa)
+        candidate_ins_fa.write_text("")
+        candidate_fa.write_text("")
+        append_fasta(candidate_fa, candidate_lift_fa)
+        append_fasta(candidate_fa, candidate_ins_fa)
 
     # Summary for Step 1
     total_entries = 0
