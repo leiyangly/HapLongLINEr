@@ -1,6 +1,10 @@
 from pathlib import Path
+import subprocess
+
+import pytest
 
 from haplongliner.sv_mode import _validate_presence
+import haplongliner.sv_mode as sv_mode
 
 
 def test_empty_sequences_are_filtered(monkeypatch, tmp_path):
@@ -47,3 +51,16 @@ def test_repeatmasker_runs_in_output_dir(monkeypatch, tmp_path):
     monkeypatch.setattr("haplongliner.sv_mode.run_quiet", fake_run_quiet)
     assert _validate_presence(cand, min_length=0) == set()
 
+def test_validate_presence_reports_repeatmasker_failure(tmp_path, monkeypatch):
+    fa = tmp_path / "cand.fa"
+    fa.write_text(">seq\nAAAA\n")
+
+    def fake_run_quiet(cmd, **kwargs):
+        raise subprocess.CalledProcessError(255, cmd)
+
+    monkeypatch.setattr(sv_mode, "run_quiet", fake_run_quiet)
+
+    with pytest.raises(RuntimeError) as excinfo:
+        sv_mode._validate_presence(fa)
+
+    assert "RepeatMasker" in str(excinfo.value)
