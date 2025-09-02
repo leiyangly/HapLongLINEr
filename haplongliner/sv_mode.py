@@ -1148,23 +1148,6 @@ def run_sv_mode(
     else:
         presence_names = set()
 
-    sv_fa = outdir / "haplongliner_sv.fa"
-    _write_sv_sequences(
-        Path(input_fasta),
-        lifted,
-        status,
-        ins_seqs,
-        sv_fa,
-        min_length,
-        xlength,
-        extra_ins,
-        presence_names,
-        intact_names,
-    )
-
-    if perform_orf:
-        _append_liftover_orfs(candidate_fa.with_name("cand_orf.fa"), sv_fa)
-
     # Summary for Step 5
     status_counts = Counter(status.values())
     num_statuses = len(status_counts)
@@ -1173,7 +1156,7 @@ def run_sv_mode(
         f"intact: {len(intact_names)}; extra insertions: {len(extra_ins)}"
     )
 
-    print("\n[STEP 6] Writing output table")
+    print("\n[STEP 6] Writing output files")
 
     out_table = outdir / "haplongliner_sv.bed"
     with open(out_table, "w") as out:
@@ -1236,6 +1219,24 @@ def run_sv_mode(
             )
 
     sort_bed(out_table)
+
+    sv_fa = outdir / "haplongliner_sv.fa"
+    _write_sv_sequences(
+        Path(input_fasta),
+        lifted,
+        status,
+        ins_seqs,
+        sv_fa,
+        min_length,
+        xlength,
+        extra_ins,
+        presence_names,
+        intact_names,
+    )
+
+    if perform_orf:
+        _append_liftover_orfs(candidate_fa.with_name("cand_orf.fa"), sv_fa)
+
     # Summary for Step 6
     total_final = 0
     final_status_counts: Counter[str] = Counter()
