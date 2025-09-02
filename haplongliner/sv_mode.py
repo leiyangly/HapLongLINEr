@@ -643,12 +643,12 @@ def _parse_repeatmasker(out_file: Path, l1_len: int, cov_thresh: float) -> Set[s
     return {n for n, c in coverage.items() if c / l1_len >= cov_thresh}
 
 
-def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
-    """Return sets of names with >90% ORF coverage and with intact ORFs."""
-    present: Set[str] = set()
+def _validate_orfs(candidate_fa: Path) -> Set[str]:
+    """Detect intact ORFs in ``candidate_fa`` and return matching names."""
+
     intact: Set[str] = set()
     if candidate_fa.stat().st_size == 0:
-        return present, intact
+        return intact
 
     # Generate ORFs in a file named ``cand_orf.fa`` to mirror RM mode
     print("[INFO] Using getorf -minsize 810 to retain ORFs ≥270 aa (≥80% of L1 ORF1)")
@@ -670,7 +670,7 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
     _fix_getorf_headers(orf_fa, candidate_fa)
     filtered_fasta = read_nonempty_fasta(orf_fa)
     if not filtered_fasta:
-        return present, intact
+        return intact
 
     blastp_out = candidate_fa.with_name("cand_orf.blastp")
     db_prefix = Path("data") / "L1rpORF12p.fa"
@@ -701,32 +701,16 @@ def _validate_orfs(candidate_fa: Path) -> Tuple[Set[str], Set[str]]:
     find_intact_orf(combined, intact_file)
     _fix_blast_query_names(intact_file)
 
-    with open(combined) as fh:
-        for line in fh:
-            if not line.strip():
-                continue
-            fields = line.strip().split()
-            if len(fields) < 30:
-                continue
-            name = ",".join(fields[0].split(",")[:3])
-            try:
-                cov1 = int(fields[3]) / int(fields[13])
-                cov2 = int(fields[18]) / int(fields[28])
-            except (ValueError, ZeroDivisionError):
-                continue
-            if cov1 >= 0.9 and cov2 >= 0.9:
-                present.add(name)
-
     with open(intact_file) as fh:
         for line in fh:
             if not line.strip():
                 continue
             fields = line.strip().split()
-            if len(fields) < 30:
+            if not fields:
                 continue
             name = ",".join(fields[0].split(",")[:3])
             intact.add(name)
-    return present, intact
+    return intact
 
 
 def _append_liftover_orfs(orf_fa: Path, sv_fa: Path) -> None:
@@ -1064,18 +1048,73 @@ def run_sv_mode(
     append_fasta(candidate_fa, candidate_ins_fa)
 
     if perform_orf:
-        orf_present, intact_names = _validate_orfs(candidate_fa)
+        print(
+            "[INFO] Using getorf -minsize 810 to retain ORFs ≥270 aa (≥80% of L1 ORF1)"
+        )
+        orf_fa = candidate_fa.with_name("cand_orf.fa")
+        run_quiet(
+            [
+                "getorf",
+                "-sequence",
+                str(candidate_fa),
+                "-find",
+                "1",
+                "-outseq",
+                str(orf_fa),
+                "-minsize",
+                "810",
+            ],
+            check=True,
+        )
+        _fix_getorf_headers(orf_fa, candidate_fa)
+        blastp_out = candidate_fa.with_name("cand_orf.blastp")
+        db_prefix = Path("data") / "L1rpORF12p.fa"
+        verify_blast_db(db_prefix)
+        filtered_fasta = read_nonempty_fasta(orf_fa)
+        if filtered_fasta:
+            run_quiet(
+                [
+                    "blastp",
+                    "-db",
+                    str(db_prefix),
+                    "-query",
+                    "-",
+                    "-outfmt",
+                    "6 std qlen slen sacc",
+                    "-out",
+                    str(blastp_out),
+                ],
+                input=filtered_fasta,
+                text=True,
+                check=True,
+            )
+            _fix_blast_query_names(blastp_out)
+        else:
+            blastp_out.touch()
+        combined = candidate_fa.with_name("cand_orf_combine.blastp")
+        find_longest_orf(blastp_out, combined)
+        _fix_blast_query_names(combined)
+        intact_file = candidate_fa.with_name("cand_orf_intact.blastp")
+        find_intact_orf(combined, intact_file)
+        _fix_blast_query_names(intact_file)
+        intact_names: Set[str] = set()
+        with open(intact_file) as fh:
+            for line in fh:
+                if not line.strip():
+                    continue
+                name = ",".join(line.split()[0].split(",")[:3])
+                intact_names.add(name)
     else:
         print(
             "[INFO] Skipping intact ORF detection and BLASTP steps "
             "(requires --length ≥5000 and --te including L1HS/L1PA2/L1PA3)"
         )
-        orf_present, intact_names = set(), set()
+        intact_names = set()
+        candidate_fa.with_name("cand_orf_intact.blastp").touch()
     if expanded_te & {"L1HS", "L1PA2", "L1PA3"}:
         presence_names = _validate_presence(candidate_fa, min_length)
     else:
         presence_names = set()
-    presence_names.update(orf_present)
 
     sv_fa = outdir / "haplongliner_sv.fa"
     _write_sv_sequences(
