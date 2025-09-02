@@ -120,8 +120,8 @@ def test_validate_orfs_sv_headers(monkeypatch, tmp_path):
     cand = tmp_path / "cand.fa"
     cand.write_text(">dummy\nATG\n")
     base = "22822069-22828100_122_phaseblock_26_660301_666332_-"
-    q1 = f"{base},1,906,1919"
-    q2 = f"{base},2,1986,5810"
+    q1 = f"{base}_1_906_1919"
+    q2 = f"{base}_2_1986_5810"
 
     def fake_run_quiet(cmd, check=True, cwd=None, input=None, text=False, **kwargs):
         if cmd[0] == "getorf":
@@ -143,4 +143,4 @@ def test_validate_orfs_sv_headers(monkeypatch, tmp_path):
     )
 
     intact = _validate_orfs(cand)
-    assert intact == {base}
+    assert intact == {"22822069-22828100,122_phaseblock_26,660301"}
