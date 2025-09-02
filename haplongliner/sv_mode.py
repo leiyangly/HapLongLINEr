@@ -814,10 +814,6 @@ def _validate_presence(candidate_fa: Path, min_length: int = 5000) -> Set[str]:
                 "RepeatMasker",
                 "-e",
                 "rmblast",
-                "-species",
-                "human",
-                "-pa",
-                "4",
                 str(candidate_fa),
             ],
             cwd=candidate_fa.parent,
@@ -825,8 +821,8 @@ def _validate_presence(candidate_fa: Path, min_length: int = 5000) -> Set[str]:
     except subprocess.CalledProcessError as exc:
         raise RuntimeError(
             "RepeatMasker failed while validating candidate sequences. "
-            "Ensure RepeatMasker, the rmblast engine, and the Dfam library "
-            "(partition 7 for human) are installed and configured correctly."
+            "Ensure RepeatMasker and the rmblast engine are installed and "
+            "configured correctly."
         ) from exc
 
     rm_out = candidate_fa.with_suffix(candidate_fa.suffix + ".out")

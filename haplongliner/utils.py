@@ -7,29 +7,13 @@ from typing import Dict, List
 from Bio import SeqIO
 
 
-def _verify_dfam_partition() -> None:
-    """Ensure the RepeatMasker Dfam partition for human is installed."""
-
-    rm_bin = shutil.which("RepeatMasker")
-    if not rm_bin:  # pragma: no cover - handled by check_dependencies
-        return
-
-    rm_dir = Path(rm_bin).resolve().parent.parent
-    lib_dir = rm_dir / "Libraries"
-    if (lib_dir / "Dfam.h5").exists():
-        return
-
-    famdb_dir = lib_dir / "famdb"
-    if not famdb_dir.exists() or not any(p.name.endswith("_7.h5") for p in famdb_dir.glob("*.h5")):
-        sys.exit(
-            "Error: RepeatMasker Dfam partition for 'human' (7) is missing.\n"
-            f"Download it with:\n  cd {rm_dir}\n  python util/famdb.py --download current --partition 7\n  perl configure\n"
-            "(Requires the 'h5py' package: pip install h5py)"
-        )
-
-
 def check_dependencies():
-    """Ensure required external tools and libraries are available."""
+    """Ensure required external tools are available.
+
+    ``RepeatMasker`` is used during structural-variant processing to classify
+    candidate LINE-1 sequences.  Including it in the dependency check allows
+    us to fail fast with a clear message if it is missing from the ``PATH``.
+    """
 
     tools = ["minimap2", "getorf", "blastp", "RepeatMasker"]
     missing = [tool for tool in tools if shutil.which(tool) is None]
@@ -37,13 +21,6 @@ def check_dependencies():
         sys.exit(
             f"Error: The following required tools are missing from your PATH: {', '.join(missing)}"
         )
-
-    try:
-        import h5py  # noqa: F401
-    except ImportError:
-        sys.exit("Error: Python package 'h5py' is required. Install with 'pip install h5py'.")
-
-    _verify_dfam_partition()
 
 
 def verify_blast_db(db_prefix):
