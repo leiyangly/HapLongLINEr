@@ -30,6 +30,23 @@ cd HapLongLINEr
 pip install -e .
 ```
 
+### Ensure RepeatMasker Dfam library
+
+HapLongLINEr requires RepeatMasker with the Dfam database.  The human repeat
+models reside in partition 7.  If this partition is missing, install it with:
+
+```bash
+cd $(dirname $(which RepeatMasker))/..
+python util/famdb.py --download current --partition 7
+perl configure
+```
+
+The `famdb.py` utility depends on the `h5py` Python package:
+
+```bash
+pip install h5py
+```
+
 ### Install as a conda package (to be implemented)
 
 Enable the required channels:
