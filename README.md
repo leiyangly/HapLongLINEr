@@ -15,7 +15,7 @@
 
 Install dependencies (optional):
 ```bash
-conda install -c bioconda minimap2 bedtools emboss blast repeatmasker dfam h5py
+conda install -c bioconda minimap2 bedtools emboss blast repeatmasker h5py
 ```
 
 Clone the repository:
@@ -28,17 +28,6 @@ Install HapLongLINEr with pip:
 cd HapLongLINEr
 
 pip install -e .
-```
-
-### Ensure RepeatMasker Dfam library
-
-HapLongLINEr requires RepeatMasker with the Dfam database.  The human repeat
-models reside in partition 7.  If this partition is missing, install it with:
-
-```bash
-cd $(dirname $(which RepeatMasker))/..
-python util/famdb.py --download current --partition 7
-perl configure
 ```
 
 ### Install as a conda package (to be implemented)
