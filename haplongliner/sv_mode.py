@@ -635,11 +635,12 @@ def _parse_repeatmasker(out_file: Path, l1_len: int, cov_thresh: float) -> Set[s
             if line.startswith(" "):
                 parts = line.split()
                 if len(parts) >= 14 and re.search(r"L1", parts[9]):
-                    name = parts[4]
+                    raw_name = parts[4]
+                    key = ",".join(raw_name.split(",")[:3])
                     rep_start = int(parts[11].strip("()"))
                     rep_end = int(parts[12].strip("()"))
                     cov = abs(rep_end - rep_start) + 1
-                    coverage[name] = coverage.get(name, 0) + cov
+                    coverage[key] = coverage.get(key, 0) + cov
     return {n for n, c in coverage.items() if c / l1_len >= cov_thresh}
 
 
@@ -709,10 +710,7 @@ def _validate_orfs(candidate_fa: Path) -> Set[str]:
             if not fields:
                 continue
             parts = fields[0].split(",")
-            if len(parts) > 3:
-                name = ",".join(parts[:-3])
-            else:
-                name = parts[0]
+            name = ",".join(parts[:3])
             intact.add(name)
     return intact
 
@@ -1131,10 +1129,7 @@ def run_sv_mode(
                 if not line.strip():
                     continue
                 parts = line.split()[0].split(",")
-                if len(parts) > 3:
-                    name = ",".join(parts[:-3])
-                else:
-                    name = parts[0]
+                name = ",".join(parts[:3])
                 intact_names.add(name)
     else:
         print(
