@@ -70,3 +70,40 @@ def test_append_liftover_orfs(monkeypatch, tmp_path):
     assert ">INS_chr1_50,chr1,50,70,.,1,1,6" not in content
     assert ">chr1,0,810,810,+,ALN,1,1,810" in content
     assert ">chr1,50,830,780,+,INS,1,1,780" not in content
+
+
+def test_cand_orf_intact_pipeline(monkeypatch, tmp_path):
+    cand = tmp_path / "cand.fa"
+    cand.write_text(">L1,chr1,0,24,+\nATGGCCATTGTAATGGGCCGCTGAA\n")
+
+    def fake_run_quiet(cmd, check=True, cwd=None, input=None, text=False, **kwargs):
+        if cmd[0] == "getorf":
+            out = Path(cmd[cmd.index("-outseq") + 1])
+            out.write_text(">L1,chr1,0,24,+,1,1,24\nATG\n")
+        elif cmd[0] == "blastp":
+            out = Path(cmd[cmd.index("-out") + 1])
+            out.write_text("blast\n")
+
+    monkeypatch.setattr("haplongliner.sv_mode.run_quiet", fake_run_quiet)
+    monkeypatch.setattr("haplongliner.sv_mode.verify_blast_db", lambda x: None)
+
+    calls = []
+
+    def fake_find_longest(inp, out):
+        calls.append(("longest", inp, out))
+        Path(out).write_text("longest\n")
+
+    def fake_find_intact(inp, out):
+        calls.append(("intact", inp, out))
+        Path(out).write_text("intact\n")
+
+    monkeypatch.setattr("haplongliner.sv_mode.find_longest_orf", fake_find_longest)
+    monkeypatch.setattr("haplongliner.sv_mode.find_intact_orf", fake_find_intact)
+
+    _validate_orfs(cand)
+
+    assert calls[0][0] == "longest"
+    assert calls[1][0] == "intact"
+    assert calls[1][1] == calls[0][2]
+    intact_file = cand.with_name("cand_orf_intact.blastp")
+    assert intact_file.read_text() == "intact\n"
