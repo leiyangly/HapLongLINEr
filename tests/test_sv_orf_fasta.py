@@ -38,20 +38,27 @@ def test_append_liftover_orfs(monkeypatch, tmp_path):
         f">chr1,50,830,780,+,INS\n{'ATG' * 270}\n"
     )
 
-    def fake_run_quiet(cmd, check=True, cwd=None, **kwargs):
+    class Dummy:
+        def __init__(self, stdout=""):
+            self.stdout = stdout
+
+    def fake_run_quiet(cmd, check=True, cwd=None, text=False, **kwargs):
         if cmd[0] == "getorf":
-            out = Path(cmd[cmd.index("-outseq") + 1])
-            if out.name == "cand_orf.fa":
-                out.write_text("")
-            else:
+            outseq = cmd[cmd.index("-outseq") + 1]
+            if outseq == "stdout":
                 prot = "M" * 270
-                out.write_text(
+                stdout = (
                     f">chr1_0_810_810_+_ALN_1 [1 - 810]\n{prot}\n"
                     f">chr1_50_830_780_+_INS_1 [1 - 780]\n{prot}\n"
                 )
+                return Dummy(stdout=stdout)
+            else:
+                Path(outseq).write_text("")
+                return Dummy()
         elif cmd[0] == "blastp":
             out = Path(cmd[cmd.index("-out") + 1])
             out.write_text("")
+            return Dummy()
 
     monkeypatch.setattr("haplongliner.sv_mode.run_quiet", fake_run_quiet)
     monkeypatch.setattr("haplongliner.sv_mode.verify_blast_db", lambda x: None)
