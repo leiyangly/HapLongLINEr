@@ -15,7 +15,7 @@
 
 Install dependencies (optional):
 ```bash
-conda install -c bioconda minimap2 bedtools emboss blast repeatmasker
+conda install -c bioconda minimap2 bedtools emboss blast repeatmasker dfam h5py
 ```
 
 Clone the repository:
@@ -39,12 +39,6 @@ models reside in partition 7.  If this partition is missing, install it with:
 cd $(dirname $(which RepeatMasker))/..
 python util/famdb.py --download current --partition 7
 perl configure
-```
-
-The `famdb.py` utility depends on the `h5py` Python package:
-
-```bash
-pip install h5py
 ```
 
 ### Install as a conda package (to be implemented)
