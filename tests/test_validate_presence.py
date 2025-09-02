@@ -12,7 +12,7 @@ def test_empty_sequences_are_filtered(monkeypatch, tmp_path):
     cand.write_text(">a\nACGT\n>b\n>c\nTTTT\n")
 
     def fake_run_quiet(cmd, check=True, cwd=None, **kwargs):  # pragma: no cover - behavior verified via assertions
-        query = Path(cmd[-1])
+        query = Path(cwd) / cmd[-1]
         mapping = query.with_name("cand.list").read_text()
         assert "a" in mapping
         assert "c" in mapping
@@ -43,8 +43,8 @@ def test_repeatmasker_runs_in_output_dir(monkeypatch, tmp_path):
     cand.write_text(">a\nACGT\n")
 
     def fake_run_quiet(cmd, check=True, cwd=None, **kwargs):
-        assert cwd == tmp_path
-        query = Path(cmd[-1])
+        assert Path(cwd).resolve() == tmp_path
+        query = Path(cwd) / cmd[-1]
         out_path = query.with_suffix(query.suffix + ".out")
         out_path.write_text("")
 
@@ -64,3 +64,26 @@ def test_validate_presence_reports_repeatmasker_failure(tmp_path, monkeypatch):
         sv_mode._validate_presence(fa)
 
     assert "RepeatMasker" in str(excinfo.value)
+
+
+def test_validate_presence_relative_path_subdir(monkeypatch, tmp_path):
+    sub = tmp_path / "sub"
+    sub.mkdir()
+    cand = sub / "cand.fa"
+    cand.write_text(">a\nACGT\n")
+
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "L1rp.fa").write_text(">ref\nAAAA\n")
+
+    def fake_run_quiet(cmd, check=True, cwd=None, **kwargs):  # pragma: no cover - behavior validated via assertions
+        assert Path(cwd).resolve() == sub
+        assert cmd[-1] == "cand_short.fa"
+        query = Path(cwd) / cmd[-1]
+        out_path = query.with_suffix(query.suffix + ".out")
+        out_path.write_text("")
+
+    monkeypatch.setattr("haplongliner.sv_mode.run_quiet", fake_run_quiet)
+    monkeypatch.chdir(tmp_path)
+    assert _validate_presence(Path("sub") / "cand.fa", min_length=0) == set()
+    assert (sub / "cand.fa.out").exists()

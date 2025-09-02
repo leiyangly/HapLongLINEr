@@ -856,7 +856,7 @@ def _validate_presence(candidate_fa: Path, min_length: int = 5000) -> Set[str]:
                 "RepeatMasker",
                 "-e",
                 "rmblast",
-                str(short_fa),
+                short_fa.name,
             ],
             cwd=candidate_fa.parent,
         )
@@ -867,7 +867,7 @@ def _validate_presence(candidate_fa: Path, min_length: int = 5000) -> Set[str]:
             "configured correctly."
         ) from exc
 
-    short_out = short_fa.with_suffix(short_fa.suffix + ".out")
+    short_out = candidate_fa.parent / (short_fa.name + ".out")
     rm_out = candidate_fa.with_suffix(candidate_fa.suffix + ".out")
     _restore_rm_out_names(short_out, list_file, rm_out)
 
