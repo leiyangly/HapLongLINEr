@@ -708,7 +708,11 @@ def _validate_orfs(candidate_fa: Path) -> Set[str]:
             fields = line.strip().split()
             if not fields:
                 continue
-            name = ",".join(fields[0].split(",")[:3])
+            parts = fields[0].split(",")
+            if len(parts) > 3:
+                name = ",".join(parts[:-3])
+            else:
+                name = parts[0]
             intact.add(name)
     return intact
 
@@ -1126,7 +1130,11 @@ def run_sv_mode(
             for line in fh:
                 if not line.strip():
                     continue
-                name = ",".join(line.split()[0].split(",")[:3])
+                parts = line.split()[0].split(",")
+                if len(parts) > 3:
+                    name = ",".join(parts[:-3])
+                else:
+                    name = parts[0]
                 intact_names.add(name)
     else:
         print(

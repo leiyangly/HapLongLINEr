@@ -44,3 +44,22 @@ def test_find_longest_orf_groups_by_candidate(tmp_path):
     assert f[4].split(',')[-3] == '3'
     assert f[5] == 'L1rpORF2p'
 
+
+def test_find_longest_orf_sv_headers(tmp_path):
+    """Headers with fewer comma-separated fields should still be grouped."""
+    inp = tmp_path / "input.blastp"
+    outp = tmp_path / "out.blastp"
+    base = "22822069-22828100_122_phaseblock_26_660301_666332_-"
+    q1 = f"{base},1,906,1919"
+    q2 = f"{base},2,1986,5810"
+    inp.write_text("\n".join([
+        f"{q1}\tL1rpORF1p\t0\t338",
+        f"{q2}\tL1rpORF2p\t0\t1275",
+    ]))
+    find_longest_orf(inp, outp)
+    lines = [l.strip() for l in open(outp) if l.strip()]
+    assert len(lines) == 1
+    fields = lines[0].split('\t')
+    assert fields[0] == q1
+    assert fields[4] == q2
+
