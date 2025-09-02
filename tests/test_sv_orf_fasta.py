@@ -114,3 +114,33 @@ def test_cand_orf_intact_pipeline(monkeypatch, tmp_path):
     assert calls[1][1] == calls[0][2]
     intact_file = cand.with_name("cand_orf_intact.blastp")
     assert intact_file.read_text() == "intact\n"
+
+
+def test_validate_orfs_sv_headers(monkeypatch, tmp_path):
+    cand = tmp_path / "cand.fa"
+    cand.write_text(">dummy\nATG\n")
+    base = "22822069-22828100_122_phaseblock_26_660301_666332_-"
+    q1 = f"{base},1,906,1919"
+    q2 = f"{base},2,1986,5810"
+
+    def fake_run_quiet(cmd, check=True, cwd=None, input=None, text=False, **kwargs):
+        if cmd[0] == "getorf":
+            out = Path(cmd[cmd.index("-outseq") + 1])
+            out.write_text(f">{q1}\nM\n>{q2}\nM\n")
+        elif cmd[0] == "blastp":
+            out = Path(cmd[cmd.index("-out") + 1])
+            out.write_text(
+                f"{q1}\tL1rpORF1p\t0\t338\n{q2}\tL1rpORF2p\t0\t1275\n"
+            )
+
+    monkeypatch.setattr("haplongliner.sv_mode.run_quiet", fake_run_quiet)
+    monkeypatch.setattr("haplongliner.sv_mode.verify_blast_db", lambda x: None)
+    from haplongliner.find_longest_orf import find_longest_orf
+    monkeypatch.setattr("haplongliner.sv_mode.find_longest_orf", find_longest_orf)
+    monkeypatch.setattr(
+        "haplongliner.sv_mode.find_intact_orf",
+        lambda inp, out: Path(out).write_text(Path(inp).read_text()),
+    )
+
+    intact = _validate_orfs(cand)
+    assert intact == {base}
