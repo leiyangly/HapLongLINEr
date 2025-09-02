@@ -13,10 +13,10 @@ def test_empty_sequences_are_filtered(monkeypatch, tmp_path):
 
     def fake_run_quiet(cmd, check=True, cwd=None, **kwargs):  # pragma: no cover - behavior verified via assertions
         query = Path(cmd[-1])
-        content = query.read_text()
-        assert ">a" in content
-        assert ">c" in content
-        assert ">b" not in content
+        mapping = query.with_name("cand.list").read_text()
+        assert "a" in mapping
+        assert "c" in mapping
+        assert "b" not in mapping
         out_path = query.with_suffix(query.suffix + ".out")
         out_path.write_text("")
 

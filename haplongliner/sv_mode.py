@@ -801,12 +801,54 @@ def _remove_empty_sequences(fasta_path: Path) -> None:
     tmp_path.replace(fasta_path)
 
 
+def _shorten_fasta_headers(fasta_path: Path) -> tuple[Path, Path]:
+    """Write a copy of ``fasta_path`` with short headers and record mapping.
+
+    Returns the path to the short FASTA and the mapping list file.
+    """
+    short_fa = fasta_path.with_name(fasta_path.stem + "_short.fa")
+    list_file = fasta_path.with_name("cand.list")
+    with open(fasta_path) as src, open(short_fa, "w") as dst, open(list_file, "w") as lst:
+        idx = 1
+        for line in src:
+            if line.startswith(">"):
+                orig = line[1:].strip()
+                name = f"seq{idx}"
+                dst.write(f">{name}\n")
+                lst.write(f"{name}\t{orig}\n")
+                idx += 1
+            else:
+                dst.write(line)
+    return short_fa, list_file
+
+
+def _restore_rm_out_names(short_out: Path, list_file: Path, out_file: Path) -> None:
+    """Restore original sequence names in RepeatMasker ``.out`` file."""
+    mapping: Dict[str, str] = {}
+    with open(list_file) as fh:
+        for line in fh:
+            if not line.strip():
+                continue
+            short, full = line.rstrip().split("\t", 1)
+            mapping[short] = full
+
+    with open(short_out) as src, open(out_file, "w") as dst:
+        for line in src:
+            if line.startswith(" "):
+                parts = line.split()
+                if len(parts) > 4 and parts[4] in mapping:
+                    parts[4] = mapping[parts[4]]
+                    line = " ".join(parts) + "\n"
+            dst.write(line)
+
+
 def _validate_presence(candidate_fa: Path, min_length: int = 5000) -> Set[str]:
     """Return names of sequences classified as L1 with coverage ≥ ``min_length`` bp."""
     present: Set[str] = set()
     _remove_empty_sequences(candidate_fa)
     if candidate_fa.stat().st_size == 0:
         return present
+    short_fa, list_file = _shorten_fasta_headers(candidate_fa)
 
     try:
         run_quiet(
@@ -814,7 +856,7 @@ def _validate_presence(candidate_fa: Path, min_length: int = 5000) -> Set[str]:
                 "RepeatMasker",
                 "-e",
                 "rmblast",
-                str(candidate_fa),
+                str(short_fa),
             ],
             cwd=candidate_fa.parent,
         )
@@ -825,7 +867,15 @@ def _validate_presence(candidate_fa: Path, min_length: int = 5000) -> Set[str]:
             "configured correctly."
         ) from exc
 
+    short_out = short_fa.with_suffix(short_fa.suffix + ".out")
     rm_out = candidate_fa.with_suffix(candidate_fa.suffix + ".out")
+    _restore_rm_out_names(short_out, list_file, rm_out)
+
+    for ext in ["", ".out", ".masked", ".tbl", ".cat"]:
+        tmp = short_fa.with_suffix(short_fa.suffix + ext)
+        if tmp.exists():
+            tmp.unlink()
+
     ref_fa = Path("data") / "L1rp.fa"
     with open(ref_fa) as fh:
         l1_len = sum(len(line.strip()) for line in fh if not line.startswith(">"))
