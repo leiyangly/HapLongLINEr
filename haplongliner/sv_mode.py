@@ -726,8 +726,14 @@ def _append_liftover_orfs(orf_fa: Path, sv_fa: Path) -> None:
     if not sv_fa.exists() or sv_fa.stat().st_size == 0:
         return
 
-    liftover_orf = sv_fa.with_name("sv_orf.fa")
-    run_quiet(
+    mapping: Dict[str, str] = {}
+    with open(sv_fa) as fh:
+        for line in fh:
+            if line.startswith(">"):
+                name = line[1:].strip()
+                mapping[name.replace(",", "_")] = name
+
+    result = run_quiet(
         [
             "getorf",
             "-sequence",
@@ -735,27 +741,45 @@ def _append_liftover_orfs(orf_fa: Path, sv_fa: Path) -> None:
             "-find",
             "1",
             "-outseq",
-            str(liftover_orf),
+            "stdout",
             "-minsize",
             "810",
         ],
         check=True,
+        text=True,
     )
-    _fix_getorf_headers(liftover_orf, sv_fa)
 
-    filtered = liftover_orf.with_suffix(".filtered")
-    with open(liftover_orf) as src, open(filtered, "w") as dst:
-        write = False
-        for line in src:
-            if line.startswith(">"):
-                fields = line[1:].strip().split(",")
-                write = len(fields) >= 6 and fields[5] != "INS"
-                if write:
-                    dst.write(line)
+    pattern = re.compile(r"^>([^\s]+)_([0-9]+)\s+\[([0-9]+)\s*-\s*([0-9]+)\]")
+    records: List[str] = []
+    write = False
+    for line in result.stdout.splitlines():
+        if line.startswith(">"):
+            m = pattern.match(line)
+            if m:
+                name_key, idx, start, end = m.groups()
+                orig = mapping.get(name_key, name_key)
+                header = f">{orig},{idx},{start},{end}"
             else:
-                if write:
-                    dst.write(line)
-    append_fasta(orf_fa, filtered)
+                header = line
+            fields = header[1:].strip().split(",")
+            write = len(fields) >= 6 and fields[5] != "INS"
+            if write:
+                records.append(header)
+        else:
+            if write:
+                records.append(line)
+
+    if not records:
+        return
+
+    with open(orf_fa, "ab+") as out:
+        out.seek(0, os.SEEK_END)
+        if out.tell() > 0:
+            out.seek(-1, os.SEEK_END)
+            if out.read(1) != b"\n":
+                out.write(b"\n")
+        for rec in records:
+            out.write(rec.encode() + b"\n")
 
 
 def _remove_empty_sequences(fasta_path: Path) -> None:
