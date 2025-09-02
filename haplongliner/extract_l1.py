@@ -1,5 +1,6 @@
 """Utility to extract full-length transposable element records from a BED file."""
 
+import re
 import sys
 from collections.abc import Iterable
 
@@ -37,13 +38,18 @@ def extract_te_from_bed(
     min_length: int = 5000,
     te: str | Iterable[str] = ("L1", "L1PA3"),
 ) -> None:
-    """Write BED records for selected TEs at least ``min_length`` bp long."""
+    """Write BED records for selected TEs at least ``min_length`` bp long.
+
+    Matches are based on prefix matching rather than exact equality so that
+    names like ``L1HS_3end`` are returned when searching for ``L1HS``.
+    """
 
     if isinstance(te, str):
         te_list = [t for t in te.split(",") if t]
     else:
         te_list = list(te)
     allowed = _expand_te_names(te_list)
+    patterns = [re.compile(fr"^{re.escape(t)}") for t in allowed]
 
     out = open(outfile, "w") if outfile else sys.stdout
     with open(infile) as f:
@@ -56,7 +62,7 @@ def extract_te_from_bed(
             name = fields[3]
             start = int(fields[1])
             end = int(fields[2])
-            if name in allowed and (end - start) >= min_length:
+            if any(p.match(name) for p in patterns) and (end - start) >= min_length:
                 print(line, end="", file=out)
     if outfile:
         out.close()

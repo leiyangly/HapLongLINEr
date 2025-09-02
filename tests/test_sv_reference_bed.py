@@ -1,5 +1,4 @@
 from haplongliner.sv_mode import _filter_reference_bed
-from haplongliner.sv_mode import _filter_reference_bed
 
 def test_filter_reference_hprc(tmp_path):
     raw = tmp_path / "hprc.bed"
@@ -21,3 +20,13 @@ def test_filter_reference_nonhprc(tmp_path):
     lines = out.read_text().strip().splitlines()
     assert len(lines) == 1
     assert lines[0].split("\t")[3] == "L1HS"
+
+def test_filter_reference_pattern_match(tmp_path):
+    raw = tmp_path / "ref.bed"
+    raw.write_text(
+        "chr1\t0\t6000\tL1HS_3end\t6000\t+\n" "chr1\t0\t6000\tL1PA2\t6000\t+\n",
+    )
+    out = _filter_reference_bed(raw, 5000, "L1HS", "hg38")
+    lines = out.read_text().strip().splitlines()
+    assert len(lines) == 1
+    assert lines[0].split("\t")[3] == "L1HS_3end"
