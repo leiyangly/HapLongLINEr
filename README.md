@@ -15,6 +15,10 @@
 
 Install dependencies (optional):
 ```bash
+conda config --add channels conda-forge
+conda config --add channels bioconda
+conda config --add channels defaults
+
 conda install -c bioconda minimap2 bedtools emboss blast repeatmasker h5py
 ```
 
