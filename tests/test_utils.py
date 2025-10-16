@@ -1,5 +1,7 @@
 import gzip
+import gzip
 from pathlib import Path
+
 import pytest
 
 from haplongliner.utils import (
@@ -7,6 +9,7 @@ from haplongliner.utils import (
     verify_repeatmasker_file,
     verify_sv_file,
     _fix_blast_query_names,
+    _candidate_key_from_query,
     sort_bed,
     append_fasta,
 )
@@ -66,6 +69,31 @@ def test_fix_blast_query_names(tmp_path):
     assert fixed.startswith(
         "011138A1,186_phaseblock_2,1087928,1093929,+,6,876,1889\tsub"
     )
+
+
+@pytest.mark.parametrize(
+    "query,expected",
+    [
+        (
+            "chr1:1-2,scaf,10,20,+,1,5,100",
+            "chr1:1-2,scaf,10",
+        ),
+        (
+            "chr1:1-2_scaf_10_20_+_1_5_100",
+            "chr1:1-2,scaf,10",
+        ),
+        (
+            "INS_chr1_100_chr1_100_200_._1_20_200",
+            "INS,chr1_100_chr1,100",
+        ),
+        (
+            "simple_name",
+            "simple_name",
+        ),
+    ],
+)
+def test_candidate_key_from_query(query, expected):
+    assert _candidate_key_from_query(query) == expected
 
 
 def test_sort_bed(tmp_path):

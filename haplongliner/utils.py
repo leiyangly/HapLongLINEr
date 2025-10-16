@@ -63,6 +63,57 @@ def run_quiet(cmd, **kwargs):
     return result
 
 
+def _candidate_key_from_query(query: str) -> str:
+    """Return ``name,scaf,start`` from a BLAST query identifier.
+
+    BLAST replaces commas with underscores and :func:`_fix_getorf_headers`
+    appends ORF-specific suffixes (``idx,orf_start,orf_end``).  This helper
+    mirrors the underscore-parsing logic from :func:`_fix_blast_query_names`
+    but returns only the identifying ``name`` components so the caller can
+    perform comparisons without relying on the file being rewritten in-place.
+    """
+
+    if "," in query:
+        parts = query.split(",")
+        if len(parts) >= 3:
+            return ",".join(parts[:3])
+        return query
+
+    if "_" not in query:
+        return query
+
+    parts = query.split("_")
+    if len(parts) < 8:
+        return query
+
+    prefix = "_".join(parts[:-6])
+    if len(parts) < 6:
+        return query
+    numeric = parts[-6:]
+
+    if not (
+        numeric[0].isdigit()
+        and numeric[1].isdigit()
+        and numeric[3].isdigit()
+        and numeric[4].isdigit()
+        and numeric[5].isdigit()
+        and numeric[2] in {"+", "-", "."}
+    ):
+        return query
+
+    if "_" in prefix:
+        name, scaf = prefix.split("_", 1)
+    else:
+        name = prefix
+        scaf = ""
+
+    key_parts: List[str] = [name]
+    if scaf:
+        key_parts.append(scaf)
+    key_parts.append(numeric[0])
+    return ",".join(key_parts)
+
+
 def _fix_blast_query_names(path: Path) -> None:
     """Normalize BLAST query names to comma-separated format.
 
@@ -80,29 +131,16 @@ def _fix_blast_query_names(path: Path) -> None:
                 continue
             fields = line.rstrip().split()
             for i, f in enumerate(fields):
-                if "," in f or "_" not in f:
+                if "," in f:
+                    continue
+                fixed = _candidate_key_from_query(f)
+                if fixed == f:
                     continue
                 parts = f.split("_")
-                if len(parts) < 8:
+                if len(parts) < 6:
                     continue
-                prefix = "_".join(parts[:-6])
                 numeric = parts[-6:]
-                if not (
-                    numeric[0].isdigit()
-                    and numeric[1].isdigit()
-                    and numeric[3].isdigit()
-                    and numeric[4].isdigit()
-                    and numeric[5].isdigit()
-                    and numeric[2] in {"+", "-", "."}
-                ):
-                    continue
-                if "_" in prefix:
-                    name, scaf = prefix.split("_", 1)
-                else:
-                    name = prefix
-                    scaf = ""
-                fixed = [name, scaf] if scaf else [name]
-                fields[i] = ",".join(fixed + numeric)
+                fields[i] = ",".join(fixed.split(",") + numeric[1:])
             out.write("\t".join(fields) + "\n")
     os.replace(tmp, path)
 
