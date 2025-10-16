@@ -9,16 +9,46 @@ def find_intact_orf(in_file, out_file):
     of the legacy ``FindIntactORF.pl`` script.
     """
     with open(in_file) as fin, open(out_file, "w") as fout:
-        for line in fin:
-            if not line.strip():
+        for raw_line in fin:
+            if not raw_line.strip():
                 continue
-            fields = line.strip().split()
-            # Ensure there are enough columns
-            if len(fields) < 25:
+            fields = raw_line.strip().split()
+            if len(fields) < 30:
+                # ``cand_orf_combine.blastp`` stores an ORF1 and ORF2 hit on the
+                # same line.  Fewer than 30 fields means one of the alignments
+                # is missing, so the candidate cannot be intact.
                 continue
-            if (fields[8] == "1" and fields[9] == "338" and
-                    fields[23] == "1" and fields[24] == "1275"):
-                fout.write(line)
+
+            def _is_intact(chunk_start: int, expected_len: int) -> bool:
+                """Return ``True`` when the BLAST chunk spans the expected ORF."""
+
+                chunk = fields[chunk_start:chunk_start + 15]
+                if len(chunk) < 15:
+                    return False
+                try:
+                    qstart = int(chunk[6])
+                    qend = int(chunk[7])
+                    sstart = int(chunk[8])
+                    send = int(chunk[9])
+                    qlen = int(chunk[12])
+                    slen = int(chunk[13])
+                except ValueError:
+                    return False
+
+                q_min, q_max = sorted((qstart, qend))
+                s_min, s_max = sorted((sstart, send))
+
+                return (
+                    q_min == 1
+                    and q_max == expected_len
+                    and qlen == expected_len
+                    and s_min == 1
+                    and s_max == expected_len
+                    and slen == expected_len
+                )
+
+            if _is_intact(0, 338) and _is_intact(15, 1275):
+                fout.write(raw_line)
 
 
 if __name__ == "__main__":
