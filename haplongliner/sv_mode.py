@@ -18,6 +18,7 @@ from .utils import (
     read_nonempty_fasta,
     read_paf,
     _fix_blast_query_names,
+    _candidate_key_from_query,
     sort_bed,
     append_fasta,
 )
@@ -1128,9 +1129,11 @@ def run_sv_mode(
             for line in fh:
                 if not line.strip():
                     continue
-                parts = line.split()[0].split(",")
-                name = ",".join(parts[:3])
-                intact_names.add(name)
+                query = line.split()[0]
+                key = _candidate_key_from_query(query)
+                parts = key.split(",")
+                if len(parts) >= 3:
+                    intact_names.add(",".join(parts[:3]))
     else:
         print(
             "[INFO] Skipping intact ORF detection and BLASTP steps "
