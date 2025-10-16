@@ -18,7 +18,6 @@ from .utils import (
     read_nonempty_fasta,
     read_paf,
     _fix_blast_query_names,
-    _candidate_key_from_query,
     sort_bed,
     append_fasta,
 )
@@ -52,6 +51,7 @@ from .extract_l1 import _expand_te_names
 
 from .find_longest_orf import find_longest_orf
 from .find_intact_orf import find_intact_orf
+from .combine_table import _read_intact
 
 
 # use shared PAF parser from utils for backward compatibility
@@ -538,13 +538,15 @@ def _extract_sequences(
     fa = Fasta(str(fasta))
 
     with open(out_lift, "w") as lift:
-        for _, _, _, name, _, _, plus_info, _, t_start, t_end in lifted:
+        for chrom, start, end, name, _, strand, plus_info, _, t_start, t_end in lifted:
             scaf, _ps, _pe, t_strand = _parse_target_info(plus_info)
             seq = fa[scaf][t_start:t_end].seq
             if t_strand == "-":
                 seq = _revcomp(seq)
             seq = seq.upper()
-            header = f"{name},{scaf},{t_start},{t_end},{t_strand}"
+            header = (
+                f"{chrom},{start},{end},{strand},{name},{scaf},{t_start},{t_end},{t_strand}"
+            )
             lift.write(f">{header}\n{seq}\n")
 
     with open(out_ins, "w") as ins:
@@ -553,7 +555,7 @@ def _extract_sequences(
                 continue
             seq = seq.upper()
             name = f"INS_{chrom}_{start}"
-            header = f"{name},{chrom},{start},{end},."
+            header = f"{chrom},{start},{end},+,{name}"
             ins.write(f">{header}\n{seq}\n")
 
 
@@ -621,7 +623,7 @@ def _write_sv_sequences(
                     out.write(f">{target_info}\n{seq}\n")
 
         for chrom, start, end, seq, name in extras:
-            key = f"{name},{chrom},{start}"
+            key = f"{chrom}_{start}_{end}"
             if key not in present and key not in intact:
                 continue
             target_info = f"{chrom},{start},{end},{end - start},.,INS"
@@ -630,19 +632,22 @@ def _write_sv_sequences(
 
 def _parse_repeatmasker(out_file: Path, l1_len: int, cov_thresh: float) -> Set[str]:
     """Return names of sequences covering ``cov_thresh`` of the L1 reference."""
-    coverage: Dict[str, int] = {}
+    coverage: Dict[Tuple[str, str, str], int] = {}
     with open(out_file) as fh:
         for line in fh:
             if line.startswith(" "):
                 parts = line.split()
                 if len(parts) >= 14 and re.search(r"L1", parts[9]):
                     raw_name = parts[4]
-                    key = ",".join(raw_name.split(",")[:3])
+                    key_parts = raw_name.split(",")[:3]
+                    if len(key_parts) < 3:
+                        continue
+                    key = (key_parts[0], key_parts[1], key_parts[2])
                     rep_start = int(parts[11].strip("()"))
                     rep_end = int(parts[12].strip("()"))
                     cov = abs(rep_end - rep_start) + 1
                     coverage[key] = coverage.get(key, 0) + cov
-    return {n for n, c in coverage.items() if c / l1_len >= cov_thresh}
+    return {"_".join(n) for n, c in coverage.items() if c / l1_len >= cov_thresh}
 
 
 def _validate_orfs(candidate_fa: Path) -> Set[str]:
@@ -703,16 +708,8 @@ def _validate_orfs(candidate_fa: Path) -> Set[str]:
     find_intact_orf(combined, intact_file)
     _fix_blast_query_names(intact_file)
 
-    with open(intact_file) as fh:
-        for line in fh:
-            if not line.strip():
-                continue
-            fields = line.strip().split()
-            if not fields:
-                continue
-            parts = fields[0].split(",")
-            name = ",".join(parts[:3])
-            intact.add(name)
+    intact_records = _read_intact(intact_file)
+    intact.update(intact_records.keys())
     return intact
 
 
@@ -1124,16 +1121,8 @@ def run_sv_mode(
         intact_file = candidate_fa.with_name("cand_orf_intact.blastp")
         find_intact_orf(combined, intact_file)
         _fix_blast_query_names(intact_file)
-        intact_names: Set[str] = set()
-        with open(intact_file) as fh:
-            for line in fh:
-                if not line.strip():
-                    continue
-                query = line.split()[0]
-                key = _candidate_key_from_query(query)
-                parts = key.split(",")
-                if len(parts) >= 3:
-                    intact_names.add(",".join(parts[:3]))
+        intact_records = _read_intact(intact_file)
+        intact_names = set(intact_records.keys())
     else:
         print(
             "[INFO] Skipping intact ORF detection and BLASTP steps "
@@ -1179,7 +1168,7 @@ def run_sv_mode(
             # cand_orf_intact.blastp is labeled "intact"; those only in
             # cand.fa.out are labeled "present". Everything else is
             # considered "absent".
-            key = f"{name},{scaf},{t_start}"
+            key = f"{chrom}_{start}_{end}"
 
             final_stat = "absent"
             if key in presence_names:
@@ -1200,7 +1189,7 @@ def run_sv_mode(
             )
 
         for chrom, start, end, seq, name in extra_ins:
-            key = f"{name},{chrom},{start}"
+            key = f"{chrom}_{start}_{end}"
             if key not in presence_names and key not in intact_names:
                 continue
 
