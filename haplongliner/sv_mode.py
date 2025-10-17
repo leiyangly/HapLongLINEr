@@ -524,6 +524,22 @@ def _classify_sv(
     return status, ins_seqs
 
 
+def _intact_key_candidates(
+    chrom: str, start: int, end: int, plus_info: str | None = None
+) -> Set[str]:
+    """Return possible presence/intact keys for a lifted candidate."""
+
+    keys: Set[str] = {f"{chrom}_{start}_{end}"}
+    if plus_info:
+        parts = plus_info.split(",")
+        if len(parts) >= 3:
+            span = f"{start}-{end}"
+            scaf = parts[0]
+            scaf_start = parts[1]
+            keys.add(f"{span},{scaf},{scaf_start}")
+    return keys
+
+
 def _extract_sequences(
     fasta: Path,
     lifted: List[Tuple[str, int, int, str, int, str, str, str, int, int]],
@@ -623,8 +639,8 @@ def _write_sv_sequences(
                     out.write(f">{target_info}\n{seq}\n")
 
         for chrom, start, end, seq, name in extras:
-            key = f"{chrom}_{start}_{end}"
-            if key not in present and key not in intact:
+            keys = _intact_key_candidates(chrom, start, end)
+            if not any(k in present for k in keys) and not any(k in intact for k in keys):
                 continue
             target_info = f"{chrom},{start},{end},{end - start},.,INS"
             out.write(f">{target_info}\n{seq}\n")
@@ -1168,12 +1184,12 @@ def run_sv_mode(
             # cand_orf_intact.blastp is labeled "intact"; those only in
             # cand.fa.out are labeled "present". Everything else is
             # considered "absent".
-            key = f"{chrom}_{start}_{end}"
+            keys = _intact_key_candidates(chrom, start, end, plus_info)
 
             final_stat = "absent"
-            if key in presence_names:
+            if any(k in presence_names for k in keys):
                 final_stat = "present"
-            if key in intact_names:
+            if any(k in intact_names for k in keys):
                 final_stat = "intact"
 
             if name in ins_seqs:
@@ -1189,12 +1205,14 @@ def run_sv_mode(
             )
 
         for chrom, start, end, seq, name in extra_ins:
-            key = f"{chrom}_{start}_{end}"
-            if key not in presence_names and key not in intact_names:
+            keys = _intact_key_candidates(chrom, start, end)
+            if not any(k in presence_names for k in keys) and not any(
+                k in intact_names for k in keys
+            ):
                 continue
 
             final_stat = "present"
-            if key in intact_names:
+            if any(k in intact_names for k in keys):
                 final_stat = "intact"
 
             target_len = end - start
