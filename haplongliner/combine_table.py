@@ -24,7 +24,10 @@ def _read_intact(file_path: str) -> Dict[str, str]:
             if not m:
                 continue
             chrom, start, end, _ = m.groups()
-            key = f"{chrom}_{start}_{end}"
+            if "," in chrom:
+                key = f"{chrom},{start}"
+            else:
+                key = f"{chrom}_{start}_{end}"
             result[key] = line.strip()
     return result
 
