@@ -21,7 +21,9 @@ def test_empty_sequences_are_filtered(monkeypatch, tmp_path):
         out_path.write_text("")
 
     monkeypatch.setattr("haplongliner.sv_mode.run_quiet", fake_run_quiet)
-    assert _validate_presence(cand, min_length=0) == set()
+    present, annotations = _validate_presence(cand, min_length=0)
+    assert present == set()
+    assert annotations == {}
 
 
 def test_all_empty_sequences_skip_repeatmasker(monkeypatch, tmp_path):
@@ -34,7 +36,9 @@ def test_all_empty_sequences_skip_repeatmasker(monkeypatch, tmp_path):
         called["flag"] = True
 
     monkeypatch.setattr("haplongliner.sv_mode.run_quiet", fake_run_quiet)
-    assert _validate_presence(cand, min_length=0) == set()
+    present, annotations = _validate_presence(cand, min_length=0)
+    assert present == set()
+    assert annotations == {}
     assert not called["flag"]
 
 
@@ -49,7 +53,9 @@ def test_repeatmasker_runs_in_output_dir(monkeypatch, tmp_path):
         out_path.write_text("")
 
     monkeypatch.setattr("haplongliner.sv_mode.run_quiet", fake_run_quiet)
-    assert _validate_presence(cand, min_length=0) == set()
+    present, annotations = _validate_presence(cand, min_length=0)
+    assert present == set()
+    assert annotations == {}
 
 def test_validate_presence_reports_repeatmasker_failure(tmp_path, monkeypatch):
     fa = tmp_path / "cand.fa"
@@ -85,5 +91,49 @@ def test_validate_presence_relative_path_subdir(monkeypatch, tmp_path):
 
     monkeypatch.setattr("haplongliner.sv_mode.run_quiet", fake_run_quiet)
     monkeypatch.chdir(tmp_path)
-    assert _validate_presence(Path("sub") / "cand.fa", min_length=0) == set()
+    present, annotations = _validate_presence(Path("sub") / "cand.fa", min_length=0)
+    assert present == set()
+    assert annotations == {}
     assert (sub / "cand.fa.out").exists()
+
+
+def test_validate_presence_returns_annotations(monkeypatch, tmp_path):
+    cand = tmp_path / "cand.fa"
+    cand.write_text(
+        ">chr1,10,110,+,L1HS\n"
+        + "A" * 100
+        + "\n"
+        + ">chr1,200,320,-,L1PA3\n"
+        + "C" * 120
+        + "\n"
+    )
+
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "L1rp.fa").write_text(">ref\n" + "A" * 6000 + "\n")
+
+    def fake_run_quiet(cmd, check=True, cwd=None, **kwargs):
+        query = Path(cwd) / cmd[-1]
+        out_path = query.with_suffix(query.suffix + ".out")
+        out_path.write_text(
+            "   500   5.0  0.0  0.0  chr1,10,110,+,L1HS      1    90   (10)  + L1HS    LINE/L1    1   90  (0)   1\n"
+            "   400  10.0  0.0  0.0  chr1,200,320,-,L1PA3   10   120  (0)  C L1PA3   LINE/L1  (100)  310 210  2\n"
+        )
+
+    monkeypatch.setattr("haplongliner.sv_mode.run_quiet", fake_run_quiet)
+    monkeypatch.chdir(tmp_path)
+
+    present, annotations = _validate_presence(Path("cand.fa"), min_length=0)
+    assert present == {"chr1_10_110", "chr1_200_320"}
+    assert set(annotations) == {"chr1_10_110", "chr1_200_320"}
+
+    hit = annotations["chr1_10_110"]
+    assert hit.family == "L1HS"
+    assert pytest.approx(hit.identity, rel=1e-3) == 95.0
+    assert pytest.approx(hit.coverage, rel=1e-3) == 90.0
+
+    hit = annotations["chr1_200_320"]
+    assert hit.family == "L1PA3"
+    assert pytest.approx(hit.identity, rel=1e-3) == 90.0
+    # second sequence is 120 bp long with 111 bp covered (positions 10-120)
+    assert pytest.approx(hit.coverage, rel=1e-3) == pytest.approx(111 / 120 * 100, rel=1e-3)
