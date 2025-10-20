@@ -533,9 +533,19 @@ def _intact_key_candidates(
     if plus_info:
         parts = plus_info.split(",")
         if len(parts) >= 3:
-            span = f"{start}-{end}"
             scaf = parts[0]
             scaf_start = parts[1]
+            scaf_end = parts[2]
+
+            # RepeatMasker presence detection stores target scaffold
+            # coordinates as ``scaf_start_end``.  Include that key so the
+            # RepeatMasker-derived presence set can match lifted candidates.
+            keys.add(f"{scaf}_{scaf_start}_{scaf_end}")
+
+            # Legacy intact detection also records entries using the
+            # ``start-end,scaf,scaf_start`` convention; retain it for
+            # compatibility with older outputs.
+            span = f"{start}-{end}"
             keys.add(f"{span},{scaf},{scaf_start}")
     return keys
 
