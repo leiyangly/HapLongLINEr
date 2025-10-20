@@ -5,8 +5,9 @@ import gzip
 import itertools
 import tempfile
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Tuple, Iterable, Set
+from typing import Dict, List, Tuple, Iterable, Set, Optional
 from collections import Counter
 
 from .utils import (
@@ -656,24 +657,91 @@ def _write_sv_sequences(
             out.write(f">{target_info}\n{seq}\n")
 
 
-def _parse_repeatmasker(out_file: Path, l1_len: int, cov_thresh: float) -> Set[str]:
-    """Return names of sequences covering ``cov_thresh`` of the L1 reference."""
-    coverage: Dict[Tuple[str, str, str], int] = {}
+@dataclass(frozen=True)
+class RepeatMaskerHit:
+    """Summary of the dominant RepeatMasker annotation for a candidate."""
+
+    family: str
+    identity: float
+    coverage: float
+
+
+def _parse_repeatmasker(
+    out_file: Path,
+    seq_lengths: Dict[Tuple[str, str, str], int],
+    l1_len: int,
+    cov_thresh: float,
+) -> Tuple[Set[str], Dict[str, RepeatMaskerHit]]:
+    """Return presence keys and annotation details derived from RepeatMasker output."""
+
+    consensus_cov: Dict[Tuple[str, str, str], int] = {}
+    annotations: Dict[Tuple[str, str, str], Dict[str, Tuple[int, float]]] = {}
+
     with open(out_file) as fh:
         for line in fh:
-            if line.startswith(" "):
-                parts = line.split()
-                if len(parts) >= 14 and re.search(r"L1", parts[9]):
-                    raw_name = parts[4]
-                    key_parts = raw_name.split(",")[:3]
-                    if len(key_parts) < 3:
-                        continue
-                    key = (key_parts[0], key_parts[1], key_parts[2])
-                    rep_start = int(parts[11].strip("()"))
-                    rep_end = int(parts[12].strip("()"))
-                    cov = abs(rep_end - rep_start) + 1
-                    coverage[key] = coverage.get(key, 0) + cov
-    return {"_".join(n) for n, c in coverage.items() if c / l1_len >= cov_thresh}
+            if not line.startswith(" "):
+                continue
+            parts = line.split()
+            if len(parts) < 14 or not re.search(r"L1", parts[9]):
+                continue
+
+            raw_name = parts[4]
+            key_parts = raw_name.split(",")[:3]
+            if len(key_parts) < 3:
+                continue
+            key = (key_parts[0], key_parts[1], key_parts[2])
+
+            try:
+                query_start = int(parts[5].strip("()"))
+                query_end = int(parts[6].strip("()"))
+            except ValueError:
+                continue
+            query_span = abs(query_end - query_start) + 1
+            try:
+                perc_div = float(parts[1])
+            except ValueError:
+                perc_div = 100.0
+            identity = max(0.0, 100.0 - perc_div)
+
+            strand = parts[8]
+            rep_start_raw = parts[11 if strand != "C" else 13]
+            rep_end_raw = parts[12]
+            try:
+                rep_start = int(rep_start_raw.strip("()"))
+                rep_end = int(rep_end_raw.strip("()"))
+            except ValueError:
+                continue
+            rep_cov = abs(rep_end - rep_start) + 1
+            consensus_cov[key] = consensus_cov.get(key, 0) + rep_cov
+
+            family = parts[9]
+            fam_stats = annotations.setdefault(key, {})
+            cov_bp, ident_sum = fam_stats.get(family, (0, 0.0))
+            fam_stats[family] = (cov_bp + query_span, ident_sum + identity * query_span)
+
+    present = {
+        "_".join(n)
+        for n, cov in consensus_cov.items()
+        if l1_len and cov / l1_len >= cov_thresh
+    }
+
+    detailed: Dict[str, RepeatMaskerHit] = {}
+    for key, families in annotations.items():
+        if not families:
+            continue
+        best_family, (cov_bp, ident_sum) = max(
+            families.items(), key=lambda item: item[1][0]
+        )
+        key_len = seq_lengths.get(key, 0)
+        cov_pct = (cov_bp / key_len * 100.0) if key_len else 0.0
+        if cov_pct > 100.0:
+            cov_pct = 100.0
+        identity_pct = (ident_sum / cov_bp) if cov_bp else 0.0
+        if identity_pct > 100.0:
+            identity_pct = 100.0
+        detailed["_".join(key)] = RepeatMaskerHit(best_family, identity_pct, cov_pct)
+
+    return present, detailed
 
 
 def _validate_orfs(candidate_fa: Path) -> Set[str]:
@@ -876,12 +944,35 @@ def _restore_rm_out_names(short_out: Path, list_file: Path, out_file: Path) -> N
             dst.write(line)
 
 
-def _validate_presence(candidate_fa: Path, min_length: int = 5000) -> Set[str]:
-    """Return names of sequences classified as L1 with coverage ≥ ``min_length`` bp."""
+def _validate_presence(
+    candidate_fa: Path, min_length: int = 5000
+) -> Tuple[Set[str], Dict[str, RepeatMaskerHit]]:
+    """Annotate candidates with RepeatMasker and report presence keys."""
+
     present: Set[str] = set()
+    annotations: Dict[str, RepeatMaskerHit] = {}
     _remove_empty_sequences(candidate_fa)
     if candidate_fa.stat().st_size == 0:
-        return present
+        return present, annotations
+
+    seq_lengths: Dict[Tuple[str, str, str], int] = {}
+    with open(candidate_fa) as fh:
+        header: Optional[Tuple[str, str, str]] = None
+        length = 0
+        for line in fh:
+            if line.startswith(">"):
+                if header is not None:
+                    seq_lengths[header] = length
+                parts = line[1:].strip().split(",")
+                if len(parts) >= 3:
+                    header = (parts[0], parts[1], parts[2])
+                else:
+                    header = None
+                length = 0
+            else:
+                length += len(line.strip())
+        if header is not None:
+            seq_lengths[header] = length
     short_fa, list_file = _shorten_fasta_headers(candidate_fa)
 
     try:
@@ -914,9 +1005,9 @@ def _validate_presence(candidate_fa: Path, min_length: int = 5000) -> Set[str]:
     with open(ref_fa) as fh:
         l1_len = sum(len(line.strip()) for line in fh if not line.startswith(">"))
     cov_thresh = min_length / l1_len if l1_len else 1.0
-    present = _parse_repeatmasker(rm_out, l1_len, cov_thresh)
+    present, annotations = _parse_repeatmasker(rm_out, seq_lengths, l1_len, cov_thresh)
 
-    return present
+    return present, annotations
 
 
 def run_sv_mode(
@@ -1157,9 +1248,10 @@ def run_sv_mode(
         intact_names = set()
         candidate_fa.with_name("cand_orf_intact.blastp").touch()
     if expanded_te & {"L1HS", "L1PA2", "L1PA3"}:
-        presence_names = _validate_presence(candidate_fa, min_length)
+        presence_names, rm_annotations = _validate_presence(candidate_fa, min_length)
     else:
         presence_names = set()
+        rm_annotations = {}
 
     # Summary for Step 5
     status_counts = Counter(status.values())
@@ -1189,18 +1281,21 @@ def run_sv_mode(
             scaf, *_rest, t_strand = plus_info.split(",")
             target_len = t_end - t_start
 
-            # Presence is determined solely by cand.fa.out and
-            # cand_orf_intact.blastp results. Any sequence found in
-            # cand_orf_intact.blastp is labeled "intact"; those only in
-            # cand.fa.out are labeled "present". Everything else is
-            # considered "absent".
             keys = _intact_key_candidates(chrom, start, end, plus_info)
 
-            final_stat = "absent"
-            if any(k in presence_names for k in keys):
-                final_stat = "present"
+            final_stat = base_stat
             if any(k in intact_names for k in keys):
                 final_stat = "intact"
+            elif final_stat not in {"missing", "absent"}:
+                final_stat = "present"
+
+            annotation_label = None
+            for key in keys:
+                hit = rm_annotations.get(key)
+                if hit:
+                    annotation_label = f"{hit.family}({hit.identity:.1f},{hit.coverage:.1f})"
+                    break
+            te_label = annotation_label or name
 
             if name in ins_seqs:
                 sv_stat = "INS"
@@ -1211,7 +1306,7 @@ def run_sv_mode(
 
             target_info = f"{scaf},{t_start},{t_end},{target_len},{t_strand},{sv_stat}"
             out.write(
-                f"{chrom}\t{start}\t{end}\t{name}\t{length}\t{strand}\t{final_stat}\t{target_info}\n"
+                f"{chrom}\t{start}\t{end}\t{te_label}\t{length}\t{strand}\t{final_stat}\t{target_info}\n"
             )
 
         for chrom, start, end, seq, name in extra_ins:
@@ -1229,8 +1324,15 @@ def run_sv_mode(
             target_info = f"{chrom},{start},{end},{target_len},.,INS"
             # mark non-reference insertions with a ';nr' suffix
             name_out = f"{name};nr"
+            annotation_label = None
+            for key in keys:
+                hit = rm_annotations.get(key)
+                if hit:
+                    annotation_label = f"{hit.family}({hit.identity:.1f},{hit.coverage:.1f})"
+                    break
+            te_label = annotation_label or name_out
             out.write(
-                f"{chrom}\t{start}\t{end}\t{name_out}\t{target_len}\t.\t{final_stat}\t{target_info}\n"
+                f"{chrom}\t{start}\t{end}\t{te_label}\t{target_len}\t.\t{final_stat}\t{target_info}\n"
             )
 
     sort_bed(out_table)
