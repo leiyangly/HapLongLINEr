@@ -540,35 +540,6 @@ def _intact_key_candidates(
     return keys
 
 
-def _infer_te_type(name: str) -> str:
-    """Return the TE family name encoded in ``name``.
-
-    The master BED encodes the family between underscores (for example,
-    ``5398_L1HS_intact``) while non-reference insertions are emitted as
-    ``INS_<chrom>_<start>``.  This helper extracts the family component so the
-    Step 6 summary reports a realistic number of TE types rather than counting
-    every unique identifier.
-    """
-
-    clean = name.split(";", 1)[0]
-    if clean.upper().startswith("INS_"):
-        return "INS"
-    parts = clean.split("_")
-    family_parts: List[str] = []
-    for part in parts:
-        if not family_parts:
-            if part.upper().startswith("L1"):
-                family_parts.append(part)
-        else:
-            if part.upper().startswith("L1") or (part and part[0].isdigit()):
-                family_parts.append(part)
-            else:
-                break
-    if family_parts:
-        return "_".join(family_parts)
-    return parts[0] if parts else clean
-
-
 def _extract_sequences(
     fasta: Path,
     lifted: List[Tuple[str, int, int, str, int, str, str, str, int, int]],
@@ -1191,9 +1162,6 @@ def run_sv_mode(
     print("\n[STEP 6] Writing output files")
 
     out_table = outdir / "haplongliner_sv.bed"
-    total_final = 0
-    final_status_counts: Counter[str] = Counter()
-    final_te_counts: Counter[str] = Counter()
     with open(out_table, "w") as out:
         for (
             chrom,
@@ -1235,9 +1203,6 @@ def run_sv_mode(
             out.write(
                 f"{chrom}\t{start}\t{end}\t{name}\t{length}\t{strand}\t{final_stat}\t{target_info}\n"
             )
-            total_final += 1
-            final_status_counts[final_stat] += 1
-            final_te_counts[_infer_te_type(name)] += 1
 
         for chrom, start, end, seq, name in extra_ins:
             keys = _intact_key_candidates(chrom, start, end)
@@ -1257,9 +1222,6 @@ def run_sv_mode(
             out.write(
                 f"{chrom}\t{start}\t{end}\t{name_out}\t{target_len}\t.\t{final_stat}\t{target_info}\n"
             )
-            total_final += 1
-            final_status_counts[final_stat] += 1
-            final_te_counts[_infer_te_type(name_out)] += 1
 
     sort_bed(out_table)
 
@@ -1281,17 +1243,24 @@ def run_sv_mode(
         _append_liftover_orfs(candidate_fa.with_name("cand_orf.fa"), sv_fa)
 
     # Summary for Step 6
+    total_final = 0
+    final_status_counts: Counter[str] = Counter()
+    final_te_counts: Counter[str] = Counter()
+    with open(out_table) as fh:
+        for line in fh:
+            if not line.strip():
+                continue
+            total_final += 1
+            fields = line.strip().split()
+            if len(fields) > 3:
+                final_te_counts[fields[3]] += 1
+            if len(fields) > 6:
+                final_status_counts[fields[6]] += 1
     status_count = len(final_status_counts)
     te_type_count = len(final_te_counts)
-    status_breakdown = ", ".join(
-        f"{name}: {count}" for name, count in final_status_counts.most_common()
+    print(
+        f"[SUM] Final table has {total_final} entries across {status_count} status categories and {te_type_count} TE types"
     )
-    msg = f"[SUM] Final table has {total_final} entries"
-    if status_count:
-        msg += f" across {status_count} status categories ({status_breakdown})"
-    if te_type_count:
-        msg += f" and {te_type_count} TE types"
-    print(msg)
 
     print(f"[INFO] SV mode completed. Results in {out_table} and {sv_fa}")
 
