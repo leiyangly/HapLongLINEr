@@ -132,6 +132,7 @@ def liftover_paf(
     min_len: int,
     max_div: float,
     merge: bool,
+    show_progress: bool = True,
 ) -> None:
     bed = read_bed(bed_path, merge)
     fh = sys.stdin if paf_path == "-" else open(paf_path)
@@ -144,7 +145,7 @@ def liftover_paf(
     with fh:
         line_iter = fh
         progress = None
-        if paf_path != "-":
+        if show_progress and paf_path != "-":
             is_tty = getattr(sys.stderr, "isatty", lambda: False)()
             if is_tty:
                 total = sum(1 for _ in open(paf_path))
