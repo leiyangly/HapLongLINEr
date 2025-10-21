@@ -507,8 +507,10 @@ def _classify_sv(
             d_end = int(f[9])
             overlap = max(0, min(a_end, d_end) - max(a_start, d_start))
             elem_len = a_end - a_start
-            cov = overlap / elem_len if elem_len else 0
-            if cov >= 0.95:
+            del_len = d_end - d_start
+            te_cov = overlap / elem_len if elem_len else 0
+            del_cov = overlap / del_len if del_len else 0
+            if te_cov >= 0.95 and del_cov >= 0.95:
                 status[name] = "absent"
 
     with open(inter_ins) as fh:
