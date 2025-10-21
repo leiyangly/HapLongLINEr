@@ -1138,10 +1138,21 @@ def run_sv_mode(
     print("\n[STEP 3] Lifting over candidate TE coordinates")
 
     lifted_bed = outdir / "lifted.bed"
+    print(
+        "[INFO] Using "
+        f"{alignments} alignment records (MAPQ ≥0, min length ≥0, max divergence ≤2.0) "
+        f"from {aln_paf} with reference intervals {ref_bed} -> {lifted_bed}"
+    )
     import contextlib
 
     with open(lifted_bed, "w") as out, contextlib.redirect_stdout(out):
-        liftover_paf(str(aln_paf), str(ref_bed), 0, 0, 2.0, False)
+        liftover_paf(str(aln_paf), str(ref_bed), 0, 0, 2.0, False, show_progress=False)
+
+    with open(lifted_bed) as lifted_fh:
+        raw_lifted_records = sum(1 for line in lifted_fh if line.strip())
+    print(
+        f"[INFO] Liftover produced {raw_lifted_records} raw intervals written to {lifted_bed}"
+    )
 
     lifted_reorg = outdir / "lifted_reorg.bed"
     lifted = _create_lifted_reorg(lifted_bed, ref_bed, lifted_reorg)
