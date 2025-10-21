@@ -116,8 +116,8 @@ def test_validate_presence_returns_annotations(monkeypatch, tmp_path):
         query = Path(cwd) / cmd[-1]
         out_path = query.with_suffix(query.suffix + ".out")
         out_path.write_text(
-            "   500   5.0  0.0  0.0  chr1,10,110,+,L1HS      1    90   (10)  + L1HS    LINE/L1    1   90  (0)   1\n"
-            "   400  10.0  0.0  0.0  chr1,200,320,-,L1PA3   10   120  (0)  C L1PA3   LINE/L1  (100)  310 210  2\n"
+            "   500   5.0  0.0  0.0  chr1,10,110,+,L1HS      1    96   (4)   + L1HS    LINE/L1    1   96  (0)   1\n"
+            "   400  10.0  0.0  0.0  chr1,200,320,-,L1PA3   10   123  (0)  C L1PA3   LINE/L1  (100)  310 210  2\n"
         )
 
     monkeypatch.setattr("haplongliner.sv_mode.run_quiet", fake_run_quiet)
@@ -130,10 +130,10 @@ def test_validate_presence_returns_annotations(monkeypatch, tmp_path):
     hit = annotations["chr1_10_110"]
     assert hit.family == "L1HS"
     assert pytest.approx(hit.identity, rel=1e-3) == 95.0
-    assert pytest.approx(hit.coverage, rel=1e-3) == 90.0
+    assert pytest.approx(hit.coverage, rel=1e-3) == 96.0
 
     hit = annotations["chr1_200_320"]
     assert hit.family == "L1PA3"
     assert pytest.approx(hit.identity, rel=1e-3) == 90.0
-    # second sequence is 120 bp long with 111 bp covered (positions 10-120)
-    assert pytest.approx(hit.coverage, rel=1e-3) == pytest.approx(111 / 120 * 100, rel=1e-3)
+    # second sequence is 120 bp long with 114 bp covered (positions 10-123)
+    assert pytest.approx(hit.coverage, rel=1e-3) == pytest.approx(114 / 120 * 100, rel=1e-3)

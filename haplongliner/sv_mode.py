@@ -506,11 +506,9 @@ def _classify_sv(
             d_start = int(f[8])
             d_end = int(f[9])
             overlap = max(0, min(a_end, d_end) - max(a_start, d_start))
-            del_len = d_end - d_start
-            cov = overlap / del_len if del_len else 0
+            elem_len = a_end - a_start
+            cov = overlap / elem_len if elem_len else 0
             if cov >= 0.95:
-                status[name] = "missing"
-            else:
                 status[name] = "absent"
 
     with open(inter_ins) as fh:
@@ -627,11 +625,14 @@ def _write_sv_sequences(
         ) in lifted:
             base_stat = status.get(name, "present")
             scaf, *_rest, t_strand = _parse_target_info(plus_info)
+            keys = _intact_key_candidates(_chrom, _start, _end, plus_info)
+            rm_supported = any(k in present for k in keys)
+            intact_supported = any(k in intact for k in keys)
 
-            if name in ins_seqs:
-                sv_stat = "INS"
-            elif base_stat in {"missing", "absent"}:
+            if base_stat == "absent":
                 sv_stat = "DEL"
+            elif name in ins_seqs and (rm_supported or intact_supported):
+                sv_stat = "INS"
             else:
                 sv_stat = "ALN"
 
@@ -669,12 +670,10 @@ class RepeatMaskerHit:
 def _parse_repeatmasker(
     out_file: Path,
     seq_lengths: Dict[Tuple[str, str, str], int],
-    l1_len: int,
     cov_thresh: float,
 ) -> Tuple[Set[str], Dict[str, RepeatMaskerHit]]:
     """Return presence keys and annotation details derived from RepeatMasker output."""
 
-    consensus_cov: Dict[Tuple[str, str, str], int] = {}
     annotations: Dict[Tuple[str, str, str], Dict[str, Tuple[int, float]]] = {}
 
     with open(out_file) as fh:
@@ -703,29 +702,13 @@ def _parse_repeatmasker(
                 perc_div = 100.0
             identity = max(0.0, 100.0 - perc_div)
 
-            strand = parts[8]
-            rep_start_raw = parts[11 if strand != "C" else 13]
-            rep_end_raw = parts[12]
-            try:
-                rep_start = int(rep_start_raw.strip("()"))
-                rep_end = int(rep_end_raw.strip("()"))
-            except ValueError:
-                continue
-            rep_cov = abs(rep_end - rep_start) + 1
-            consensus_cov[key] = consensus_cov.get(key, 0) + rep_cov
-
             family = parts[9]
             fam_stats = annotations.setdefault(key, {})
             cov_bp, ident_sum = fam_stats.get(family, (0, 0.0))
             fam_stats[family] = (cov_bp + query_span, ident_sum + identity * query_span)
 
-    present = {
-        "_".join(n)
-        for n, cov in consensus_cov.items()
-        if l1_len and cov / l1_len >= cov_thresh
-    }
-
     detailed: Dict[str, RepeatMaskerHit] = {}
+    present: Set[str] = set()
     for key, families in annotations.items():
         if not families:
             continue
@@ -733,13 +716,19 @@ def _parse_repeatmasker(
             families.items(), key=lambda item: item[1][0]
         )
         key_len = seq_lengths.get(key, 0)
-        cov_pct = (cov_bp / key_len * 100.0) if key_len else 0.0
+        if key_len <= 0:
+            continue
+        cov_frac = cov_bp / key_len
+        cov_pct = cov_frac * 100.0
         if cov_pct > 100.0:
             cov_pct = 100.0
         identity_pct = (ident_sum / cov_bp) if cov_bp else 0.0
         if identity_pct > 100.0:
             identity_pct = 100.0
-        detailed["_".join(key)] = RepeatMaskerHit(best_family, identity_pct, cov_pct)
+        name = "_".join(key)
+        detailed[name] = RepeatMaskerHit(best_family, identity_pct, cov_pct)
+        if cov_frac >= cov_thresh:
+            present.add(name)
 
     return present, detailed
 
@@ -1001,11 +990,8 @@ def _validate_presence(
         if tmp.exists():
             tmp.unlink()
 
-    ref_fa = Path("data") / "L1rp.fa"
-    with open(ref_fa) as fh:
-        l1_len = sum(len(line.strip()) for line in fh if not line.startswith(">"))
-    cov_thresh = min_length / l1_len if l1_len else 1.0
-    present, annotations = _parse_repeatmasker(rm_out, seq_lengths, l1_len, cov_thresh)
+    cov_thresh = 0.95
+    present, annotations = _parse_repeatmasker(rm_out, seq_lengths, cov_thresh)
 
     return present, annotations
 
@@ -1282,11 +1268,15 @@ def run_sv_mode(
             target_len = t_end - t_start
 
             keys = _intact_key_candidates(chrom, start, end, plus_info)
+            rm_supported = any(k in presence_names for k in keys)
+            intact_supported = any(k in intact_names for k in keys)
 
             final_stat = base_stat
-            if any(k in intact_names for k in keys):
+            if base_stat == "absent":
+                final_stat = "absent"
+            elif intact_supported:
                 final_stat = "intact"
-            elif final_stat not in {"missing", "absent"}:
+            else:
                 final_stat = "present"
 
             annotation_label = None
@@ -1297,10 +1287,10 @@ def run_sv_mode(
                     break
             te_label = annotation_label or name
 
-            if name in ins_seqs:
-                sv_stat = "INS"
-            elif base_stat in {"missing", "absent"}:
+            if base_stat == "absent":
                 sv_stat = "DEL"
+            elif name in ins_seqs and (rm_supported or intact_supported):
+                sv_stat = "INS"
             else:
                 sv_stat = "ALN"
 
