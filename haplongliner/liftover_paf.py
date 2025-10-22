@@ -247,15 +247,18 @@ def liftover_paf(
                 else:
                     r[idx][1] = coord + 1
             for i, (s, e, b_strand, b_name, b_score, *_) in enumerate(regs):
-                name = f"{t[0]},{s},{e},{b_strand},{b_name}"
+                ref_name = b_name if b_name else ""
+                base_parts = [t[0], str(s), str(e), b_strand, ref_name]
+                extras: List[str] = [f"name={ref_name}"]
                 start = r[i][0]
                 end = r[i][1]
                 if start < 0:
-                    name += ",t5"
+                    extras.append("t5")
                     start = t[7]
                 if end < 0:
-                    name += ",t3"
+                    extras.append("t3")
                     end = t[8]
+                name = ",".join(base_parts + extras)
                 out_strand = t[4] if b_strand == "+" else ("+" if t[4] == "-" else "-")
                 print(
                     "\t".join(

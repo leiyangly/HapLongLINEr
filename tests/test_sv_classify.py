@@ -12,7 +12,7 @@ def lifted_entry(tmp_path: Path) -> tuple[list[tuple], Path]:
             "chr1",
             0,
             100,
-            "chr1:0-100",
+            "L1a",
             100,
             "+",
             "scaf1,0,100,100,+",
@@ -23,7 +23,7 @@ def lifted_entry(tmp_path: Path) -> tuple[list[tuple], Path]:
     ]
     lifted_bed = tmp_path / "lifted_reorg.bed"
     lifted_bed.write_text(
-        "chr1\t0\t100\tchr1:0-100\t100\t+\tscaf1,0,100,100,+\n"
+        "chr1\t0\t100\tL1a\t100\t+\tscaf1,0,100,100,+\n"
     )
     return lifted, lifted_bed
 
@@ -55,7 +55,7 @@ def test_classify_sv_marks_absent_only_with_reciprocal_coverage(
         tmp_path,
         lifted_bed,
     )
-    assert status["chr1:0-100"] == "absent"
+    assert status["L1a"] == "absent"
 
     status, _ = _classify_sv(
         lifted,
@@ -64,7 +64,7 @@ def test_classify_sv_marks_absent_only_with_reciprocal_coverage(
         tmp_path,
         lifted_bed,
     )
-    assert status["chr1:0-100"] == "present"
+    assert status["L1a"] == "present"
 
     status, _ = _classify_sv(
         lifted,
@@ -73,4 +73,4 @@ def test_classify_sv_marks_absent_only_with_reciprocal_coverage(
         tmp_path,
         lifted_bed,
     )
-    assert status["chr1:0-100"] == "present"
+    assert status["L1a"] == "present"

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from haplongliner.sv_mode import _liftover_l1s, _read_paf
+from haplongliner.sv_mode import _create_lifted_reorg, _liftover_l1s, _read_paf
 
 
 def write_paf(path: Path, lines: list[str]) -> None:
@@ -177,3 +177,35 @@ def test_liftover_respects_min_length(tmp_path):
 
     lifted = _liftover_l1s(paf, ref_bed, min_length=100, master_files=[master])
     assert lifted == []
+
+
+def test_create_lifted_reorg_preserves_reference_name(tmp_path):
+    lifted_bed = tmp_path / "lifted.bed"
+    ref_bed = tmp_path / "ref.bed"
+    out_bed = tmp_path / "lifted_reorg.bed"
+
+    lifted_bed.write_text(
+        "scaf1\t10\t20\tchrA,100,200,+,L1a,name=L1a\t6000\t+\n"
+    )
+    ref_bed.write_text("chrA\t100\t200\tL1a\t6000\t+\n")
+
+    lifted = _create_lifted_reorg(lifted_bed, ref_bed, out_bed)
+
+    assert (
+        out_bed.read_text()
+        == "chrA\t100\t200\tL1a\t6000\t+\tscaf1,10,20,10,+\n"
+    )
+    assert lifted == [
+        (
+            "chrA",
+            100,
+            200,
+            "L1a",
+            6000,
+            "+",
+            "scaf1,10,20,10,+",
+            "scaf1,10,20,10,+",
+            10,
+            20,
+        )
+    ]
