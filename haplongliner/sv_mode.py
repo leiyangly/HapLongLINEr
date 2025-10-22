@@ -170,10 +170,15 @@ def _liftover_l1s(
             t_end = int(t_end_s)
         except ValueError:
             continue
-        try:
-            _qchrom, q_start, q_end, _qstrand, q_name = name_field.split(",", 4)
-        except ValueError:
+        parts = name_field.split(",")
+        if len(parts) < 5:
             continue
+        _qchrom, q_start, q_end, _qstrand = parts[:4]
+        q_name = parts[4]
+        for extra in parts[5:]:
+            if extra.startswith("name="):
+                q_name = extra[5:]
+                break
 
         if q_name not in ref_coords:
             continue
@@ -223,10 +228,13 @@ def _write_bed(
             )
 
 
-def _read_lifted_bed(path: Path) -> Dict[str, List[Tuple[str, int, int, str, Set[str]]]]:
-    """Return mapping ``id -> list of lifted coordinates`` from liftover_paf output."""
+def _read_lifted_bed(
+    path: Path,
+) -> Dict[str, Tuple[str, List[Tuple[str, int, int, str, Set[str]]]]]:
+    """Return mapping ``id -> (name, lifted coordinates)`` from liftover_paf output."""
 
     lifted: Dict[str, List[Tuple[str, int, int, str, Set[str]]]] = {}
+    names: Dict[str, str] = {}
     with open(path) as fh:
         for line in fh:
             if not line.strip() or line.startswith("#"):
@@ -243,10 +251,21 @@ def _read_lifted_bed(path: Path) -> Dict[str, List[Tuple[str, int, int, str, Set
             parts = info.split(",")
             if len(parts) < 5:
                 continue
-            qchrom, qs, qe, _qstrand, _name, *tags = parts
+            qchrom, qs, qe, _qstrand = parts[:4]
+            raw_name = parts[4]
+            extra_parts = parts[5:]
+            te_name = raw_name
+            tag_set: Set[str] = set()
+            for extra in extra_parts:
+                if extra.startswith("name="):
+                    te_name = extra[5:]
+                elif extra:
+                    tag_set.add(extra)
             key = f"{qchrom}:{qs}-{qe}"
-            lifted.setdefault(key, []).append((scaf, start, end, strand, set(tags)))
-    return lifted
+            if key not in names or (not names[key] and te_name):
+                names[key] = te_name
+            lifted.setdefault(key, []).append((scaf, start, end, strand, tag_set))
+    return {key: (names.get(key, ""), vals) for key, vals in lifted.items()}
 
 
 def _filter_reference_bed(
@@ -310,7 +329,7 @@ def _create_lifted_reorg(
             f = line.rstrip().split("\t")
             if len(f) < 6:
                 continue
-            chrom, start_s, end_s, _name, length_s, strand = f[:6]
+            chrom, start_s, end_s, ref_name, length_s, strand = f[:6]
             try:
                 start = int(start_s)
                 end = int(end_s)
@@ -319,13 +338,16 @@ def _create_lifted_reorg(
                 continue
 
             key = f"{chrom}:{start}-{end}"
-            infos = mapping.get(key)
-            if not infos:
+            entry = mapping.get(key)
+            base_name = ref_name if ref_name else key
+            if not entry:
                 out.write(
-                    f"{chrom}\t{start}\t{end}\t{key}\t{length}\t{strand}\tna\n"
+                    f"{chrom}\t{start}\t{end}\t{base_name}\t{length}\t{strand}\tna\n"
                 )
                 continue
 
+            mapped_name, infos = entry
+            te_name = mapped_name if mapped_name else base_name
             info_strs: List[str] = []
             for scaf, s, e, t_strand, tags in infos:
                 tag_str = ""
@@ -340,7 +362,7 @@ def _create_lifted_reorg(
                         chrom,
                         start,
                         end,
-                        key,
+                        te_name,
                         length,
                         strand,
                         info,
@@ -352,7 +374,7 @@ def _create_lifted_reorg(
 
             info_joined = ";".join(info_strs)
             out.write(
-                f"{chrom}\t{start}\t{end}\t{key}\t{length}\t{strand}\t{info_joined}\n"
+                f"{chrom}\t{start}\t{end}\t{te_name}\t{length}\t{strand}\t{info_joined}\n"
             )
 
     return lifted
