@@ -12,8 +12,8 @@ def test_liftover_respects_strand(tmp_path, capsys):
     out = capsys.readouterr().out.strip().splitlines()
     f1 = out[0].split("\t")
     f2 = out[1].split("\t")
-    assert f1[3] == "q1,110,130,+,name1,name=name1"
-    assert f2[3] == "q1,140,150,-,name2,name=name2"
+    assert f1[3] == "q1,110,130,+,name1"
+    assert f2[3] == "q1,140,150,-,name2"
     assert f1[4] == "0"
     assert f2[4] == "0"
     assert f1[5] == "+"
