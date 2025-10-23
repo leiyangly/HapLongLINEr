@@ -5,25 +5,31 @@ import pytest
 from haplongliner.sv_mode import _classify_sv
 
 
-@pytest.fixture()
-def lifted_entry(tmp_path: Path) -> tuple[list[tuple], Path]:
+def _make_lifted(
+    tmp_path: Path,
+    *,
+    ref_len: int = 100,
+    lifted_len: int = 100,
+    info_suffix: str = "+",
+) -> tuple[list[tuple], Path]:
     lifted = [
         (
             "chr1",
             0,
-            100,
+            ref_len,
             "chr1:0-100",
-            100,
+            ref_len,
             "+",
-            "scaf1,0,100,100,+",
-            "scaf1,0,100,100,+",
+            f"scaf1,0,{lifted_len},{lifted_len},{info_suffix}",
+            f"scaf1,0,{lifted_len},{lifted_len},{info_suffix}",
             0,
-            100,
+            lifted_len,
         )
     ]
     lifted_bed = tmp_path / "lifted_reorg.bed"
     lifted_bed.write_text(
-        "chr1\t0\t100\tchr1:0-100\t100\t+\tscaf1,0,100,100,+\n"
+        f"chr1\t0\t{ref_len}\tchr1:0-100\t{ref_len}\t+\t"
+        f"scaf1,0,{lifted_len},{lifted_len},{info_suffix}\n"
     )
     return lifted, lifted_bed
 
@@ -43,10 +49,8 @@ def fake_bedtools(monkeypatch):
     monkeypatch.setattr("haplongliner.sv_mode._bedtools_intersect", _fake_intersect)
 
 
-def test_classify_sv_marks_absent_only_with_reciprocal_coverage(
-    tmp_path: Path, lifted_entry: tuple[list[tuple], Path]
-) -> None:
-    lifted, lifted_bed = lifted_entry
+def test_classify_sv_marks_absent_when_lifted_much_longer(tmp_path: Path) -> None:
+    lifted, lifted_bed = _make_lifted(tmp_path, ref_len=100, lifted_len=250)
 
     status, _ = _classify_sv(
         lifted,
@@ -57,18 +61,26 @@ def test_classify_sv_marks_absent_only_with_reciprocal_coverage(
     )
     assert status["chr1:0-100"] == "absent"
 
+
+def test_classify_sv_marks_absent_when_lifted_much_shorter(tmp_path: Path) -> None:
+    lifted, lifted_bed = _make_lifted(tmp_path, ref_len=100, lifted_len=40)
+
     status, _ = _classify_sv(
         lifted,
-        [("chr1", 0, 120)],
+        [("chr1", 0, 100)],
         [],
         tmp_path,
         lifted_bed,
     )
-    assert status["chr1:0-100"] == "present"
+    assert status["chr1:0-100"] == "absent"
+
+
+def test_classify_sv_keeps_present_within_length_ratio(tmp_path: Path) -> None:
+    lifted, lifted_bed = _make_lifted(tmp_path, ref_len=100, lifted_len=120)
 
     status, _ = _classify_sv(
         lifted,
-        [("chr1", 5, 95)],
+        [("chr1", 0, 100)],
         [],
         tmp_path,
         lifted_bed,
