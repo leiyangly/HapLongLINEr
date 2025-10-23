@@ -487,31 +487,43 @@ def _classify_sv(
     _bedtools_intersect(lifted_bed, del_bed, inter_del)
     _bedtools_intersect(lifted_bed, ins_bed, inter_ins)
 
-    status: Dict[str, str] = {
-        name: "present" for _, _, _, name, _, _, _, _, _, _ in lifted
-    }
-    ins_seqs: Dict[str, str] = {}
-    with open(inter_del) as fh:
+    status: Dict[str, str] = {}
+    with open(lifted_bed) as fh:
         for line in fh:
-            f = line.strip().split("\t")
-            # expect 7 columns from lifted_reorg.bed and 3 from the deletion BED entry
-            if len(f) < 10:
+            if not line.strip():
                 continue
-            a_start = int(f[1])
-            a_end = int(f[2])
-            name = f[3]
-            # deletion BED columns appear after the lifted fields in the
-            # intersection result as: ``chrom`` ``start`` ``end``.  Skip the
-            # chromosome column and parse the start/end coordinates.
-            d_start = int(f[8])
-            d_end = int(f[9])
-            overlap = max(0, min(a_end, d_end) - max(a_start, d_start))
-            elem_len = a_end - a_start
-            del_len = d_end - d_start
-            te_cov = overlap / elem_len if elem_len else 0
-            del_cov = overlap / del_len if del_len else 0
-            if te_cov >= 0.95 and del_cov >= 0.95:
+            parts = line.rstrip().split("\t")
+            if len(parts) < 7:
+                continue
+            name = parts[3]
+            status[name] = "present"
+            try:
+                ref_len = int(parts[4])
+            except ValueError:
+                continue
+            if ref_len <= 0:
                 status[name] = "absent"
+                continue
+            info_field = parts[6]
+            if not info_field or info_field == "na":
+                continue
+            lifted_lengths: List[int] = []
+            for entry in info_field.split(";"):
+                info_parts = entry.split(",")
+                if len(info_parts) < 4:
+                    continue
+                try:
+                    lifted_len = int(info_parts[3])
+                except ValueError:
+                    continue
+                lifted_lengths.append(lifted_len)
+            if not lifted_lengths:
+                continue
+            ratios = [lifted_len / ref_len for lifted_len in lifted_lengths]
+            if not any(0.5 <= ratio <= 2 for ratio in ratios):
+                status[name] = "absent"
+
+    ins_seqs: Dict[str, str] = {}
 
     with open(inter_ins) as fh:
         for line in fh:
