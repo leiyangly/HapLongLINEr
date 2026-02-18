@@ -555,6 +555,11 @@ def _intact_key_candidates(
             # RepeatMasker-derived presence set can match lifted candidates.
             keys.add(f"{scaf}_{scaf_start}_{scaf_end}")
 
+            # SV-mode intact ORF keys from ``cand_orf_intact.blastp`` use
+            # ``start-end_scaf_scaf_start_scaf_end`` (without reference chrom).
+            # Include this form so intact calls propagate to final SV labels.
+            keys.add(f"{start}-{end}_{scaf}_{scaf_start}_{scaf_end}")
+
             # Legacy intact detection also records entries using the
             # ``start-end,scaf,scaf_start`` convention; retain it for
             # compatibility with older outputs.
