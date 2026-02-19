@@ -78,3 +78,39 @@ def test_write_sv_sequences_filters_long_insertions(tmp_path):
     )
     assert out.read_text() == ""
 
+
+def test_write_sv_sequences_accepts_sv_intact_key_format(tmp_path):
+    fa = tmp_path / "test.fa"
+    fa.write_text(">scaf1\n" + "A" * 100 + "\n")
+    out = tmp_path / "sv_intact.fa"
+    lifted = [
+        (
+            "chr1",
+            10,
+            20,
+            "chr1:10-20",
+            10,
+            "+",
+            "scaf1,30,40,+",
+            "scaf1,30,40,+",
+            30,
+            40,
+        )
+    ]
+    status = {"chr1:10-20": "present"}
+    ins_seqs = {"chr1:10-20": "T" * 6}
+    intact = {"10-20_scaf1_30_40"}
+
+    _write_sv_sequences(
+        fa,
+        lifted,
+        status,
+        ins_seqs,
+        out,
+        5,
+        1000,
+        intact=intact,
+    )
+
+    lines = [l.strip() for l in out.read_text().splitlines() if l.strip()]
+    assert lines == [">scaf1,30,40,10,+,INS", "T" * 6]
