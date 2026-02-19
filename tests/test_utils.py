@@ -12,6 +12,7 @@ from haplongliner.utils import (
     _candidate_key_from_query,
     sort_bed,
     append_fasta,
+    ensure_pyfaidx_fasta,
 )
 
 
@@ -22,6 +23,22 @@ def test_verify_fasta_file_accepts_gz(tmp_path):
         f_out.write(f_in.read())
     verify_fasta_file(str(src))
     verify_fasta_file(str(gz))
+
+
+def test_ensure_pyfaidx_fasta_decompresses_standard_gz(tmp_path):
+    src = tmp_path / "test.fa.gz"
+    with gzip.open(src, "wt") as out:
+        out.write(">chr1\nACGT\n")
+    out_path = ensure_pyfaidx_fasta(src)
+    assert out_path == tmp_path / "test.fa"
+    assert out_path.read_text() == ">chr1\nACGT\n"
+
+
+def test_ensure_pyfaidx_fasta_keeps_plain_fasta(tmp_path):
+    src = tmp_path / "plain.fa"
+    src.write_text(">chr1\nACGT\n")
+    out_path = ensure_pyfaidx_fasta(src)
+    assert out_path == src
 
 
 def test_verify_repeatmasker_file_accepts_out_and_bed(tmp_path):
@@ -131,4 +148,3 @@ def test_append_fasta(tmp_path):
         ">a,1,2,+",
         "AAAA",
     ]
-

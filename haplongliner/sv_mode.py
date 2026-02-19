@@ -21,6 +21,7 @@ from .utils import (
     _fix_blast_query_names,
     sort_bed,
     append_fasta,
+    ensure_pyfaidx_fasta,
 )
 from .liftover_paf import liftover_paf
 from pyfaidx import Fasta
@@ -1070,6 +1071,7 @@ def run_sv_mode(
     outdir.mkdir(parents=True, exist_ok=True)
 
     verify_fasta_file(input_fasta)
+    input_fasta = str(ensure_pyfaidx_fasta(input_fasta))
     verify_sv_file(sv_file)
 
     print("[STEP 1] Preparing reference data")
@@ -1111,6 +1113,7 @@ def run_sv_mode(
         ref_path = download_if_needed(ref_path, ref_local)
 
     verify_fasta_file(ref_path)
+    ref_path = str(ensure_pyfaidx_fasta(ref_path))
 
     # Summary for Step 1
     ref_total = 0

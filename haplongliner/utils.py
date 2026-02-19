@@ -1,6 +1,7 @@
 import os
 import shutil
 import sys
+import gzip
 from pathlib import Path
 from typing import Dict, List
 
@@ -42,6 +43,22 @@ def verify_blast_db(db_prefix):
 def run_quiet(cmd, **kwargs):
     """Run a subprocess suppressing output from successful commands."""
     import subprocess
+
+    # Keep tool invocations consistent by prioritizing the directory that
+    # provides RepeatMasker (and companion python3/famdb.py runtime).
+    if "env" not in kwargs:
+        env = os.environ.copy()
+        rm_path = shutil.which("RepeatMasker")
+        if rm_path:
+            rm_bin = str(Path(rm_path).parent)
+            path_parts = env.get("PATH", "").split(os.pathsep) if env.get("PATH") else []
+            if not path_parts or path_parts[0] != rm_bin:
+                env["PATH"] = (
+                    rm_bin
+                    if not env.get("PATH")
+                    else rm_bin + os.pathsep + env["PATH"]
+                )
+        kwargs["env"] = env
 
     kwargs.setdefault("stdout", subprocess.PIPE)
     kwargs.setdefault("stderr", subprocess.PIPE)
@@ -238,6 +255,39 @@ def verify_fasta_file(path: str) -> None:
             raise ValueError("Missing FASTA header")
     except Exception as exc:
         sys.exit(f"Error: FASTA file '{path}' appears malformed: {exc}")
+
+
+def _is_bgzf(path: Path) -> bool:
+    """Return ``True`` if ``path`` appears to be BGZF-compressed."""
+    try:
+        with open(path, "rb") as fh:
+            return fh.read(4) == b"\x1f\x8b\x08\x04"
+    except OSError:
+        return False
+
+
+def ensure_pyfaidx_fasta(path: str | Path, out_dir: str | Path | None = None) -> Path:
+    """Return a FASTA path compatible with :mod:`pyfaidx`.
+
+    Standard ``.gz`` files are transparently decompressed because pyfaidx
+    requires BGZF-compressed FASTA when using compressed input.
+    """
+
+    p = Path(path)
+    if not str(p).endswith(".gz") or _is_bgzf(p):
+        return p
+
+    target_dir = Path(out_dir) if out_dir is not None else p.parent
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    target_name = p.name[:-3] if p.name.endswith(".gz") else p.stem
+    out_path = target_dir / target_name
+    if out_path.exists() and out_path.stat().st_size > 0:
+        return out_path
+
+    with gzip.open(p, "rb") as src, open(out_path, "wb") as dst:
+        shutil.copyfileobj(src, dst)
+    return out_path
 
 
 def _check_bed_line(line: str) -> None:
