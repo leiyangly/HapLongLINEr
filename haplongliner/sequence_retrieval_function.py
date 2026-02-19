@@ -131,7 +131,7 @@ def run_sequence_retrieval_function(query: str, output: str, extra_fasta: str | 
         print(f"  Extra FASTA: {extra_fasta}")
 
     base = Path("data")
-    bed_path = base / "HPRC_L1_hs1_v2_v2fl.bed"
+    bed_path = base / "HPRC_L1_hs1_v2_v2fl_status.bed"
     if not bed_path.exists():
         sys.exit("Error: hs1 reference BED not found in data directory")
 

@@ -1078,7 +1078,7 @@ def run_sv_mode(
 
     temp_files: List[Path] = []
     if teref == "hprc":
-        raw_ref = Path("data") / "HPRC_L1_hs1_v2_v2fl.bed"
+        raw_ref = Path("data") / "HPRC_L1_hs1_v2_v2fl_status.bed"
     elif teref in {"hs1", "hg38"}:
         urls = {
             "hs1": "https://hgdownload.soe.ucsc.edu/goldenPath/hs1/bigZips/hs1.repeatMasker.out.gz",
