@@ -67,7 +67,7 @@ def combine_table(
             m_val = minus.get(mkey, [])
             p_val = plus.get(pkey, [])
 
-            status = "present"
+            status = "disrupted"
             if ikey in intact:
                 status = "intact"
 

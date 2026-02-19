@@ -228,7 +228,7 @@ def _combine_full_liftover(
             end_i = int(end)
             key = (chrom, start_i, end_i, strand)
             ikey = f"{chrom}_{start_i}_{end_i}"
-            status = "intact" if ikey in intact else "present"
+            status = "intact" if ikey in intact else "disrupted"
 
             chr_ref, start_ref, end_ref, out_strand = lifted.get(
                 key, ("NA", "NA", "NA", "NA")

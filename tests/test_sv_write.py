@@ -23,7 +23,7 @@ def test_write_sv_sequences_filters_short_insertions(tmp_path):
     fa.write_text(">chr1\n" + "A" * 100 + "\n")
     out = tmp_path / "sv.fa"
     lifted = _make_lifted_entry()
-    status = {"chr1:0-10": "present"}
+    status = {"chr1:0-10": "disrupted"}
     ins_seqs = {"chr1:0-10": "A" * 4}  # shorter than min_length
     _write_sv_sequences(
         fa,
@@ -43,7 +43,7 @@ def test_write_sv_sequences_writes_long_insertions(tmp_path):
     fa.write_text(">chr1\n" + "A" * 100 + "\n")
     out = tmp_path / "sv_long.fa"
     lifted = _make_lifted_entry()
-    status = {"chr1:0-10": "present"}
+    status = {"chr1:0-10": "disrupted"}
     ins_seqs = {"chr1:0-10": "T" * 6}
     _write_sv_sequences(
         fa,
@@ -64,7 +64,7 @@ def test_write_sv_sequences_filters_long_insertions(tmp_path):
     fa.write_text(">chr1\n" + "A" * 100 + "\n")
     out = tmp_path / "sv_long_filter.fa"
     lifted = _make_lifted_entry()
-    status = {"chr1:0-10": "present"}
+    status = {"chr1:0-10": "disrupted"}
     ins_seqs = {"chr1:0-10": "T" * 40}
     _write_sv_sequences(
         fa,
@@ -97,7 +97,7 @@ def test_write_sv_sequences_accepts_sv_intact_key_format(tmp_path):
             40,
         )
     ]
-    status = {"chr1:10-20": "present"}
+    status = {"chr1:10-20": "disrupted"}
     ins_seqs = {"chr1:10-20": "T" * 6}
     intact = {"10-20_scaf1_30_40"}
 
