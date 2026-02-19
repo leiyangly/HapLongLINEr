@@ -22,6 +22,7 @@ from .utils import (
     read_nonempty_fasta,
     sort_bed,
     append_fasta,
+    ensure_pyfaidx_fasta,
 )
 from .liftover_paf import liftover_paf
 
@@ -312,6 +313,8 @@ def run_rm_mode(
         ref_local = data_dir / Path(reference_fasta).name
         reference_fasta = download_if_needed(reference_fasta, ref_local)
         verify_fasta_file(reference_fasta)
+    input_fasta = str(ensure_pyfaidx_fasta(input_fasta))
+    reference_fasta = str(ensure_pyfaidx_fasta(reference_fasta))
     if not perform_orf:
         print(
             "[INFO] Skipping intact ORF detection and associated BLASTP/sequence extraction steps "
