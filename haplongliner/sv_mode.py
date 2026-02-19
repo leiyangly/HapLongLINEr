@@ -496,7 +496,7 @@ def _classify_sv(
             if len(parts) < 7:
                 continue
             name = parts[3]
-            status[name] = "present"
+            status[name] = "disrupted"
             try:
                 ref_len = int(parts[4])
             except ValueError:
@@ -642,7 +642,7 @@ def _write_sv_sequences(
             t_start,
             t_end,
         ) in lifted:
-            base_stat = status.get(name, "present")
+            base_stat = status.get(name, "disrupted")
             scaf, *_rest, t_strand = _parse_target_info(plus_info)
             keys = _intact_key_candidates(_chrom, _start, _end, plus_info)
             rm_supported = any(k in present for k in keys)
@@ -1293,7 +1293,7 @@ def run_sv_mode(
             t_start,
             t_end,
         ) in lifted:
-            base_stat = status.get(name, "present")
+            base_stat = status.get(name, "disrupted")
             scaf, *_rest, t_strand = plus_info.split(",")
             target_len = t_end - t_start
 
@@ -1307,7 +1307,7 @@ def run_sv_mode(
             elif intact_supported:
                 final_stat = "intact"
             else:
-                final_stat = "present"
+                final_stat = "disrupted"
 
             annotation_label = None
             for key in keys:
@@ -1336,7 +1336,7 @@ def run_sv_mode(
             ):
                 continue
 
-            final_stat = "present"
+            final_stat = "disrupted"
             if any(k in intact_names for k in keys):
                 final_stat = "intact"
 

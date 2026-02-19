@@ -75,7 +75,7 @@ def test_classify_sv_marks_absent_when_lifted_much_shorter(tmp_path: Path) -> No
     assert status["chr1:0-100"] == "absent"
 
 
-def test_classify_sv_keeps_present_within_length_ratio(tmp_path: Path) -> None:
+def test_classify_sv_keeps_disrupted_within_length_ratio(tmp_path: Path) -> None:
     lifted, lifted_bed = _make_lifted(tmp_path, ref_len=100, lifted_len=120)
 
     status, _ = _classify_sv(
@@ -85,4 +85,4 @@ def test_classify_sv_keeps_present_within_length_ratio(tmp_path: Path) -> None:
         tmp_path,
         lifted_bed,
     )
-    assert status["chr1:0-100"] == "present"
+    assert status["chr1:0-100"] == "disrupted"
