@@ -467,10 +467,14 @@ def _classify_sv(
     insertions: List[Tuple[str, int, int, str]],
     outdir: Path,
     lifted_bed: Path,
-) -> Tuple[Dict[str, str], Dict[str, str]]:
+) -> Tuple[Dict[str, str], Dict[str, str], Set[str]]:
     """Write SV BED files and intersect with lifted coordinates.
 
-    Returns a status dictionary and a mapping of insertion sequences by TE name."""
+    Returns:
+    - base status dictionary keyed by lifted TE name
+    - insertion-sequence mapping keyed by lifted TE name
+    - names overlapped by INS calls
+    """
 
     del_bed = outdir / "sv_del.bed"
     ins_bed = outdir / "sv_ins.bed"
@@ -488,6 +492,22 @@ def _classify_sv(
     _bedtools_intersect(lifted_bed, del_bed, inter_del)
     _bedtools_intersect(lifted_bed, ins_bed, inter_ins)
 
+    del_names: Set[str] = set()
+    if inter_del.exists():
+        with open(inter_del) as fh:
+            for line in fh:
+                f = line.strip().split("\t")
+                if len(f) >= 8:
+                    del_names.add(f[3])
+
+    ins_names: Set[str] = set()
+    if inter_ins.exists():
+        with open(inter_ins) as fh:
+            for line in fh:
+                f = line.strip().split("\t")
+                if len(f) >= 11:
+                    ins_names.add(f[3])
+
     status: Dict[str, str] = {}
     with open(lifted_bed) as fh:
         for line in fh:
@@ -497,32 +517,20 @@ def _classify_sv(
             if len(parts) < 7:
                 continue
             name = parts[3]
-            status[name] = "disrupted"
-            try:
-                ref_len = int(parts[4])
-            except ValueError:
-                continue
-            if ref_len <= 0:
-                status[name] = "absent"
-                continue
-            info_field = parts[6]
-            if not info_field or info_field == "na":
-                continue
-            lifted_lengths: List[int] = []
-            for entry in info_field.split(";"):
-                info_parts = entry.split(",")
-                if len(info_parts) < 4:
-                    continue
+            ref_status = parts[7] if len(parts) >= 8 else ""
+            if ref_status not in {"intact", "disrupted", "absent"}:
                 try:
-                    lifted_len = int(info_parts[3])
+                    ref_len = int(parts[4])
                 except ValueError:
-                    continue
-                lifted_lengths.append(lifted_len)
-            if not lifted_lengths:
-                continue
-            ratios = [lifted_len / ref_len for lifted_len in lifted_lengths]
-            if not any(0.5 <= ratio <= 2 for ratio in ratios):
-                status[name] = "absent"
+                    ref_len = 0
+                ref_status = "absent" if ref_len <= 0 else "disrupted"
+
+            # Reference says absent: require an INS event to suggest presence.
+            if ref_status == "absent":
+                status[name] = "disrupted" if name in ins_names else "absent"
+            # Reference says present (intact/disrupted): DEL suggests absence.
+            else:
+                status[name] = "absent" if name in del_names else "disrupted"
 
     ins_seqs: Dict[str, str] = {}
 
@@ -535,7 +543,7 @@ def _classify_sv(
                 seq = f[10]
                 ins_seqs[name] = seq
 
-    return status, ins_seqs
+    return status, ins_seqs, ins_names
 
 
 def _intact_key_candidates(
@@ -645,13 +653,9 @@ def _write_sv_sequences(
         ) in lifted:
             base_stat = status.get(name, "disrupted")
             scaf, *_rest, t_strand = _parse_target_info(plus_info)
-            keys = _intact_key_candidates(_chrom, _start, _end, plus_info)
-            rm_supported = any(k in present for k in keys)
-            intact_supported = any(k in intact for k in keys)
-
             if base_stat == "absent":
                 sv_stat = "DEL"
-            elif name in ins_seqs and (rm_supported or intact_supported):
+            elif name in ins_seqs:
                 sv_stat = "INS"
             else:
                 sv_stat = "ALN"
@@ -1185,7 +1189,9 @@ def run_sv_mode(
 
     print("\n[STEP 5] Validating candidate TEs")
 
-    status, ins_seqs = _classify_sv(lifted, deletions, insertions, outdir, lifted_reorg)
+    status, ins_seqs, ins_names = _classify_sv(
+        lifted, deletions, insertions, outdir, lifted_reorg
+    )
 
     inter_ins = outdir / "intersect_ins.bed"
     extra_ins = _collect_long_insertions(insertions, inter_ins, min_length, xlength)
@@ -1283,6 +1289,7 @@ def run_sv_mode(
     print("\n[STEP 6] Writing output files")
 
     out_table = outdir / "haplongliner_sv.bed"
+    final_status: Dict[str, str] = {}
     with open(out_table, "w") as out:
         for (
             chrom,
@@ -1304,13 +1311,13 @@ def run_sv_mode(
             rm_supported = any(k in presence_names for k in keys)
             intact_supported = any(k in intact_names for k in keys)
 
-            final_stat = base_stat
-            if base_stat == "absent":
-                final_stat = "absent"
-            elif intact_supported:
+            if intact_supported:
                 final_stat = "intact"
-            else:
+            elif rm_supported:
                 final_stat = "disrupted"
+            else:
+                final_stat = base_stat
+            final_status[name] = final_stat
 
             annotation_label = None
             for key in keys:
@@ -1320,9 +1327,9 @@ def run_sv_mode(
                     break
             te_label = annotation_label or name
 
-            if base_stat == "absent":
+            if final_stat == "absent":
                 sv_stat = "DEL"
-            elif name in ins_seqs and (rm_supported or intact_supported):
+            elif name in ins_names or name in ins_seqs:
                 sv_stat = "INS"
             else:
                 sv_stat = "ALN"
@@ -1364,7 +1371,7 @@ def run_sv_mode(
     _write_sv_sequences(
         Path(input_fasta),
         lifted,
-        status,
+        final_status,
         ins_seqs,
         sv_fa,
         min_length,
