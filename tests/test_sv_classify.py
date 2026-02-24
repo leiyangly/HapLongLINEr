@@ -11,6 +11,7 @@ def _make_lifted(
     ref_len: int = 100,
     lifted_len: int = 100,
     info_suffix: str = "+",
+    ref_status: str = "disrupted",
 ) -> tuple[list[tuple], Path]:
     lifted = [
         (
@@ -29,7 +30,7 @@ def _make_lifted(
     lifted_bed = tmp_path / "lifted_reorg.bed"
     lifted_bed.write_text(
         f"chr1\t0\t{ref_len}\tchr1:0-100\t{ref_len}\t+\t"
-        f"scaf1,0,{lifted_len},{lifted_len},{info_suffix}\n"
+        f"scaf1,0,{lifted_len},{lifted_len},{info_suffix}\t{ref_status}\n"
     )
     return lifted, lifted_bed
 
@@ -49,10 +50,10 @@ def fake_bedtools(monkeypatch):
     monkeypatch.setattr("haplongliner.sv_mode._bedtools_intersect", _fake_intersect)
 
 
-def test_classify_sv_marks_absent_when_lifted_much_longer(tmp_path: Path) -> None:
-    lifted, lifted_bed = _make_lifted(tmp_path, ref_len=100, lifted_len=250)
+def test_classify_sv_ref_present_plus_del_marks_absent(tmp_path: Path) -> None:
+    lifted, lifted_bed = _make_lifted(tmp_path, ref_status="disrupted")
 
-    status, _ = _classify_sv(
+    status, _, _ = _classify_sv(
         lifted,
         [("chr1", 0, 100)],
         [],
@@ -62,12 +63,12 @@ def test_classify_sv_marks_absent_when_lifted_much_longer(tmp_path: Path) -> Non
     assert status["chr1:0-100"] == "absent"
 
 
-def test_classify_sv_marks_absent_when_lifted_much_shorter(tmp_path: Path) -> None:
-    lifted, lifted_bed = _make_lifted(tmp_path, ref_len=100, lifted_len=40)
+def test_classify_sv_ref_absent_without_ins_stays_absent(tmp_path: Path) -> None:
+    lifted, lifted_bed = _make_lifted(tmp_path, ref_status="absent")
 
-    status, _ = _classify_sv(
+    status, _, _ = _classify_sv(
         lifted,
-        [("chr1", 0, 100)],
+        [],
         [],
         tmp_path,
         lifted_bed,
@@ -75,13 +76,13 @@ def test_classify_sv_marks_absent_when_lifted_much_shorter(tmp_path: Path) -> No
     assert status["chr1:0-100"] == "absent"
 
 
-def test_classify_sv_keeps_disrupted_within_length_ratio(tmp_path: Path) -> None:
-    lifted, lifted_bed = _make_lifted(tmp_path, ref_len=100, lifted_len=120)
+def test_classify_sv_ref_absent_plus_ins_marks_disrupted(tmp_path: Path) -> None:
+    lifted, lifted_bed = _make_lifted(tmp_path, ref_status="absent")
 
-    status, _ = _classify_sv(
+    status, _, _ = _classify_sv(
         lifted,
-        [("chr1", 0, 100)],
         [],
+        [("chr1", 0, 1, "A" * 50)],
         tmp_path,
         lifted_bed,
     )
