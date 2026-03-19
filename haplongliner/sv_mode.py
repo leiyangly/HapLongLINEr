@@ -702,10 +702,14 @@ def _parse_repeatmasker(
 
     with open(out_file) as fh:
         for line in fh:
-            if not line.startswith(" "):
+            if not line.strip():
                 continue
             parts = line.split()
-            if len(parts) < 14 or not re.search(r"L1", parts[9]):
+            if (
+                len(parts) < 14
+                or not parts[0].replace(".", "", 1).isdigit()
+                or not re.search(r"L1", parts[9])
+            ):
                 continue
 
             raw_name = parts[4]
@@ -949,11 +953,14 @@ def _restore_rm_out_names(short_out: Path, list_file: Path, out_file: Path) -> N
 
     with open(short_out) as src, open(out_file, "w") as dst:
         for line in src:
-            if line.startswith(" "):
-                parts = line.split()
-                if len(parts) > 4 and parts[4] in mapping:
-                    parts[4] = mapping[parts[4]]
-                    line = " ".join(parts) + "\n"
+            parts = line.split()
+            if (
+                len(parts) > 4
+                and parts[0].replace(".", "", 1).isdigit()
+                and parts[4] in mapping
+            ):
+                parts[4] = mapping[parts[4]]
+                line = " ".join(parts) + "\n"
             dst.write(line)
 
 
