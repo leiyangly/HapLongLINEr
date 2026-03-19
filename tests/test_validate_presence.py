@@ -137,3 +137,23 @@ def test_validate_presence_returns_annotations(monkeypatch, tmp_path):
     assert pytest.approx(hit.identity, rel=1e-3) == 90.0
     # second sequence is 120 bp long with 114 bp covered (positions 10-123)
     assert pytest.approx(hit.coverage, rel=1e-3) == pytest.approx(114 / 120 * 100, rel=1e-3)
+
+
+def test_validate_presence_restores_unindented_seq_names(monkeypatch, tmp_path):
+    cand = tmp_path / "cand.fa"
+    cand.write_text(">chr1,10,110,+,L1HS\n" + "A" * 100 + "\n")
+
+    def fake_run_quiet(cmd, check=True, cwd=None, **kwargs):
+        query = Path(cwd) / cmd[-1]
+        out_path = query.with_suffix(query.suffix + ".out")
+        out_path.write_text(
+            "500 5.0 0.0 0.0 seq1 1 100 (0) + L1HS LINE/L1 1 100 (0) 1\n"
+        )
+
+    monkeypatch.setattr("haplongliner.sv_mode.run_quiet", fake_run_quiet)
+    present, annotations = _validate_presence(cand, min_length=0)
+    assert present == {"chr1_10_110"}
+    hit = annotations["chr1_10_110"]
+    assert hit.family == "L1HS"
+    assert pytest.approx(hit.identity, rel=1e-3) == 95.0
+    assert pytest.approx(hit.coverage, rel=1e-3) == 100.0
