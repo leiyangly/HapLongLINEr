@@ -47,6 +47,33 @@ def _parse_target_info(info: str) -> Tuple[str, int, int, str]:
     return scaf, start, end, strand
 
 
+def _choose_lift_eval_interval(
+    fa: Fasta,
+    scaf: str,
+    t_start: int,
+    t_end: int,
+    min_length: int,
+) -> Tuple[int, int]:
+    """Return target coordinates used to evaluate a lifted candidate.
+
+    Short lifted spans can represent only an edge of the real target-genome
+    element. For those loci, evaluate a wider rescue window while keeping the
+    original lifted coordinates as the stable candidate identifier.
+    """
+
+    target_len = t_end - t_start
+    if min_length <= 0 or target_len >= min_length:
+        return t_start, t_end
+
+    rescue_span = max(3 * min_length, target_len)
+    center = (t_start + t_end) // 2
+    eval_start = max(0, center - rescue_span // 2)
+    eval_end = min(len(fa[scaf]), eval_start + rescue_span)
+    if eval_end - eval_start < rescue_span:
+        eval_start = max(0, eval_end - rescue_span)
+    return eval_start, eval_end
+
+
 from .rm_mode import download_if_needed, _fix_getorf_headers, parse_repeatmasker
 from .extract_l1 import _expand_te_names
 
@@ -318,12 +345,13 @@ def _create_lifted_reorg(
                 length = int(length_s)
             except ValueError:
                 continue
+            ref_status = f[6] if len(f) >= 7 else ("absent" if length <= 0 else "disrupted")
 
             key = f"{chrom}:{start}-{end}"
             infos = mapping.get(key)
             if not infos:
                 out.write(
-                    f"{chrom}\t{start}\t{end}\t{key}\t{length}\t{strand}\tna\n"
+                    f"{chrom}\t{start}\t{end}\t{key}\t{length}\t{strand}\tna\t{ref_status}\n"
                 )
                 continue
 
@@ -353,7 +381,7 @@ def _create_lifted_reorg(
 
             info_joined = ";".join(info_strs)
             out.write(
-                f"{chrom}\t{start}\t{end}\t{key}\t{length}\t{strand}\t{info_joined}\n"
+                f"{chrom}\t{start}\t{end}\t{key}\t{length}\t{strand}\t{info_joined}\t{ref_status}\n"
             )
 
     return lifted
@@ -546,6 +574,35 @@ def _classify_sv(
     return status, ins_seqs, ins_names
 
 
+def _finalize_lifted_status(
+    *,
+    base_stat: str,
+    intact_supported: bool,
+    rm_supported: bool,
+    is_insertion: bool,
+    target_len: int,
+    min_length: int,
+) -> str:
+    """Resolve the final status for a lifted candidate.
+
+    For insertion-supported loci, RepeatMasker rescue still provides the
+    disrupted fallback. For pure liftover (ALN) loci, a short unsupported lift
+    should not default to ``disrupted`` merely because the locus lifted at all.
+    """
+
+    if intact_supported:
+        return "intact"
+    if is_insertion:
+        if rm_supported:
+            return "disrupted"
+        return base_stat
+    if base_stat == "absent":
+        return "absent"
+    if min_length > 0 and target_len < min_length:
+        return "absent"
+    return "disrupted"
+
+
 def _intact_key_candidates(
     chrom: str, start: int, end: int, plus_info: str | None = None
 ) -> Set[str]:
@@ -585,18 +642,23 @@ def _extract_sequences(
     insertions: List[Tuple[str, int, int, str]],
     min_length: int,
     max_length: int,
-) -> None:
+) -> Dict[str, Tuple[int, int]]:
     """Extract candidate TE and insertion sequences from the target assembly."""
 
     fa = Fasta(str(fasta))
+    eval_intervals: Dict[str, Tuple[int, int]] = {}
 
     with open(out_lift, "w") as lift:
         for chrom, start, end, name, _, strand, plus_info, _, t_start, t_end in lifted:
             scaf, _ps, _pe, t_strand = _parse_target_info(plus_info)
-            seq = fa[scaf][t_start:t_end].seq
+            eval_start, eval_end = _choose_lift_eval_interval(
+                fa, scaf, t_start, t_end, min_length
+            )
+            seq = fa[scaf][eval_start:eval_end].seq
             if t_strand == "-":
                 seq = _revcomp(seq)
             seq = seq.upper()
+            eval_intervals[name] = (eval_start, eval_end)
             header = (
                 f"{chrom},{start},{end},{strand},{name},{scaf},{t_start},{t_end},{t_strand}"
             )
@@ -611,6 +673,8 @@ def _extract_sequences(
             header = f"{chrom},{start},{end},+,{name}"
             ins.write(f">{header}\n{seq}\n")
 
+    return eval_intervals
+
 
 def _write_sv_sequences(
     fasta: Path,
@@ -623,6 +687,7 @@ def _write_sv_sequences(
     extra_ins: List[Tuple[str, int, int, str, str]] | None = None,
     present: Set[str] | None = None,
     intact: Set[str] | None = None,
+    eval_intervals: Dict[str, Tuple[int, int]] | None = None,
 ) -> None:
     """Write sequences from the target assembly for ALN and INS entries.
 
@@ -636,6 +701,8 @@ def _write_sv_sequences(
         present = set()
     if intact is None:
         intact = set()
+    if eval_intervals is None:
+        eval_intervals = {}
     extras = extra_ins or []
 
     with open(out_fa, "w") as out:
@@ -653,6 +720,9 @@ def _write_sv_sequences(
         ) in lifted:
             base_stat = status.get(name, "disrupted")
             scaf, *_rest, t_strand = _parse_target_info(plus_info)
+            seq_start, seq_end = t_start, t_end
+            if base_stat == "intact":
+                seq_start, seq_end = eval_intervals.get(name, (t_start, t_end))
             if base_stat == "absent":
                 sv_stat = "DEL"
             elif name in ins_seqs:
@@ -661,11 +731,11 @@ def _write_sv_sequences(
                 sv_stat = "ALN"
 
             target_info = (
-                f"{scaf},{t_start},{t_end},{t_end - t_start},{t_strand},{sv_stat}"
+                f"{scaf},{seq_start},{seq_end},{seq_end - seq_start},{t_strand},{sv_stat}"
             )
 
             if sv_stat == "ALN":
-                seq = fa[scaf][t_start:t_end].seq
+                seq = fa[scaf][seq_start:seq_end].seq
                 if t_strand == "-":
                     seq = _revcomp(seq)
                 out.write(f">{target_info}\n{seq}\n")
@@ -1206,7 +1276,7 @@ def run_sv_mode(
     candidate_lift_fa = outdir / "cand_lift.fa"
     candidate_ins_fa = outdir / "cand_ins.fa"
     print(f"[INFO] Ignoring insertion sequences >{xlength} bp for cand_ins.fa")
-    _extract_sequences(
+    eval_intervals = _extract_sequences(
         Path(input_fasta),
         lifted,
         candidate_lift_fa,
@@ -1311,20 +1381,27 @@ def run_sv_mode(
             t_end,
         ) in lifted:
             base_stat = status.get(name, "disrupted")
-            scaf, *_rest, t_strand = plus_info.split(",")
+            scaf, _ps, _pe, t_strand = _parse_target_info(plus_info)
             target_len = t_end - t_start
 
             keys = _intact_key_candidates(chrom, start, end, plus_info)
             rm_supported = any(k in presence_names for k in keys)
             intact_supported = any(k in intact_names for k in keys)
+            is_insertion = name in ins_names or name in ins_seqs
 
-            if intact_supported:
-                final_stat = "intact"
-            elif rm_supported:
-                final_stat = "disrupted"
-            else:
-                final_stat = base_stat
+            final_stat = _finalize_lifted_status(
+                base_stat=base_stat,
+                intact_supported=intact_supported,
+                rm_supported=rm_supported,
+                is_insertion=is_insertion,
+                target_len=target_len,
+                min_length=min_length,
+            )
             final_status[name] = final_stat
+
+            out_t_start, out_t_end = t_start, t_end
+            if final_stat == "intact" and not is_insertion:
+                out_t_start, out_t_end = eval_intervals.get(name, (t_start, t_end))
 
             annotation_label = None
             for key in keys:
@@ -1336,12 +1413,14 @@ def run_sv_mode(
 
             if final_stat == "absent":
                 sv_stat = "DEL"
-            elif name in ins_names or name in ins_seqs:
+            elif is_insertion:
                 sv_stat = "INS"
             else:
                 sv_stat = "ALN"
 
-            target_info = f"{scaf},{t_start},{t_end},{target_len},{t_strand},{sv_stat}"
+            target_info = (
+                f"{scaf},{out_t_start},{out_t_end},{out_t_end - out_t_start},{t_strand},{sv_stat}"
+            )
             out.write(
                 f"{chrom}\t{start}\t{end}\t{te_label}\t{length}\t{strand}\t{final_stat}\t{target_info}\n"
             )
@@ -1386,6 +1465,7 @@ def run_sv_mode(
         extra_ins,
         presence_names,
         intact_names,
+        eval_intervals,
     )
 
     if perform_orf:
