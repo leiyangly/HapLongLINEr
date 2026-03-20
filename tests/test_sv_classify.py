@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from haplongliner.sv_mode import _classify_sv
+from haplongliner.sv_mode import _classify_sv, _finalize_lifted_status
 
 
 def _make_lifted(
@@ -87,3 +87,45 @@ def test_classify_sv_ref_absent_plus_ins_marks_disrupted(tmp_path: Path) -> None
         lifted_bed,
     )
     assert status["chr1:0-100"] == "disrupted"
+
+
+def test_finalize_lifted_status_short_aln_without_orf_is_absent() -> None:
+    assert (
+        _finalize_lifted_status(
+            base_stat="disrupted",
+            intact_supported=False,
+            rm_supported=False,
+            is_insertion=False,
+            target_len=100,
+            min_length=5000,
+        )
+        == "absent"
+    )
+
+
+def test_finalize_lifted_status_intact_rescues_absent_locus() -> None:
+    assert (
+        _finalize_lifted_status(
+            base_stat="absent",
+            intact_supported=True,
+            rm_supported=False,
+            is_insertion=False,
+            target_len=26,
+            min_length=5000,
+        )
+        == "intact"
+    )
+
+
+def test_finalize_lifted_status_insertion_uses_repeatmasker_rescue() -> None:
+    assert (
+        _finalize_lifted_status(
+            base_stat="absent",
+            intact_supported=False,
+            rm_supported=True,
+            is_insertion=True,
+            target_len=1,
+            min_length=5000,
+        )
+        == "disrupted"
+    )
