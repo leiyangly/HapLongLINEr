@@ -117,6 +117,8 @@ haplongliner mm \
 MM mode first maps the assembly to `data/L1rp.fa` with minimap2 to nominate L1-like
 intervals, then runs RepeatMasker only on those candidate sequences to assign
 their subfamily before continuing with liftover and optional ORF validation.
+Candidate-level RepeatMasker runs with `-pa 4` by default and can be adjusted
+with `-pa/--pa`.
 
 Output:
 - haplongliner_mm.bed file with TE info from your assembly and corresponding reference genome (hs1/hg38) coordinates and ORF status
@@ -155,6 +157,8 @@ haplongliner sv \
 ```
 
 ORF validation is carried out only when `--length` is at least 5000 and the `--te` list includes L1HS, L1PA2, or L1PA3; otherwise the BLASTP and ORF sequence extraction steps are skipped.
+RepeatMasker-based candidate validation runs with `-pa 4` by default and can be
+adjusted with `-pa/--pa`.
 
 Output:
 - haplongliner_sv.bed file summarizing TE coordinates and ORF status. Names from insertion calls that do not overlap lifted TEs end with `;nr`.

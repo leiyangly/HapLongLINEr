@@ -48,12 +48,29 @@ def test_repeatmasker_runs_in_output_dir(monkeypatch, tmp_path):
 
     def fake_run_quiet(cmd, check=True, cwd=None, **kwargs):
         assert Path(cwd).resolve() == tmp_path
+        assert cmd[0:5] == ["RepeatMasker", "-e", "rmblast", "-pa", "4"]
         query = Path(cwd) / cmd[-1]
         out_path = query.with_suffix(query.suffix + ".out")
         out_path.write_text("")
 
     monkeypatch.setattr("haplongliner.sv_mode.run_quiet", fake_run_quiet)
     present, annotations = _validate_presence(cand, min_length=0)
+    assert present == set()
+    assert annotations == {}
+
+
+def test_validate_presence_repeatmasker_pa_override(monkeypatch, tmp_path):
+    cand = tmp_path / "cand.fa"
+    cand.write_text(">a\nACGT\n")
+
+    def fake_run_quiet(cmd, check=True, cwd=None, **kwargs):
+        assert cmd[0:5] == ["RepeatMasker", "-e", "rmblast", "-pa", "8"]
+        query = Path(cwd) / cmd[-1]
+        out_path = query.with_suffix(query.suffix + ".out")
+        out_path.write_text("")
+
+    monkeypatch.setattr("haplongliner.sv_mode.run_quiet", fake_run_quiet)
+    present, annotations = _validate_presence(cand, min_length=0, repeatmasker_pa=8)
     assert present == set()
     assert annotations == {}
 

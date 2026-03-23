@@ -906,7 +906,7 @@ def _restore_rm_out_names(short_out: Path, list_file: Path, out_file: Path) -> N
 
 
 def _validate_presence(
-    candidate_fa: Path, min_length: int = 5000
+    candidate_fa: Path, min_length: int = 5000, repeatmasker_pa: int = 4
 ) -> Tuple[Set[str], Dict[str, RepeatMaskerHit]]:
     """Annotate candidates with RepeatMasker and report presence keys."""
 
@@ -942,6 +942,8 @@ def _validate_presence(
                 "RepeatMasker",
                 "-e",
                 "rmblast",
+                "-pa",
+                str(repeatmasker_pa),
                 short_fa.name,
             ],
             cwd=candidate_fa.parent,
@@ -981,6 +983,7 @@ def run_sv_mode(
     asm: int = 10,
     xlength: int | None = None,
     exist: str = "no",
+    repeatmasker_pa: int = 4,
 ) -> None:
     """RepeatMasker-free TE discovery using structural variants.
 
@@ -1008,6 +1011,7 @@ def run_sv_mode(
         f"[INFO]   TE types: {te} (min length {min_length})",
         f"[INFO]   ASM preset: asm{asm}",
         f"[INFO]   Max insertion length: {xlength}",
+        f"[INFO]   RepeatMasker -pa: {repeatmasker_pa}",
     ]
     print("\n".join(info_lines))
 
@@ -1217,7 +1221,11 @@ def run_sv_mode(
         intact_names = set()
         candidate_fa.with_name("cand_orf_intact.blastp").touch()
     if expanded_te & {"L1HS", "L1PA2", "L1PA3"}:
-        presence_names, rm_annotations = _validate_presence(candidate_fa, min_length)
+        presence_names, rm_annotations = _validate_presence(
+            candidate_fa,
+            min_length,
+            repeatmasker_pa=repeatmasker_pa,
+        )
     else:
         presence_names = set()
         rm_annotations = {}
