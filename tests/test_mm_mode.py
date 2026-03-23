@@ -1,9 +1,12 @@
+from pathlib import Path
+
 import pytest
 
 from haplongliner.mm_mode import (
     _collect_mm_candidates,
     _mm_seed_min_span,
     _project_mm_repeatmasker,
+    _run_candidate_repeatmasker,
     _validate_mm_te,
 )
 
@@ -81,3 +84,46 @@ def test_project_mm_repeatmasker_merges_fragmented_young_l1(tmp_path):
 
     assert count == 1
     assert bed.read_text().strip() == "scaf1\t100\t6096\tL1PA2\t5996\t+"
+
+
+def test_run_candidate_repeatmasker_uses_default_pa(monkeypatch, tmp_path):
+    fa = tmp_path / "seed.fa"
+    fa.write_text(">scaf1,100,220,+\n" + "A" * 120 + "\n")
+
+    def fake_run_quiet(cmd, check=True, cwd=None, **kwargs):
+        assert cmd[0:7] == [
+            "RepeatMasker",
+            "-e",
+            "rmblast",
+            "-pa",
+            "4",
+            "-species",
+            "human",
+        ]
+        short_out = Path(cwd) / "seed_short.fa.out"
+        short_out.write_text("")
+
+    monkeypatch.setattr("haplongliner.mm_mode.run_quiet", fake_run_quiet)
+    out = _run_candidate_repeatmasker(fa, 4)
+    assert out == tmp_path / "seed.fa.out"
+
+
+def test_run_candidate_repeatmasker_respects_pa_override(monkeypatch, tmp_path):
+    fa = tmp_path / "seed.fa"
+    fa.write_text(">scaf1,100,220,+\n" + "A" * 120 + "\n")
+
+    def fake_run_quiet(cmd, check=True, cwd=None, **kwargs):
+        assert cmd[0:7] == [
+            "RepeatMasker",
+            "-e",
+            "rmblast",
+            "-pa",
+            "8",
+            "-species",
+            "human",
+        ]
+        short_out = Path(cwd) / "seed_short.fa.out"
+        short_out.write_text("")
+
+    monkeypatch.setattr("haplongliner.mm_mode.run_quiet", fake_run_quiet)
+    _run_candidate_repeatmasker(fa, 8)
