@@ -146,7 +146,7 @@ def _restore_rm_out_names(short_out: Path, list_file: Path, out_file: Path) -> N
             dst.write(line)
 
 
-def _run_candidate_repeatmasker(candidate_fa: Path) -> Path:
+def _run_candidate_repeatmasker(candidate_fa: Path, repeatmasker_pa: int) -> Path:
     """Run RepeatMasker on candidate FASTA and return restored ``.out`` path."""
 
     rm_out = candidate_fa.with_suffix(candidate_fa.suffix + ".out")
@@ -161,6 +161,8 @@ def _run_candidate_repeatmasker(candidate_fa: Path) -> Path:
                 "RepeatMasker",
                 "-e",
                 "rmblast",
+                "-pa",
+                str(repeatmasker_pa),
                 "-species",
                 "human",
                 short_fa.name,
@@ -236,6 +238,7 @@ def run_mm_mode(
     asm: int = 10,
     liftover: str = "full",
     te: str = "L1,L1PA3",
+    repeatmasker_pa: int = 4,
 ):
     """Minimap2-seeded L1 discovery followed by candidate-only RepeatMasker."""
 
@@ -261,6 +264,7 @@ def run_mm_mode(
         f"[INFO]   Output Dir: {outdir}",
         f"[INFO]   TE types: {te} (min length {min_length})",
         f"[INFO]   ASM preset: asm{asm}",
+        f"[INFO]   RepeatMasker -pa: {repeatmasker_pa}",
     ]
     print("\n".join(info_lines))
 
@@ -303,7 +307,7 @@ def run_mm_mode(
 
     seed_fa = outdir / "seed.fa"
     _extract_fasta(Fasta(str(input_fasta)), seed_bed, seed_fa)
-    seed_rm_out = _run_candidate_repeatmasker(seed_fa)
+    seed_rm_out = _run_candidate_repeatmasker(seed_fa, repeatmasker_pa)
 
     candidate_bed = outdir / "cand.bed"
     candidate_count = _project_mm_repeatmasker(
