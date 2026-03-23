@@ -2,7 +2,6 @@ import os
 import re
 import sys
 import gzip
-import itertools
 import tempfile
 import subprocess
 from dataclasses import dataclass
@@ -23,6 +22,7 @@ from .utils import (
     append_fasta,
 )
 from .liftover_paf import liftover_paf
+from .repeatmasker import read_collapsed_repeatmasker_out
 from pyfaidx import Fasta
 
 
@@ -85,28 +85,12 @@ def _convert_rm_out_to_bed(out_path: Path) -> Path:
     """Convert RepeatMasker .out[.gz] file to temporary BED6 entries."""
 
     tmp = tempfile.NamedTemporaryFile("w", suffix=".bed", delete=False)
-    opener = gzip.open if str(out_path).endswith(".gz") else open
-
-    with opener(out_path, "rt") as fin, tmp:
-        first_lines = [fin.readline() for _ in range(4)]
-        if any("SW" in l and "perc" in l for l in first_lines):
-            iterator = fin
-        else:
-            iterator = itertools.chain(first_lines, fin)
-
-        for line in iterator:
-            if not line.strip() or line.startswith(("#", "track", "browser")):
-                continue
-            fields = re.split(r"\s+", line.strip())
-            if len(fields) < 14 or not fields[5].isdigit() or not fields[6].isdigit():
-                continue
-            chrom = fields[4]
-            start = int(fields[5]) - 1
-            end = int(fields[6])
-            strand = "-" if fields[8] == "C" else "+"
-            name = fields[9]
-            length = end - start
-            tmp.write(f"{chrom}\t{start}\t{end}\t{name}\t{length}\t{strand}\n")
+    with tmp:
+        for hit in read_collapsed_repeatmasker_out(out_path):
+            tmp.write(
+                f"{hit.query_name}\t{hit.query_start}\t{hit.query_end}\t"
+                f"{hit.family}\t{hit.length}\t{hit.strand}\n"
+            )
 
     return Path(tmp.name)
 
@@ -688,47 +672,22 @@ def _parse_repeatmasker(
 ) -> Tuple[Set[str], Dict[str, RepeatMaskerHit]]:
     """Return presence keys and annotation details derived from RepeatMasker output."""
 
-    annotations: Dict[Tuple[str, str, str], Dict[str, Tuple[int, float]]] = {}
-
-    with open(out_file) as fh:
-        for line in fh:
-            if not line.startswith(" "):
-                continue
-            parts = line.split()
-            if len(parts) < 14 or not re.search(r"L1", parts[9]):
-                continue
-
-            raw_name = parts[4]
-            key_parts = raw_name.split(",")[:3]
-            if len(key_parts) < 3:
-                continue
-            key = (key_parts[0], key_parts[1], key_parts[2])
-
-            try:
-                query_start = int(parts[5].strip("()"))
-                query_end = int(parts[6].strip("()"))
-            except ValueError:
-                continue
-            query_span = abs(query_end - query_start) + 1
-            try:
-                perc_div = float(parts[1])
-            except ValueError:
-                perc_div = 100.0
-            identity = max(0.0, 100.0 - perc_div)
-
-            family = parts[9]
-            fam_stats = annotations.setdefault(key, {})
-            cov_bp, ident_sum = fam_stats.get(family, (0, 0.0))
-            fam_stats[family] = (cov_bp + query_span, ident_sum + identity * query_span)
+    best_by_key: Dict[Tuple[str, str, str], Tuple[int, float, str]] = {}
+    for hit in read_collapsed_repeatmasker_out(out_file):
+        if not hit.is_l1:
+            continue
+        key_parts = hit.query_name.split(",")[:3]
+        if len(key_parts) < 3:
+            continue
+        key = (key_parts[0], key_parts[1], key_parts[2])
+        prev = best_by_key.get(key)
+        score = (hit.covered_bp, hit.identity)
+        if prev is None or score > prev[:2]:
+            best_by_key[key] = (hit.covered_bp, hit.identity, hit.family)
 
     detailed: Dict[str, RepeatMaskerHit] = {}
     present: Set[str] = set()
-    for key, families in annotations.items():
-        if not families:
-            continue
-        best_family, (cov_bp, ident_sum) = max(
-            families.items(), key=lambda item: item[1][0]
-        )
+    for key, (cov_bp, identity_pct, best_family) in best_by_key.items():
         key_len = seq_lengths.get(key, 0)
         if key_len <= 0:
             continue
@@ -736,7 +695,6 @@ def _parse_repeatmasker(
         cov_pct = cov_frac * 100.0
         if cov_pct > 100.0:
             cov_pct = 100.0
-        identity_pct = (ident_sum / cov_bp) if cov_bp else 0.0
         if identity_pct > 100.0:
             identity_pct = 100.0
         name = "_".join(key)

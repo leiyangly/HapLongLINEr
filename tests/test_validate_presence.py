@@ -137,3 +137,24 @@ def test_validate_presence_returns_annotations(monkeypatch, tmp_path):
     assert pytest.approx(hit.identity, rel=1e-3) == 90.0
     # second sequence is 120 bp long with 114 bp covered (positions 10-123)
     assert pytest.approx(hit.coverage, rel=1e-3) == pytest.approx(114 / 120 * 100, rel=1e-3)
+
+
+def test_validate_presence_merges_fragmented_young_l1(monkeypatch, tmp_path):
+    cand = tmp_path / "cand.fa"
+    cand.write_text(">chr1,10,6006,+,L1PA2\n" + "A" * 5996 + "\n")
+
+    def fake_run_quiet(cmd, check=True, cwd=None, **kwargs):
+        query = Path(cwd) / cmd[-1]
+        out_path = query.with_suffix(query.suffix + ".out")
+        out_path.write_text(
+            "19083 1.2 0.0 0.0 chr1,10,6006,+,L1PA2 1 2127 (3869) + L1HS LINE/L1 10 2136 (3896) 1\n"
+            "28563 1.6 0.0 0.0 chr1,10,6006,+,L1PA2 1978 5996 (0) + L1PA2 LINE/L1 2110 6128 (27) 2\n"
+        )
+
+    monkeypatch.setattr("haplongliner.sv_mode.run_quiet", fake_run_quiet)
+    present, annotations = _validate_presence(cand, min_length=5000)
+
+    assert present == {"chr1_10_6006"}
+    hit = annotations["chr1_10_6006"]
+    assert hit.family == "L1PA2"
+    assert pytest.approx(hit.coverage, rel=1e-3) == 100.0

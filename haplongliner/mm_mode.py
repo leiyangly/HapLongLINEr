@@ -1,10 +1,8 @@
 import contextlib
 import os
-import re
 import subprocess
 import sys
 from collections import Counter, defaultdict
-from dataclasses import dataclass
 from pathlib import Path
 
 from pyfaidx import Fasta
@@ -14,6 +12,7 @@ from .extract_l1 import _expand_te_names
 from .find_intact_orf import find_intact_orf
 from .find_longest_orf import find_longest_orf
 from .liftover_paf import liftover_paf
+from .repeatmasker import read_collapsed_repeatmasker_out
 from .rm_mode import (
     _combine_full_liftover,
     _extract_fasta,
@@ -34,16 +33,6 @@ from .utils import (
 
 L1RP_FASTA = Path("data") / "L1rp.fa"
 MM_MERGE_GAP = 200
-
-
-@dataclass
-class _ProjectedFamily:
-    cov_bp: int = 0
-    ident_sum: float = 0.0
-    local_start: int = 10**18
-    local_end: int = -1
-    plus_cov: int = 0
-    minus_cov: int = 0
 
 
 def _validate_mm_te(te: str) -> set[str]:
@@ -201,20 +190,14 @@ def _project_mm_repeatmasker(
     """Project candidate-level RepeatMasker hits back to assembly coordinates."""
 
     allowed = _validate_mm_te(te)
-    patterns = [re.compile(fr"^{re.escape(name)}") for name in allowed]
-    families_by_query: dict[tuple[str, int, int, str], dict[str, _ProjectedFamily]] = {}
+    collapsed = read_collapsed_repeatmasker_out(out_file)
 
-    with open(out_file) as fh:
-        for line in fh:
-            parts = line.split()
-            if (
-                len(parts) < 14
-                or not parts[0].replace(".", "", 1).isdigit()
-                or not parts[9].upper().startswith("L1")
-            ):
+    written = 0
+    with open(out_bed, "w") as out:
+        for hit in collapsed:
+            if not hit.is_l1 or not any(hit.family.startswith(name) for name in allowed):
                 continue
-
-            header = parts[4].split(",")
+            header = hit.query_name.split(",")
             if len(header) < 4:
                 continue
             chrom = header[0]
@@ -226,59 +209,20 @@ def _project_mm_repeatmasker(
             seed_strand = header[3]
             if seed_strand not in {"+", "-"}:
                 continue
-
-            try:
-                qstart = int(parts[5].strip("()"))
-                qend = int(parts[6].strip("()"))
-            except ValueError:
-                continue
-            local_start = min(qstart, qend) - 1
-            local_end = max(qstart, qend)
-            cov_bp = local_end - local_start
-            if cov_bp <= 0:
-                continue
-
-            try:
-                identity = max(0.0, 100.0 - float(parts[1]))
-            except ValueError:
-                identity = 0.0
-
-            hit_family = parts[9]
-            hit_strand = "-" if parts[8] == "C" else "+"
-            final_strand = seed_strand if hit_strand == "+" else ("-" if seed_strand == "+" else "+")
-
-            key = (chrom, seed_start, seed_end, seed_strand)
-            families = families_by_query.setdefault(key, {})
-            proj = families.setdefault(hit_family, _ProjectedFamily())
-            proj.cov_bp += cov_bp
-            proj.ident_sum += identity * cov_bp
-            proj.local_start = min(proj.local_start, local_start)
-            proj.local_end = max(proj.local_end, local_end)
-            if final_strand == "+":
-                proj.plus_cov += cov_bp
-            else:
-                proj.minus_cov += cov_bp
-
-    written = 0
-    with open(out_bed, "w") as out:
-        for (chrom, seed_start, seed_end, seed_strand), families in sorted(families_by_query.items()):
-            if not families:
-                continue
-            best_family, proj = max(families.items(), key=lambda item: item[1].cov_bp)
-            if not any(p.match(best_family) for p in patterns):
-                continue
+            local_start = hit.query_start
+            local_end = hit.query_end
 
             if seed_strand == "+":
-                start = seed_start + proj.local_start
-                end = seed_start + proj.local_end
+                start = seed_start + local_start
+                end = seed_start + local_end
             else:
-                start = seed_end - proj.local_end
-                end = seed_end - proj.local_start
+                start = seed_end - local_end
+                end = seed_end - local_start
             length = end - start
             if length < min_length:
                 continue
-            strand = "+" if proj.plus_cov >= proj.minus_cov else "-"
-            out.write(f"{chrom}\t{start}\t{end}\t{best_family}\t{length}\t{strand}\n")
+            strand = seed_strand if hit.strand == "+" else ("-" if seed_strand == "+" else "+")
+            out.write(f"{chrom}\t{start}\t{end}\t{hit.family}\t{length}\t{strand}\n")
             written += 1
     return written
 
