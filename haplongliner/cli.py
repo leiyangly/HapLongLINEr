@@ -18,6 +18,7 @@ class _Tee:
             s.flush()
 
 from .rm_mode import run_rm_mode
+from .mm_mode import run_mm_mode
 from .sv_mode import run_sv_mode
 from .sequence_retrieval_function import run_sequence_retrieval_function
 from .liftover_paf import liftover_paf as run_liftover_paf
@@ -38,6 +39,7 @@ def main():
         Version: {__version__}
 
         Command: rm        RM mode (RepeatMasker-based TE discovery)
+                 mm        MM mode (minimap2-seeded L1 discovery)
                  sv        SV mode (SV-based L1 discovery)
                  seq       Sequence retrieval function
                  lf        Liftover PAF alignments
@@ -150,6 +152,70 @@ def main():
 
     parser_rm.add_argument("-o", "--out", dest="output", required=True, help="Output directory for intermediate files")
     parser_rm.add_argument("-h", "--help", action="help", default=argparse.SUPPRESS,
+                           help="Show this help message and exit.")
+
+    # MM mode: minimap2-seeded L1 discovery
+    parser_mm = subparsers.add_parser(
+        "mm",
+        add_help=False,
+        usage=argparse.SUPPRESS,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="Usage:   haplongliner mm [options]",
+        help="MM mode: minimap2-seeded L1 discovery",
+    )
+    parser_mm._positionals.title = ""
+    parser_mm._optionals.title = "Options"
+    parser_mm.add_argument("-i", "--in", dest="input", required=True, help="Input haploid assembly FASTA")
+    parser_mm.add_argument(
+        "-l",
+        "--length",
+        dest="length",
+        type=int,
+        default=None,
+        help="Minimum TE length (default: 5000 for L1-only, otherwise 0)",
+    )
+    parser_mm.add_argument(
+        "-t",
+        "--te",
+        dest="te",
+        default="L1,L1PA3",
+        help=(
+            "Comma-separated L1 families to search. Shortcuts: "
+            "L1=L1HS,L1PA2 (default: L1,L1PA3)"
+        ),
+    )
+    parser_mm.add_argument(
+        "-g",
+        "--log",
+        dest="log",
+        help="File to log malformed candidate RepeatMasker lines",
+    )
+    parser_mm.add_argument(
+        "-a",
+        "--asm",
+        dest="asm",
+        type=int,
+        choices=[5, 10, 20],
+        default=10,
+        help="minimap2 asm preset (5, 10, or 20; default: 10)",
+    )
+    parser_mm.add_argument(
+        "-y",
+        "--legacy",
+        dest="legacy",
+        choices=["yes", "no"],
+        default="no",
+        help="Use legacy 2kb flank liftover ('yes') or full-genome liftover ('no', default)",
+    )
+    parser_mm.add_argument(
+        "-r",
+        "--ref",
+        dest="ref",
+        default="hs1",
+        help="Reference genome: hs1 (default), hg38, or path to FASTA",
+    )
+    parser_mm.add_argument("-o", "--out", dest="output", required=True, help="Output directory for intermediate files")
+    parser_mm.add_argument("-h", "--help", action="help", default=argparse.SUPPRESS,
                            help="Show this help message and exit.")
 
     # SV mode
@@ -351,6 +417,32 @@ def main():
             reference,
             repeatmasker_file=args.mask,
             output_dir=args.output,
+            log=args.log,
+            min_length=args.length,
+            asm=args.asm,
+            liftover=liftover_mode,
+            te=args.te,
+        )
+    elif args.command == "mm":
+        if args.length is None:
+            te_list = [t for t in args.te.split(",") if t]
+            expanded_te = _expand_te_names(te_list)
+            if all(t.upper().startswith("L1") for t in expanded_te):
+                args.length = 5000
+            else:
+                args.length = 0
+        check_dependencies()
+        if args.ref == "hs1":
+            reference = HS1_URL
+        elif args.ref == "hg38":
+            reference = HG38_URL
+        else:
+            reference = args.ref
+        liftover_mode = "flank2kb" if args.legacy == "yes" else "full"
+        run_mm_mode(
+            args.input,
+            reference,
+            args.output,
             log=args.log,
             min_length=args.length,
             asm=args.asm,

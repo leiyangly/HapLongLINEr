@@ -50,8 +50,9 @@ conda install haplongliner
 
 ## Usage
 
-Run `haplongliner`, `haplongliner rm` (RM mode), `haplongliner sv` (SV mode) or
-`haplongliner seq` with no arguments to see the available options for each command.
+Run `haplongliner`, `haplongliner rm` (RM mode), `haplongliner mm` (MM mode),
+`haplongliner sv` (SV mode) or `haplongliner seq` with no arguments to see the
+available options for each command.
 
 ### RM mode: Based on RepeatMasker annotations, with optional auto-masking
 
@@ -95,6 +96,39 @@ Intact ORF detection is performed only when `--length` is at least 5000 and the 
 Output:
 - haplongliner_rm.bed file with TE info from your assembly and corresponding reference genome (hs1/hg38) coordinates and ORF status
 - haplongliner_rm.fa file containing all full length (>=5kb by default) sequences for the selected TE families
+- Log file (when using `-g/--log`) that summarizes results of each step of the pipeline mode
+
+### MM mode: Based on minimap2 seeding to L1rp followed by candidate-only RepeatMasker
+
+Input:
+- Haploid assembly FASTA
+- Reference genome FASTA (hs1, hg38, or custom; default hs1)
+- L1 families to analyse (via `--te`, default `L1,L1PA3`; MM mode is L1-only)
+
+Command with test genome:
+```bash
+haplongliner mm \
+  --in tests/test.genome.HG00410.1.fa \
+  --ref hs1 \
+  --out test_output_mm
+```
+
+Command with user provided genome:
+```bash
+haplongliner mm \
+  --in your.genome.fa \
+  --te L1,L1PA3 \
+  --ref hs1 \
+  --out your_output_dir
+```
+
+MM mode first maps the assembly to `data/L1rp.fa` with minimap2 to nominate L1-like
+intervals, then runs RepeatMasker only on those candidate sequences to assign
+their subfamily before continuing with liftover and optional ORF validation.
+
+Output:
+- haplongliner_mm.bed file with TE info from your assembly and corresponding reference genome (hs1/hg38) coordinates and ORF status
+- haplongliner_mm.fa file containing all full length (>=5kb by default) sequences for the selected L1 families
 - Log file (when using `-g/--log`) that summarizes results of each step of the pipeline mode
 
 ### SV mode: Based on structural variation calls, no RepeatMasker pre-masking of whole assembly needed
