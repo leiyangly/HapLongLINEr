@@ -1,5 +1,11 @@
 from pathlib import Path
-from haplongliner.rm_mode import _write_rm_sequences, _fix_getorf_headers
+import pytest
+
+from haplongliner.rm_mode import (
+    _write_rm_sequences,
+    _fix_getorf_headers,
+    _resolve_repeatmasker_file,
+)
 
 
 def test_write_rm_sequences(tmp_path):
@@ -31,3 +37,68 @@ def test_fix_getorf_headers_restore_commas(tmp_path):
     _fix_getorf_headers(orf, orig)
     headers = [l.strip() for l in open(orf) if l.startswith(">")]
     assert headers == [">a,b,c,d,-,1,1,2"]
+
+
+def test_resolve_repeatmasker_file_uses_explicit_mask(tmp_path, monkeypatch):
+    fa = tmp_path / "test.fa"
+    fa.write_text(">chr1\nAAAA\n")
+    mask = tmp_path / "mask.out"
+    mask.write_text(
+        "500 5.0 0.0 0.0 chr1 1 4 (0) + L1HS LINE/L1 1 4 (0) 1\n"
+    )
+
+    def fail(*args, **kwargs):
+        raise AssertionError("RepeatMasker should not run when --mask is provided")
+
+    monkeypatch.setattr("haplongliner.rm_mode.run_quiet", fail)
+    got = _resolve_repeatmasker_file(str(fa), str(mask), tmp_path)
+    assert got == mask
+
+
+def test_resolve_repeatmasker_file_runs_repeatmasker_when_mask_missing(tmp_path, monkeypatch):
+    fa = tmp_path / "test.fa"
+    fa.write_text(">chr1\nAAAA\n")
+    calls = []
+
+    def fake_run_quiet(cmd, **kwargs):
+        calls.append(cmd)
+        (tmp_path / "test.fa.out").write_text(
+            "500 5.0 0.0 0.0 chr1 1 4 (0) + L1HS LINE/L1 1 4 (0) 1\n"
+        )
+
+    monkeypatch.setattr("haplongliner.rm_mode.run_quiet", fake_run_quiet)
+    got = _resolve_repeatmasker_file(str(fa), None, tmp_path)
+    assert got == tmp_path / "test.fa.out"
+    assert calls == [[
+        "RepeatMasker",
+        "-e",
+        "rmblast",
+        "-species",
+        "human",
+        "-dir",
+        str(tmp_path),
+        str(fa),
+    ]]
+
+
+def test_resolve_repeatmasker_file_reuses_existing_generated_mask(tmp_path, monkeypatch):
+    fa = tmp_path / "test.fa"
+    fa.write_text(">chr1\nAAAA\n")
+    auto_mask = tmp_path / "test.fa.out"
+    auto_mask.write_text(
+        "500 5.0 0.0 0.0 chr1 1 4 (0) + L1HS LINE/L1 1 4 (0) 1\n"
+    )
+
+    def fail(*args, **kwargs):
+        raise AssertionError("RepeatMasker should not rerun when cached output exists")
+
+    monkeypatch.setattr("haplongliner.rm_mode.run_quiet", fail)
+    got = _resolve_repeatmasker_file(str(fa), None, tmp_path)
+    assert got == auto_mask
+
+
+def test_resolve_repeatmasker_file_rejects_gz_input_without_mask(tmp_path):
+    fa = tmp_path / "test.fa.gz"
+    fa.write_text(">chr1\nAAAA\n")
+    with pytest.raises(RuntimeError, match="uncompressed FASTA"):
+        _resolve_repeatmasker_file(str(fa), None, tmp_path)

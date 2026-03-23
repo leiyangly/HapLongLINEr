@@ -109,6 +109,57 @@ def download_if_needed(url, local_path):
     return str(local_path)
 
 
+def _resolve_repeatmasker_file(
+    input_fasta: str,
+    repeatmasker_file: str | None,
+    outdir: Path,
+) -> Path:
+    """Return a validated RepeatMasker output, generating one when needed."""
+
+    if repeatmasker_file:
+        verify_repeatmasker_file(repeatmasker_file)
+        return Path(repeatmasker_file)
+
+    fasta_path = Path(input_fasta)
+    if str(fasta_path).endswith(".gz"):
+        raise RuntimeError(
+            "Automatic RepeatMasker execution requires an uncompressed FASTA input. "
+            "Provide --mask or decompress the FASTA first."
+        )
+
+    rm_out = outdir / f"{fasta_path.name}.out"
+    if rm_out.exists():
+        verify_repeatmasker_file(str(rm_out))
+        print(f"[INFO] Reusing existing RepeatMasker output: {rm_out}")
+        return rm_out
+
+    print(f"[INFO] No RepeatMasker file provided; masking {fasta_path} first")
+    try:
+        run_quiet(
+            [
+                "RepeatMasker",
+                "-e",
+                "rmblast",
+                "-species",
+                "human",
+                "-dir",
+                str(outdir),
+                str(fasta_path),
+            ],
+            check=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError(
+            "RepeatMasker failed while masking the input assembly. "
+            "Ensure RepeatMasker and the rmblast engine are installed and "
+            "configured correctly."
+        ) from exc
+
+    verify_repeatmasker_file(str(rm_out))
+    print(f"[INFO] RepeatMasker output written to {rm_out}")
+    return rm_out
+
+
 def _fix_getorf_headers(fa_path: Path, orig_fa: Path | None = None) -> None:
     """Rewrite ``getorf`` FASTA headers for easier downstream parsing.
 
@@ -253,8 +304,8 @@ def _combine_full_liftover(
 
 def run_rm_mode(
     input_fasta,
-    repeatmasker_file,
     reference_fasta,
+    repeatmasker_file=None,
     output_dir="rm_mode_output",
     log=None,
     min_length: int = 0,
@@ -265,7 +316,9 @@ def run_rm_mode(
     """
     RepeatMasker-based TE discovery pipeline.
     Downloads remote reference if needed.
-    Handles RepeatMasker BED, BED.gz, .out, or .out.gz input.
+    Handles RepeatMasker BED, BED.gz, .out, or .out.gz input. When
+    ``repeatmasker_file`` is omitted, RepeatMasker is first run on
+    ``input_fasta`` and the generated ``.out`` file is used automatically.
     ``log`` specifies a file to log malformed RepeatMasker lines. If not
     provided, the ``HAPLOGLINER_LOG`` environment variable is checked.
     ``min_length`` controls the minimum TE length to retain (default 0 bp).
@@ -282,7 +335,7 @@ def run_rm_mode(
 
     # Validate input files
     verify_fasta_file(input_fasta)
-    verify_repeatmasker_file(repeatmasker_file)
+    repeatmasker_path = _resolve_repeatmasker_file(input_fasta, repeatmasker_file, outdir)
     ref_is_url = reference_fasta.startswith("http://") or reference_fasta.startswith(
         "https://"
     )
@@ -299,7 +352,7 @@ def run_rm_mode(
     info_lines = [
         "[INFO] RM mode running with:",
         f"[INFO]   Input: {input_fasta}",
-        f"[INFO]   RepeatMasker: {repeatmasker_file}",
+        f"[INFO]   RepeatMasker: {repeatmasker_path}",
         f"[INFO]   Reference: {reference_fasta}",
         f"[INFO]   Output Dir: {outdir}",
         f"[INFO]   TE types: {te} (min length {min_length})",
@@ -326,7 +379,7 @@ def run_rm_mode(
     print("[STEP 1] Parsing input and extracting sequences")
     # 1-3. Parse RepeatMasker file to unified BED6 and obtain candidate sequences
     parsed_bed = outdir / "parsed_repeatmasker.bed"
-    parse_repeatmasker(repeatmasker_file, parsed_bed, log)
+    parse_repeatmasker(repeatmasker_path, parsed_bed, log)
 
     # Extract full-length TEs from parsed BED
     candidate_bed = outdir / "cand.bed"

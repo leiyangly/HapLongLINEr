@@ -88,7 +88,11 @@ def main():
     parser_rm._positionals.title = ""
     parser_rm._optionals.title = "Options"
     parser_rm.add_argument("-i", "--in", dest="input", required=True, help="Input haploid assembly FASTA")
-    parser_rm.add_argument("-m", "--mask", required=True, help="RepeatMasker BED or .out file")
+    parser_rm.add_argument(
+        "-m",
+        "--mask",
+        help="RepeatMasker BED or .out file; if omitted, RepeatMasker is run on --in first",
+    )
 
     parser_rm.add_argument(
         "-l",
@@ -344,9 +348,9 @@ def main():
         liftover_mode = "flank2kb" if args.legacy == "yes" else "full"
         run_rm_mode(
             args.input,
-            args.mask,
             reference,
-            args.output,
+            repeatmasker_file=args.mask,
+            output_dir=args.output,
             log=args.log,
             min_length=args.length,
             asm=args.asm,

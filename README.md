@@ -53,11 +53,11 @@ conda install haplongliner
 Run `haplongliner`, `haplongliner rm` (RM mode), `haplongliner sv` (SV mode) or
 `haplongliner seq` with no arguments to see the available options for each command.
 
-### RM mode: Based on RepeatMasker pre-masked genome assemblies
+### RM mode: Based on RepeatMasker annotations, with optional auto-masking
 
 Input:
 - Haploid assembly FASTA
-- RepeatMasker BED or .out file (plain or gzipped)
+- RepeatMasker BED or .out file (plain or gzipped), or omit `--mask` to run RepeatMasker on the assembly first
 - Reference genome FASTA (hs1, hg38, or custom; default hs1)
 - Transposable element families to analyse (via `--te`, default `L1,L1PA3`)
 
@@ -75,6 +75,14 @@ Or with user provided genome:
 haplongliner rm \
   --in your.genome.fa \
   --mask your.repeatmasker.bed \
+  --ref hs1 \
+  --out your_output_dir
+```
+
+Or let HapLongLINEr mask the assembly for you first:
+```bash
+haplongliner rm \
+  --in your.genome.fa \
   --ref hs1 \
   --out your_output_dir
 ```
