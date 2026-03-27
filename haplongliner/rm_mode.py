@@ -13,6 +13,7 @@ from .find_longest_orf import find_longest_orf
 from .find_intact_orf import find_intact_orf
 from .combine_table import combine_table, _read_intact
 from .extract_l1 import _expand_te_names
+from .repeatmasker import read_collapsed_repeatmasker_out
 from .utils import (
     verify_blast_db,
     run_quiet,
@@ -41,38 +42,28 @@ def parse_repeatmasker(input_path, output_path, log_path=None):
 
     ``log_path`` optionally records skipped malformed lines.
     """
-    # Open plain or gzipped file
+    suffixes = Path(str(input_path)).suffixes
+    is_out = suffixes[-1:] == [".out"] or suffixes[-2:] == [".out", ".gz"]
+    if is_out:
+        collapsed = read_collapsed_repeatmasker_out(input_path, log_path=log_path)
+        with open(output_path, "w") as fout:
+            for hit in collapsed:
+                fout.write(
+                    f"{hit.query_name}\t{hit.query_start}\t{hit.query_end}\t"
+                    f"{hit.family}\t{hit.length}\t{hit.strand}\n"
+                )
+        print("[INFO] Parsed RepeatMasker .out with L1 defragmentation")
+        return
+
     opener = gzip.open if str(input_path).endswith(".gz") else open
     skipped = []
     with opener(input_path, "rt") as fin, open(output_path, "w") as fout:
-        lines = fin.readlines()
-        # Detect .out header (skip first 4 lines if header detected)
-        if any("SW" in l and "perc" in l for l in lines[:4]):
-            lines = lines[4:]
-
-        for line in lines:
+        for line in fin:
             if not line.strip() or line.startswith(("#", "track", "browser")):
                 continue
             fields = re.split(r"\s+", line.strip())
-
-            is_out = (
-                len(fields) >= 14
-                and fields[0].replace(".", "", 1).isdigit()
-                and fields[5].isdigit()
-                and fields[6].isdigit()
-            )
-
             try:
-                if is_out:
-                    chrom = fields[4]
-                    # RepeatMasker .out uses 1-based inclusive coordinates
-                    # Convert to 0-based half-open
-                    start = int(fields[5]) - 1
-                    end = int(fields[6])
-                    name = fields[9]
-                    strand = fields[8]
-                    strand = "-" if strand == "C" else "+"
-                elif len(fields) >= 5:
+                if len(fields) >= 5:
                     chrom = fields[0]
                     start = int(fields[1])
                     end = int(fields[2])
