@@ -191,6 +191,14 @@ def main():
         help="File to log malformed candidate RepeatMasker lines",
     )
     parser_mm.add_argument(
+        "-pa",
+        "--pa",
+        dest="repeatmasker_pa",
+        type=int,
+        default=4,
+        help="RepeatMasker parallel jobs for candidate annotation (default: 4)",
+    )
+    parser_mm.add_argument(
         "-a",
         "--asm",
         dest="asm",
@@ -270,6 +278,14 @@ def main():
             "L1=L1HS,L1PA2; SVA=SVA_E,SVA_F; ALU=AluY; "
             "HERVK=HERVK-int,LTR5_Hs (default: L1,L1PA3)"
         ),
+    )
+    parser_sv.add_argument(
+        "-pa",
+        "--pa",
+        dest="repeatmasker_pa",
+        type=int,
+        default=4,
+        help="RepeatMasker parallel jobs for candidate validation (default: 4)",
     )
     parser_sv.add_argument(
         "-g",
@@ -448,6 +464,7 @@ def main():
             asm=args.asm,
             liftover=liftover_mode,
             te=args.te,
+            repeatmasker_pa=args.repeatmasker_pa,
         )
     elif args.command == "sv":
         if args.length is None:
@@ -477,6 +494,7 @@ def main():
             asm=args.asm,
             xlength=args.xlength,
             exist=args.exist,
+            repeatmasker_pa=args.repeatmasker_pa,
         )
     elif args.command == "seq":
         run_sequence_retrieval_function(args.query, args.output, extra_fasta=args.extra)
