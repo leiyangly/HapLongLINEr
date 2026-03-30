@@ -13,13 +13,10 @@
 
 ### Install using git and pip
 
-Install dependencies (optional):
+Create the recommended conda environment:
 ```bash
-conda config --add channels conda-forge
-conda config --add channels bioconda
-conda config --add channels defaults
-
-conda install -c biopython minimap2 bedtools emboss blast repeatmasker h5py
+conda env create -f environment.yml
+conda activate haplongliner
 ```
 
 Clone the repository:
@@ -34,7 +31,14 @@ cd HapLongLINEr
 pip install -e .
 ```
 
-### Install as a conda package (to be implemented)
+This editable install provides the Python package plus the bundled small data
+assets used by HapLongLINEr, including `L1rp.fa`, the ORF BLAST database, and
+the HPRC sequence lookup archives. Large reference downloads such as `hs1.fa.gz`
+and UCSC RepeatMasker annotations are cached under `~/.cache/haplongliner` by
+default. Override these locations with `HAPLONGLINER_DATA_DIR` or
+`HAPLONGLINER_CACHE_DIR` if needed.
+
+### Install as a conda package
 
 Enable the required channels:
 ```bash
@@ -43,7 +47,7 @@ conda config --add channels bioconda
 conda config --add channels conda-forge
 ```
 
-Install HapLongLINEr:
+Install HapLongLINEr once the conda package is published:
 ```bash
 conda install haplongliner
 ```
@@ -122,7 +126,7 @@ haplongliner mm \
   --out your_output_dir
 ```
 
-MM mode first maps the assembly to `data/L1rp.fa` with minimap2 to nominate L1-like
+MM mode first maps the assembly to the bundled `L1rp.fa` seed with minimap2 to nominate L1-like
 intervals, then runs RepeatMasker only on those candidate sequences to assign
 their subfamily before continuing with liftover and optional ORF validation.
 

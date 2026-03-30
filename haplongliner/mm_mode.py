@@ -13,6 +13,7 @@ from .find_intact_orf import find_intact_orf
 from .find_longest_orf import find_longest_orf
 from .liftover_paf import liftover_paf
 from .repeatmasker import read_collapsed_repeatmasker_out
+from .resources import get_cache_dir, get_data_path
 from .rm_mode import (
     _combine_full_liftover,
     _extract_fasta,
@@ -30,8 +31,6 @@ from .utils import (
     verify_fasta_file,
 )
 
-
-L1RP_FASTA = Path("data") / "L1rp.fa"
 MM_MERGE_GAP = 200
 
 
@@ -43,6 +42,12 @@ def _validate_mm_te(te: str) -> set[str]:
     if not expanded or any(not t.upper().startswith("L1") for t in expanded):
         sys.exit("Error: mm mode only supports L1-family targets.")
     return expanded
+
+
+def _l1rp_fasta() -> Path:
+    """Return the bundled L1rp seed FASTA."""
+
+    return get_data_path("L1rp.fa")
 
 
 def _mm_seed_min_span(min_length: int) -> int:
@@ -248,7 +253,8 @@ def run_mm_mode(
     ref_is_url = reference_fasta.startswith("http://") or reference_fasta.startswith("https://")
     if not ref_is_url:
         verify_fasta_file(reference_fasta)
-    verify_fasta_file(str(L1RP_FASTA))
+    l1rp_fasta = _l1rp_fasta()
+    verify_fasta_file(str(l1rp_fasta))
 
     expanded_te = _validate_mm_te(te)
     perform_orf = min_length >= 5000 and bool(expanded_te & {"L1HS", "L1PA2", "L1PA3"})
@@ -256,7 +262,7 @@ def run_mm_mode(
     info_lines = [
         "[INFO] MM mode running with:",
         f"[INFO]   Input: {input_fasta}",
-        f"[INFO]   L1 seed reference: {L1RP_FASTA}",
+        f"[INFO]   L1 seed reference: {l1rp_fasta}",
         f"[INFO]   Reference: {reference_fasta}",
         f"[INFO]   Output Dir: {outdir}",
         f"[INFO]   TE types: {te} (min length {min_length})",
@@ -265,9 +271,7 @@ def run_mm_mode(
     print("\n".join(info_lines))
 
     if ref_is_url:
-        data_dir = Path("data")
-        data_dir.mkdir(exist_ok=True)
-        ref_local = data_dir / Path(reference_fasta).name
+        ref_local = get_cache_dir() / Path(reference_fasta).name
         reference_fasta = download_if_needed(reference_fasta, ref_local)
         verify_fasta_file(reference_fasta)
 
@@ -290,7 +294,7 @@ def run_mm_mode(
                 "--secondary=yes",
                 "-N",
                 "1000",
-                str(L1RP_FASTA),
+                str(l1rp_fasta),
                 str(input_fasta),
             ],
             check=True,
@@ -411,7 +415,7 @@ def run_mm_mode(
         )
         _fix_getorf_headers(orf_fa, candidate_fa)
         blastp_out = outdir / "cand_orf.blastp"
-        db_prefix = Path("data") / "L1rpORF12p.fa"
+        db_prefix = get_data_path("L1rpORF12p.fa")
         verify_blast_db(db_prefix)
         filtered_fasta = read_nonempty_fasta(orf_fa)
         if filtered_fasta:

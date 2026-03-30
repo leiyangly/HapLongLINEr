@@ -15,19 +15,25 @@ requirements:
     - pip
   run:
     - python
+    - biopython
     - pyfaidx
+    - edlib
+    - tqdm
     - minimap2
     - emboss
     - blast
+    - repeatmasker
 
 test:
   imports:
     - haplongliner
   commands:
     - haplongliner -h
+    - haplongliner rm -h
+    - haplongliner mm -h
+    - haplongliner sv -h
 
 about:
   home: https://github.com/leiyangly/HapLongLINEr
   summary: "Pipeline for discovering and curating full-length young LINE-1 elements."
   license: MIT
-

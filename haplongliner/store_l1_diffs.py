@@ -4,6 +4,8 @@ from typing import Tuple
 import edlib
 from Bio import SeqIO
 
+from .resources import get_data_path
+
 
 def _revcomp(seq: str) -> str:
     complement = str.maketrans("ACGTacgtNn", "TGCAtgcaNn")
@@ -19,8 +21,10 @@ def _best_alignment(query: str, reference: str) -> Tuple[str, str]:
     return "+", plus["cigar"]
 
 
-def store_diffs(fasta: str, reference: str = "data/L1rp.fa", db: str = "l1rp_diff.db") -> None:
+def store_diffs(fasta: str, reference: str | None = None, db: str = "l1rp_diff.db") -> None:
     """Align sequences in *fasta* to *reference* and store differences in *db*."""
+    if reference is None:
+        reference = str(get_data_path("L1rp.fa"))
     ref_record = next(SeqIO.parse(reference, "fasta"))
     ref_seq = str(ref_record.seq)
 
@@ -49,7 +53,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("fasta", help="Input FASTA file")
     parser.add_argument(
-        "-r", "--reference", default="data/L1rp.fa", help="Reference FASTA"
+        "-r", "--reference", default=None, help="Reference FASTA (default: bundled L1rp.fa)"
     )
     parser.add_argument(
         "-d", "--db", default="l1rp_diff.db", help="SQLite database path"
