@@ -13,21 +13,20 @@
 
 ### Install using git and pip
 
-Create the recommended conda environment:
+Clone the repository:
+```bash
+git clone https://github.com/leiyangly/HapLongLINEr.git
+cd HapLongLINEr
+```
+
+Create and activate the recommended conda environment:
 ```bash
 conda env create -f environment.yml
 conda activate haplongliner
 ```
 
-Clone the repository:
-```bash
-git clone https://github.com/leiyangly/HapLongLINEr.git
-```
-
 Install HapLongLINEr with pip:
 ```bash
-cd HapLongLINEr
-
 pip install -e .
 ```
 
