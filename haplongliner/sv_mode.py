@@ -24,6 +24,7 @@ from .utils import (
 )
 from .liftover_paf import liftover_paf
 from .repeatmasker import read_collapsed_repeatmasker_out
+from .resources import get_cache_dir, get_data_path
 from pyfaidx import Fasta
 
 
@@ -815,7 +816,7 @@ def _validate_orfs(candidate_fa: Path) -> Set[str]:
         return intact
 
     blastp_out = candidate_fa.with_name("cand_orf.blastp")
-    db_prefix = Path("data") / "L1rpORF12p.fa"
+    db_prefix = get_data_path("L1rpORF12p.fa")
     verify_blast_db(db_prefix)
     run_quiet(
         [
@@ -1117,15 +1118,13 @@ def run_sv_mode(
 
     temp_files: List[Path] = []
     if teref == "hprc":
-        raw_ref = Path("data") / "HPRC_L1_hs1_v2_v2fl_status.bed"
+        raw_ref = get_data_path("HPRC_L1_hs1_v2_v2fl_status.bed")
     elif teref in {"hs1", "hg38"}:
         urls = {
             "hs1": "https://hgdownload.soe.ucsc.edu/goldenPath/hs1/bigZips/hs1.repeatMasker.out.gz",
             "hg38": "https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.out.gz",
         }
-        data_dir = Path("data")
-        data_dir.mkdir(exist_ok=True)
-        local_out = data_dir / Path(urls[teref]).name
+        local_out = get_cache_dir() / Path(urls[teref]).name
         download_if_needed(urls[teref], local_out)
         raw_ref = _convert_rm_out_to_bed(local_out)
         temp_files.append(raw_ref)
@@ -1146,9 +1145,7 @@ def run_sv_mode(
 
     ref_path = reference_fasta
     if ref_path.startswith("http://") or ref_path.startswith("https://"):
-        data_dir = Path("data")
-        data_dir.mkdir(exist_ok=True)
-        ref_local = data_dir / Path(ref_path).name
+        ref_local = get_cache_dir() / Path(ref_path).name
         ref_path = download_if_needed(ref_path, ref_local)
 
     verify_fasta_file(ref_path)
@@ -1269,7 +1266,7 @@ def run_sv_mode(
         )
         _fix_getorf_headers(orf_fa, candidate_fa)
         blastp_out = candidate_fa.with_name("cand_orf.blastp")
-        db_prefix = Path("data") / "L1rpORF12p.fa"
+        db_prefix = get_data_path("L1rpORF12p.fa")
         verify_blast_db(db_prefix)
         filtered_fasta = read_nonempty_fasta(orf_fa)
         if filtered_fasta:

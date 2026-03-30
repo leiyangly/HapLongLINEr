@@ -14,6 +14,7 @@ from .find_intact_orf import find_intact_orf
 from .combine_table import combine_table, _read_intact
 from .extract_l1 import _expand_te_names
 from .repeatmasker import read_collapsed_repeatmasker_out
+from .resources import get_cache_dir, get_data_path
 from .utils import (
     verify_blast_db,
     run_quiet,
@@ -352,9 +353,7 @@ def run_rm_mode(
     print("\n".join(info_lines))
 
     if ref_is_url:
-        data_dir = Path("data")
-        data_dir.mkdir(exist_ok=True)
-        ref_local = data_dir / Path(reference_fasta).name
+        ref_local = get_cache_dir() / Path(reference_fasta).name
         reference_fasta = download_if_needed(reference_fasta, ref_local)
         verify_fasta_file(reference_fasta)
     input_fasta = str(ensure_pyfaidx_fasta(input_fasta))
@@ -507,7 +506,7 @@ def run_rm_mode(
         )
         _fix_getorf_headers(orf_fa, candidate_fa)
         blastp_out = outdir / "cand_orf.blastp"
-        db_prefix = Path("data") / "L1rpORF12p.fa"
+        db_prefix = get_data_path("L1rpORF12p.fa")
         verify_blast_db(db_prefix)
         filtered_fasta = read_nonempty_fasta(orf_fa)
         if filtered_fasta:

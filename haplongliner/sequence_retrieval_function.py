@@ -7,8 +7,9 @@ import sys
 import io
 import zipfile
 
-from pyfaidx import Fasta
+from Bio import SeqIO
 
+from .resources import get_data_path
 from .utils import verify_bed_file, verify_fasta_file
 
 
@@ -72,19 +73,17 @@ def _load_sequences(zip_path: Path) -> Dict[str, List[Tuple[str, str]]]:
 
 
 def _load_database() -> Dict[str, List[Tuple[str, str]]]:
-    base = Path("data")
     seqs = {}
     for fname in ["HPRC_L1_seq_by_site_v2.zip", "HPRC_L1_seq_by_site_v2fl.zip"]:
-        seqs_zip = _load_sequences(base / fname)
+        seqs_zip = _load_sequences(get_data_path(fname))
         for k, vals in seqs_zip.items():
             seqs.setdefault(k, []).extend(vals)
     return seqs
 
 
 def _load_reference(path: Path) -> str:
-    fa = Fasta(str(path))
-    first = next(iter(fa.records.values()))
-    return str(first[:])
+    first = next(SeqIO.parse(path, "fasta"))
+    return str(first.seq)
 
 
 Coord = Tuple[str, int, int]
@@ -130,10 +129,10 @@ def run_sequence_retrieval_function(query: str, output: str, extra_fasta: str | 
         verify_fasta_file(extra_fasta)
         print(f"  Extra FASTA: {extra_fasta}")
 
-    base = Path("data")
-    bed_path = base / "HPRC_L1_hs1_v2_v2fl_status.bed"
-    if not bed_path.exists():
-        sys.exit("Error: hs1 reference BED not found in data directory")
+    try:
+        bed_path = get_data_path("HPRC_L1_hs1_v2_v2fl_status.bed")
+    except FileNotFoundError:
+        sys.exit("Error: hs1 reference BED not found in bundled data")
 
     # Load reference coordinates
     by_chrom: DefaultDict[str, List[Tuple[int, int, str, str]]] = DefaultDict(list)
@@ -146,7 +145,7 @@ def run_sequence_retrieval_function(query: str, output: str, extra_fasta: str | 
 
     # Load sequence database and reference sequence
     seq_db = _load_database()
-    ref_seq = _load_reference(base / "L1rp.fa")
+    ref_seq = _load_reference(get_data_path("L1rp.fa"))
 
     with open(output, "w") as out_f:
         for chrom, qstart, qend in coords:
