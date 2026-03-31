@@ -280,6 +280,16 @@ def main():
         ),
     )
     parser_sv.add_argument(
+        "--hap",
+        dest="hap",
+        choices=["auto", "1", "2", "both"],
+        default="auto",
+        help=(
+            "Haplotype selection for phased SV VCFs: auto (infer from --in), "
+            "1, 2, or both (default: auto)"
+        ),
+    )
+    parser_sv.add_argument(
         "-pa",
         "--pa",
         dest="repeatmasker_pa",
@@ -494,6 +504,7 @@ def main():
             asm=args.asm,
             xlength=args.xlength,
             exist=args.exist,
+            hap=args.hap,
             repeatmasker_pa=args.repeatmasker_pa,
         )
     elif args.command == "seq":
