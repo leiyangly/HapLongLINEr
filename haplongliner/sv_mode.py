@@ -371,8 +371,80 @@ def _create_lifted_reorg(
 
     return lifted
 
+
+def _infer_haplotype_from_path(path: str | Path) -> Optional[str]:
+    """Infer haplotype ``"1"`` or ``"2"`` from an assembly filename."""
+
+    name = Path(path).name.lower()
+    patterns = [
+        r"(?:^|[_\.-])phased[_\.-]?([12])(?:[_\.-]|$)",
+        r"(?:^|[_\.-])hap(?:lotype)?[_\.-]?([12])(?:[_\.-]|$)",
+        r"(?:^|[_\.-])h([12])(?:[_\.-]|$)",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, name)
+        if match:
+            return match.group(1)
+    return None
+
+
+def _nonref_allele(token: str) -> bool:
+    """Return ``True`` when a genotype allele token indicates a variant allele."""
+
+    token = token.strip()
+    return bool(token) and token not in {"0", "."}
+
+
+def _vcf_record_matches_haplotype(fields: List[str], hap: str) -> bool:
+    """Return whether a VCF record should be used for the selected haplotype."""
+
+    if hap == "legacy":
+        return True
+
+    if len(fields) < 10:
+        return True
+
+    gt = fields[9].split(":", 1)[0].strip()
+    if not gt or gt in {".", "./.", ".|."}:
+        return False
+
+    if "|" in gt:
+        alleles = gt.split("|")
+        if hap == "1":
+            return bool(alleles) and _nonref_allele(alleles[0])
+        if hap == "2":
+            return len(alleles) >= 2 and _nonref_allele(alleles[1])
+        return any(_nonref_allele(a) for a in alleles)
+
+    if "/" in gt:
+        alleles = gt.split("/")
+        return any(_nonref_allele(a) for a in alleles)
+
+    return _nonref_allele(gt)
+
+
+def _resolve_sv_haplotype_selection(
+    hap: str,
+    input_fasta: str | None = None,
+) -> Tuple[str, str]:
+    """Resolve the effective haplotype-selection mode for VCF parsing."""
+
+    if hap in {"1", "2", "both"}:
+        return hap, f"explicit {hap}"
+
+    if input_fasta:
+        inferred = _infer_haplotype_from_path(input_fasta)
+        if inferred:
+            return inferred, f"auto from input filename ({Path(input_fasta).name})"
+
+    return "both", "auto fallback to both"
+
+
 def _parse_sv(
-    sv_path: Path, log_path: Path | None = None
+    sv_path: Path,
+    log_path: Path | None = None,
+    *,
+    hap: str = "legacy",
 ) -> Tuple[List[Tuple[str, int, int]], List[Tuple[str, int, int, str]]]:
     """Parse a simple VCF or BED SV file and return deletion and insertion regions.
 
@@ -392,6 +464,8 @@ def _parse_sv(
             fields = line.rstrip().split("\t")
             if is_vcf or len(fields) > 5:
                 try:
+                    if not _vcf_record_matches_haplotype(fields, hap):
+                        continue
                     chrom = fields[0]
                     pos = int(fields[1]) - 1
                     info = fields[7] if len(fields) > 7 else ""
@@ -1068,6 +1142,7 @@ def run_sv_mode(
     xlength: int | None = None,
     exist: str = "no",
     repeatmasker_pa: int = 4,
+    hap: str = "auto",
 ) -> None:
     """RepeatMasker-free TE discovery using structural variants.
 
@@ -1085,6 +1160,7 @@ def run_sv_mode(
     perform_orf = min_length >= 5000 and bool(expanded_te & {"L1HS", "L1PA2", "L1PA3"})
     if xlength is None:
         xlength = max(20000, 3 * min_length)
+    resolved_hap, hap_note = _resolve_sv_haplotype_selection(hap, input_fasta)
 
     info_lines = [
         "[INFO] SV mode running with:",
@@ -1096,6 +1172,7 @@ def run_sv_mode(
         f"[INFO]   ASM preset: asm{asm}",
         f"[INFO]   Max insertion length: {xlength}",
         f"[INFO]   RepeatMasker -pa: {repeatmasker_pa}",
+        f"[INFO]   SV haplotype selection: {resolved_hap} ({hap_note})",
     ]
     print("\n".join(info_lines))
 
@@ -1216,7 +1293,11 @@ def run_sv_mode(
 
     print("\n[STEP 4] Parsing structural variants")
 
-    deletions, insertions = _parse_sv(Path(sv_file), Path(log) if log else None)
+    deletions, insertions = _parse_sv(
+        Path(sv_file),
+        Path(log) if log else None,
+        hap=resolved_hap,
+    )
     print(f"[SUM] Parsed {len(deletions)} deletions and {len(insertions)} insertions")
 
     print("\n[STEP 5] Validating candidate TEs")

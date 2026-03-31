@@ -141,6 +141,7 @@ Output:
 Input:
 - Haploid assembly FASTA
 - Structural variant (SV) callset (VCF or BED)
+- For phased haplotype-resolved SV VCFs, `--hap auto` (default) will try to infer haplotype 1 or 2 from the assembly filename; use `--hap 1`, `--hap 2`, or `--hap both` to override
 - Reference genome FASTA (hs1, hg38, or custom; default hs1)
 - Transposable element families to analyse (via `--te`, default `L1,L1PA3`)
 - Maximum insertion length for candidate extraction (via `-x/--xlength`; default 20kb or 3×`--length`, whichever is higher)
@@ -169,7 +170,9 @@ haplongliner sv \
 
 ORF validation is carried out only when `--length` is at least 5000 and the `--te` list includes L1HS, L1PA2, or L1PA3; otherwise the BLASTP and ORF sequence extraction steps are skipped.
 RepeatMasker-based candidate validation runs with `-pa 4` by default and can be
-adjusted with `-pa/--pa`.
+adjusted with `-pa/--pa`. When the SV VCF contains phased genotypes such as
+`1|0` or `0|1`, SV mode uses the selected haplotype to keep only the variants
+present on the target haploid assembly.
 
 Output:
 - haplongliner_sv.bed file summarizing TE coordinates and ORF status. Names from insertion calls that do not overlap lifted TEs end with `;nr`.

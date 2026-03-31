@@ -3,7 +3,11 @@ from pathlib import Path
 
 import pytest
 
-from haplongliner.sv_mode import _parse_sv, run_sv_mode
+from haplongliner.sv_mode import (
+    _parse_sv,
+    _resolve_sv_haplotype_selection,
+    run_sv_mode,
+)
 
 
 def test_parse_sv_handles_gz(tmp_path):
@@ -53,3 +57,43 @@ def test_reuse_existing_alignment(monkeypatch, tmp_path):
 
     assert not called["flag"]
 
+
+def test_parse_sv_filters_phased_haplotype_vcf(tmp_path):
+    vcf = tmp_path / "calls.vcf"
+    vcf.write_text(
+        "##fileformat=VCFv4.2\n"
+        "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSample\n"
+        "chr1\t11\tdel1\tA\t<DEL>\t.\tPASS\tSVTYPE=DEL;END=21\tGT\t1|0\n"
+        "chr1\t31\tdel2\tA\t<DEL>\t.\tPASS\tSVTYPE=DEL;END=41\tGT\t0|1\n"
+        "chr1\t51\tdel3\tA\t<DEL>\t.\tPASS\tSVTYPE=DEL;END=61\tGT\t1|1\n"
+        "chr1\t71\tdel4\tA\t<DEL>\t.\tPASS\tSVTYPE=DEL;END=81\tGT\t0|0\n"
+        "chr1\t91\tins1\tA\tACGT\t.\tPASS\tSVTYPE=INS;END=91\tGT\t0/1\n"
+    )
+
+    del1, ins1 = _parse_sv(vcf, hap="1")
+    del2, ins2 = _parse_sv(vcf, hap="2")
+    delb, insb = _parse_sv(vcf, hap="both")
+
+    assert del1 == [("chr1", 10, 20), ("chr1", 50, 60)]
+    assert del2 == [("chr1", 30, 40), ("chr1", 50, 60)]
+    assert delb == [("chr1", 10, 20), ("chr1", 30, 40), ("chr1", 50, 60)]
+    assert ins1 == [("chr1", 90, 91, "ACGT")]
+    assert ins2 == [("chr1", 90, 91, "ACGT")]
+    assert insb == [("chr1", 90, 91, "ACGT")]
+
+
+def test_resolve_sv_haplotype_selection_auto_from_input_name():
+    resolved, note = _resolve_sv_haplotype_selection(
+        "auto",
+        "/tmp/HG00410.LSK110.R9_hapdup_phased_1.fasta",
+    )
+
+    assert resolved == "1"
+    assert "phased_1" in note
+
+
+def test_resolve_sv_haplotype_selection_auto_falls_back_to_both():
+    resolved, note = _resolve_sv_haplotype_selection("auto", "/tmp/sample.fa")
+
+    assert resolved == "both"
+    assert "fallback" in note
