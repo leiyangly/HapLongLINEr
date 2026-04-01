@@ -2,7 +2,12 @@ from pathlib import Path
 
 import pytest
 
-from haplongliner.sv_mode import _classify_sv, _finalize_lifted_status
+from haplongliner.sv_mode import (
+    _classify_sv,
+    _finalize_extra_insertion_status,
+    _finalize_lifted_status,
+    _resolve_output_intact_support,
+)
 
 
 def _make_lifted(
@@ -128,4 +133,48 @@ def test_finalize_lifted_status_insertion_uses_repeatmasker_rescue() -> None:
             min_length=5000,
         )
         == "disrupted"
+    )
+
+
+def test_resolve_output_intact_support_suppresses_short_insertion_anchor() -> None:
+    assert (
+        _resolve_output_intact_support(
+            intact_supported=True,
+            is_insertion=True,
+            target_len=26,
+            min_length=5000,
+        )
+        is False
+    )
+
+
+def test_resolve_output_intact_support_keeps_long_insertion() -> None:
+    assert (
+        _resolve_output_intact_support(
+            intact_supported=True,
+            is_insertion=True,
+            target_len=6000,
+            min_length=5000,
+        )
+        is True
+    )
+
+
+def test_finalize_extra_insertion_status_requires_repeatmasker_for_intact() -> None:
+    assert (
+        _finalize_extra_insertion_status(
+            intact_supported=True,
+            rm_supported=False,
+        )
+        is None
+    )
+
+
+def test_finalize_extra_insertion_status_intact_requires_both_signals() -> None:
+    assert (
+        _finalize_extra_insertion_status(
+            intact_supported=True,
+            rm_supported=True,
+        )
+        == "intact"
     )
