@@ -588,6 +588,40 @@ def _finalize_lifted_status(
     return "disrupted"
 
 
+def _resolve_output_intact_support(
+    *,
+    intact_supported: bool,
+    is_insertion: bool,
+    target_len: int,
+    min_length: int,
+) -> bool:
+    """Return whether a final output row should keep the intact label.
+
+    Short insertion-anchored lifted rows can inherit intact ORF support from a
+    rescue window even though the written locus is only a breakpoint-sized
+    anchor. Suppress that upgrade here so only rows representing a meaningful
+    span keep ``intact`` in the final BED.
+    """
+
+    if not intact_supported:
+        return False
+    if is_insertion and min_length > 0 and target_len < min_length:
+        return False
+    return True
+
+
+def _finalize_extra_insertion_status(
+    *, intact_supported: bool, rm_supported: bool
+) -> str | None:
+    """Resolve whether an extra insertion row should be emitted and how."""
+
+    if intact_supported and rm_supported:
+        return "intact"
+    if rm_supported:
+        return "disrupted"
+    return None
+
+
 def _intact_key_candidates(
     chrom: str, start: int, end: int, plus_info: str | None = None
 ) -> Set[str]:
@@ -1345,8 +1379,13 @@ def run_sv_mode(
 
             keys = _intact_key_candidates(chrom, start, end, plus_info)
             rm_supported = any(k in presence_names for k in keys)
-            intact_supported = any(k in intact_names for k in keys)
             is_insertion = name in ins_names or name in ins_seqs
+            intact_supported = _resolve_output_intact_support(
+                intact_supported=any(k in intact_names for k in keys),
+                is_insertion=is_insertion,
+                target_len=target_len,
+                min_length=min_length,
+            )
 
             final_stat = _finalize_lifted_status(
                 base_stat=base_stat,
@@ -1359,7 +1398,7 @@ def run_sv_mode(
             final_status[name] = final_stat
 
             out_t_start, out_t_end = t_start, t_end
-            if final_stat == "intact" and not is_insertion:
+            if final_stat == "intact":
                 out_t_start, out_t_end = eval_intervals.get(name, (t_start, t_end))
 
             annotation_label = None
@@ -1386,16 +1425,16 @@ def run_sv_mode(
 
         for chrom, start, end, seq, name in extra_ins:
             keys = _intact_key_candidates(chrom, start, end)
-            if not any(k in presence_names for k in keys) and not any(
-                k in intact_names for k in keys
-            ):
+            rm_supported = any(k in presence_names for k in keys)
+            intact_supported = any(k in intact_names for k in keys)
+            final_stat = _finalize_extra_insertion_status(
+                intact_supported=intact_supported,
+                rm_supported=rm_supported,
+            )
+            if final_stat is None:
                 continue
 
-            final_stat = "disrupted"
-            if any(k in intact_names for k in keys):
-                final_stat = "intact"
-
-            target_len = end - start
+            target_len = len(seq)
             target_info = f"{chrom},{start},{end},{target_len},.,INS"
             # mark non-reference insertions with a ';nr' suffix
             name_out = f"{name};nr"
